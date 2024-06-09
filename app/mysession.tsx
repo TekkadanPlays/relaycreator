@@ -58,7 +58,7 @@ export default function ShowSession() {
     const supportURL = process.env.NEXT_PUBLIC_SUPPORT_URL || "#";
 
     return (
-        <div className="font-jetbrains navbar bg-base-100 flex">
+        <div className="font-terminus navbar bg-base-100 flex">
             {showLoginHelp && (
                 <dialog
                     id="my_modal_5"
@@ -113,7 +113,7 @@ export default function ShowSession() {
             <div className="flex-1">
                 <a
                     href={rootDomain + "/"}
-                    className="btn btn-ghost normal-case text-xl"
+                    className="btn btn-ghost normal-case text-xl font-terminus"
                 >
                     mycelium.social
                 </a>
