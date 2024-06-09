@@ -113,7 +113,7 @@ export default function ShowSession() {
             <div className="flex-1">
                 <a
                     href={rootDomain + "/"}
-                    className="btn btn-ghost font-terminus"
+                    className="btn btn-ghost normal-case text-xxl font-terminus"
                 >
                     mycelium.social
                 </a>
