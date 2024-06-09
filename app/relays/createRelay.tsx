@@ -128,8 +128,8 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
                     <div className="card w-96 bg-base-100">
                         <div className="card-body">
                             <h2 className="card-title">relay creator</h2>
-                            <p style="font-smooth:never;">create relays of any type quickly and easily</p>
-                            <p style="font-smooth:never;">pricing: 12,000 sats/month</p>
+                            <p>create relays of any type quickly and easily</p>
+                            <p>pricing: 12,000 sats/month</p>
                         </div>
                     </div>
                     <div className="flex flex-col-2 mb-2">
