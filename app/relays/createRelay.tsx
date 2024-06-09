@@ -122,7 +122,7 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
     const useDomain = process.env.NEXT_PUBLIC_CREATOR_DOMAIN || "nostr1.com"
 
     return (
-        <div className="font-jetbrains">
+        <div className="font-terminus">
             <div className="flex flex-col">
                 <div className="flex items-center justify-center flex-col">
                     <div className="card w-96 bg-base-100">
@@ -177,7 +177,7 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
 
                     </div>
 
-                    <span className="flex items-center font-medium tracking-wide text-red-600 text-xs mt-1 ml-1">
+                    <span className="flex items-center font-normal tracking-wide text-red-600 text-xs mt-1 ml-1">
                         {nameErrorDescription}
                     </span>
                     <div className="p-6 flex items-center justify-center">

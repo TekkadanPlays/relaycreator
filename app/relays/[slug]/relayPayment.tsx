@@ -101,7 +101,7 @@ export default function RelayPayment(
     // 6. show success animation
 
     return (
-        <div className="font-jetbrains">
+        <div className="font-terminus">
             <div className="">
                 <div className="flex">
                     <div className=" ">
@@ -148,7 +148,7 @@ export default function RelayPayment(
                             )}
                         </div>
 
-                        <span className="flex items-center font-medium tracking-wide text-red-600 text-xs mt-1 ml-1">
+                        <span className="flex items-center font-normal tracking-wide text-red-600 text-xs mt-1 ml-1">
                             {pubkeyErrorDescription}
                         </span>
                     </div>

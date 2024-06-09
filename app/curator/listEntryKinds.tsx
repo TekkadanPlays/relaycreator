@@ -98,7 +98,7 @@ export default function ListEntryKinds(props: React.PropsWithChildren<{
                             <tbody>
                                 {kinds.map((entry) => (
                                     <tr key={entry.id}>
-                                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-0">
+                                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-normal sm:pl-0">
                                             {entry.kind.toString()}
                                         </td>
                                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{entry.reason}</td>
@@ -111,7 +111,7 @@ export default function ListEntryKinds(props: React.PropsWithChildren<{
 
                                 {newkind &&
                                     <tr>
-                                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-0">
+                                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-normal sm:pl-0">
                                             <form className="space-y-6" action="#" method="POST">
                                                 <input
                                                     type="text"

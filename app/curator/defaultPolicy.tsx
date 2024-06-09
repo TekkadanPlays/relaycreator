@@ -217,7 +217,7 @@ export default function DefaultPolicy(props: React.PropsWithChildren<{
                 <img onClick={toggleLightningHelp} className="w-10 h-10" src="icons8-tooltip-64.png"></img>
             </div>
             {lightninghelp && <div>
-                <p className="text-lg font-medium">How do paid relays work with relay.tools?</p>
+                <p className="text-lg font-normal">How do paid relays work with relay.tools?</p>
                 <ul>
                     <li><p>Payments are sent to relay.tools</p></li>
                     <li><p>Payments made to your relay help prevent spam and add credit toward your monthly invoice</p></li>

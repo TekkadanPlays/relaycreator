@@ -118,7 +118,7 @@ export default function Moderators(props: React.PropsWithChildren<{
             </div>
             </div>
             {help && <div>
-                <p className="text-lg font-medium">Moderator capabilities:</p>
+                <p className="text-lg font-normal">Moderator capabilities:</p>
                 <ul>
                     <li><p>Delete events from the relay by sending a report event (kind 1984).</p></li>
                     <li><p>Login and view relay settings.</p></li>
@@ -140,7 +140,7 @@ export default function Moderators(props: React.PropsWithChildren<{
                                 <tbody>
                                     {moderators.map((entry) => (
                                         <tr key={entry.id}>
-                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-0">
+                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-normal sm:pl-0">
                                                 {entry.user.pubkey}
                                             </td>
                                             <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right">
@@ -152,7 +152,7 @@ export default function Moderators(props: React.PropsWithChildren<{
 
                                     {newpubkey &&
                                         <tr>
-                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium sm:pl-0">
+                                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-normal sm:pl-0">
                                                 <form className="space-y-6" action="#" method="POST">
                                                     <input
                                                         type="text"
@@ -174,7 +174,7 @@ export default function Moderators(props: React.PropsWithChildren<{
                                                     </button>
                                                 </form>
 
-                                                <span className="flex items-center font-medium tracking-wide text-red-500 text-xs mt-1 ml-1">
+                                                <span className="flex items-center font-normal tracking-wide text-red-500 text-xs mt-1 ml-1">
                                                     {pubkeyErrorDescription}
                                                 </span>
                                             </td>
