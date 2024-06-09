@@ -115,7 +115,7 @@ export default function ShowSession() {
                     href={rootDomain + "/"}
                     className="btn btn-ghost normal-case text-xl"
                 >
-                    relay.tools
+                    mycelium.social
                 </a>
             </div>
 
