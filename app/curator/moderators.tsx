@@ -118,7 +118,7 @@ export default function Moderators(props: React.PropsWithChildren<{
             </div>
             </div>
             {help && <div>
-                <p className="text-base font-normal">Moderator capabilities:</p>
+                <p className="text-terminus-l font-normal">Moderator capabilities:</p>
                 <ul>
                     <li><p>Delete events from the relay by sending a report event (kind 1984).</p></li>
                     <li><p>Login and view relay settings.</p></li>

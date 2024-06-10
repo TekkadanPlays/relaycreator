@@ -65,7 +65,7 @@ export default function ShowSession() {
                     className="modal modal-bottom modal-open sm:modal-middle"
                 >
                     <form method="dialog" className="modal-box">
-                        <h3 className="font-bold text-base">
+                        <h3 className="font-bold text-terminus-l">
                             To sign-in you need a NIP-07 extension
                         </h3>
                         <p className="py-4">for iOS: Nostore </p>
@@ -124,7 +124,7 @@ export default function ShowSession() {
                     <div className="flex">
                         <a
                             href={rootDomain + "/"}
-                            className="btn btn-ghost normal-case text-base hidden lg:flex"
+                            className="btn btn-ghost normal-case text-terminus-l hidden lg:flex"
                         >
                             home
                         </a>
@@ -132,13 +132,13 @@ export default function ShowSession() {
                             href={
                                 "https://github.com/relaytools/relaycreator/blob/f253d2aa81bf385816f750f730c687c96b61ce6e/design/UserStories.md"
                             }
-                            className="btn btn-ghost normal-case text-base hidden lg:flex"
+                            className="btn btn-ghost normal-case text-terminus-l hidden lg:flex"
                         >
                             faq
                         </a>
                         <a
                             href={supportURL}
-                            className="btn btn-ghost normal-case text-base hidden lg:flex"
+                            className="btn btn-ghost normal-case text-terminus-l hidden lg:flex"
                         >
                             support
                         </a>
