@@ -10,6 +10,18 @@ module.exports = {
       fontFamily: {
         terminus: 'TerminusTTF'
       }
+      fontSize: {
+        'terminus-xxs': '9px',
+        'terminus-xs': '12px',
+        'terminus-s': '14px',
+        'terminus-m': '16px',
+        'terminus-l': '18px',
+        'terminus-xl': '20px',
+        'terminus-2xl': '22px',
+        'terminus-3xl': '24px',
+        'terminus-4xl': '28px',
+        'terminus-5xl': '32px',
+      },
     }
   },
   plugins: [
