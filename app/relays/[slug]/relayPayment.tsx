@@ -101,12 +101,12 @@ export default function RelayPayment(
     // 6. show success animation
 
     return (
-        <div className="font-terminus">
+        <div className="text-terminus-xl font-terminus">
             <div className="">
                 <div className="flex">
                     <div className=" ">
                         <div>
-                            <div className="text-lg">
+                            <div className="text-base">
                                 This relay requires payment of{" "}
                                 {props.relay.payment_amount} sats to post. ⚡
                                 {alreadyPaid && <div className="text-sm text-green-600">You've already paid for this relay.</div>}

@@ -72,7 +72,7 @@ export default function Balances(
     return (
         <div>
             <h1>Balances</h1>
-            <div className="mt-4 font-terminus">
+            <div className="mt-4 text-terminus-xl font-terminus">
                 {sortedRelays.map((b: any) => (
                     <div
                         key={b.relayId + "rowkey"}
@@ -80,7 +80,7 @@ export default function Balances(
                     >
                         <div className="flex">
                             <div className="w-1/2 border-b">Relay Name</div>
-                            <div className="w-1/2 border-b text-lg">{b.relayName}</div>
+                            <div className="w-1/2 border-b text-base">{b.relayName}</div>
                         </div>
                         {props.IsAdmin && 
                         <div className="flex">
@@ -153,7 +153,7 @@ export default function Balances(
                                     </a>
                                     </div>
                                     <div className="flex">
-                                        <div className="w-1/2 mr-2 text-lg">
+                                        <div className="w-1/2 mr-2 text-base">
                                             {b.relayName}
                                         </div>
                                     </div>
@@ -185,7 +185,7 @@ export default function Balances(
                                         </div>
                                     </div>
                                     <div className="flex">
-                                        <div className="w-1/2 mr-2 text-lg">
+                                        <div className="w-1/2 mr-2 text-base">
                                             {b.relayName}
                                         </div>
                                     </div>

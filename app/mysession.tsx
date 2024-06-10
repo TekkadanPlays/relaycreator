@@ -58,14 +58,14 @@ export default function ShowSession() {
     const supportURL = process.env.NEXT_PUBLIC_SUPPORT_URL || "#";
 
     return (
-        <div className="font-terminus navbar bg-base-100 flex">
+        <div className="text-terminus-xl font-terminus navbar bg-base-100 flex">
             {showLoginHelp && (
                 <dialog
                     id="my_modal_5"
                     className="modal modal-bottom modal-open sm:modal-middle"
                 >
                     <form method="dialog" className="modal-box">
-                        <h3 className="font-bold text-lg">
+                        <h3 className="font-bold text-base">
                             To sign-in you need a NIP-07 extension
                         </h3>
                         <p className="py-4">for iOS: Nostore </p>
@@ -113,7 +113,7 @@ export default function ShowSession() {
             <div className="flex-1">
                 <a
                     href={rootDomain + "/"}
-                    className="btn btn-ghost normal-case text-2xl font-terminus"
+                    className="btn btn-ghost normal-case text-2xl text-terminus-xl font-terminus"
                 >
                     mycelium.social
                 </a>
@@ -124,7 +124,7 @@ export default function ShowSession() {
                     <div className="flex">
                         <a
                             href={rootDomain + "/"}
-                            className="btn btn-ghost normal-case text-lg hidden lg:flex"
+                            className="btn btn-ghost normal-case text-base hidden lg:flex"
                         >
                             home
                         </a>
@@ -132,13 +132,13 @@ export default function ShowSession() {
                             href={
                                 "https://github.com/relaytools/relaycreator/blob/f253d2aa81bf385816f750f730c687c96b61ce6e/design/UserStories.md"
                             }
-                            className="btn btn-ghost normal-case text-lg hidden lg:flex"
+                            className="btn btn-ghost normal-case text-base hidden lg:flex"
                         >
                             faq
                         </a>
                         <a
                             href={supportURL}
-                            className="btn btn-ghost normal-case text-lg hidden lg:flex"
+                            className="btn btn-ghost normal-case text-base hidden lg:flex"
                         >
                             support
                         </a>
