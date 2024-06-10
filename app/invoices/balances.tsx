@@ -80,7 +80,7 @@ export default function Balances(
                     >
                         <div className="flex">
                             <div className="w-1/2 border-b">Relay Name</div>
-                            <div className="w-1/2 border-b text-terminus-l">{b.relayName}</div>
+                            <div className="w-1/2 border-b text-lg">{b.relayName}</div>
                         </div>
                         {props.IsAdmin && 
                         <div className="flex">
@@ -153,7 +153,7 @@ export default function Balances(
                                     </a>
                                     </div>
                                     <div className="flex">
-                                        <div className="w-1/2 mr-2 text-terminus-l">
+                                        <div className="w-1/2 mr-2 text-lg">
                                             {b.relayName}
                                         </div>
                                     </div>
@@ -185,7 +185,7 @@ export default function Balances(
                                         </div>
                                     </div>
                                     <div className="flex">
-                                        <div className="w-1/2 mr-2 text-terminus-l">
+                                        <div className="w-1/2 mr-2 text-lg">
                                             {b.relayName}
                                         </div>
                                     </div>

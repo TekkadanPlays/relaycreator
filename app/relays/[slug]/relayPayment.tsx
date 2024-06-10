@@ -106,7 +106,7 @@ export default function RelayPayment(
                 <div className="flex">
                     <div className=" ">
                         <div>
-                            <div className="text-terminus-l">
+                            <div className="text-lg">
                                 This relay requires payment of{" "}
                                 {props.relay.payment_amount} sats to post. ⚡
                                 {alreadyPaid && <div className="text-sm text-green-600">You've already paid for this relay.</div>}
