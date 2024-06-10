@@ -6,7 +6,7 @@
   @font-face {
     font-family: 'TerminusTTF';
     src: url('/fonts/TerminusTTF.ttf') format('truetype');
-    font-weight: 100;
+    font-weight: normal;
     font-display: swap;
     font-style: normal;
   }
