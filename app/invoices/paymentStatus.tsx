@@ -87,7 +87,7 @@ export default function PaymentStatus(
 
     return (
 
-        <div className="min-h-screen font-terminus font-smooth-never">
+        <div className="min-h-screen font-terminus text-terminus-l">
             <div className="">
                 <div className="flex items-center justify-center h-screen">
                     <div className=" ">
