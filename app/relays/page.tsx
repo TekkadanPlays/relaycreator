@@ -162,7 +162,7 @@ export default async function Relays() {
 
     return (
 
-        <div className="font-terminus text-terminus-l flex flex-col justify-center items-center">
+        <div className="font-terminus flex flex-col justify-center items-center">
             {showSignup && <CreateRelay />}
             {!showSignup && <HelpfulInfo />}
             <MyRelays myRelays={myRelays} moderatedRelays={moderatedRelays} publicRelays={publicRelays} />
