@@ -97,8 +97,12 @@ export default function MyRelays() {
                       {relay.status}
                     </Badge>
                   </div>
-                  <div className="mt-4 flex items-center justify-end">
-                    <Settings className="size-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+                  <div className="mt-4 flex items-center justify-end gap-2">
+                    <Button size="sm" variant="ghost" className="gap-1 text-xs text-muted-foreground" asChild onClick={(e) => e.stopPropagation()}>
+                      <Link to={`/relays/${relay.name}/settings`}>
+                        <Settings className="size-3.5" /> Settings
+                      </Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

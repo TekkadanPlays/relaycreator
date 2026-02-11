@@ -101,13 +101,44 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 /**
  * GET /relays/by-name/:name
- * Get a relay by subdomain name. Used for subdomain routing.
+ * Get a relay by subdomain name. Returns full data if requester is owner/mod/admin.
  */
 router.get("/by-name/:name", async (req: Request, res: Response) => {
   const name = req.params.name as string;
+
+  // Try to determine if the requester is an owner/mod/admin for full data
+  let useFull = false;
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) {
+    try {
+      const jwt = await import("jsonwebtoken");
+      const { getEnv } = await import("../lib/env.js");
+      const payload = jwt.default.verify(header.slice(7), getEnv().JWT_SECRET) as { userId: string };
+      if (payload?.userId) {
+        const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+        if (user) {
+          if (user.admin) {
+            useFull = true;
+          } else {
+            const owned = await prisma.relay.findFirst({ where: { name, ownerId: user.id } });
+            if (owned) useFull = true;
+            else {
+              const modded = await prisma.moderator.findFirst({
+                where: { userId: user.id, relay: { name } },
+              });
+              if (modded) useFull = true;
+            }
+          }
+        }
+      }
+    } catch {
+      // Token invalid — fall through to public include
+    }
+  }
+
   const relay = await prisma.relay.findFirst({
     where: { name },
-    include: relayPublicInclude,
+    include: useFull ? relayFullInclude : relayPublicInclude,
   });
 
   if (!relay) {
