@@ -337,6 +337,34 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
           onUpdate={onUpdate}
         />
       )}
+
+      {!allow && relay.allow_list && (
+        <ListManager
+          title="Allowed Kinds"
+          description="Event kinds that are allowed on your relay"
+          items={relay.allow_list.list_kinds.map((k) => ({ id: k.id, value: String(k.kind) }))}
+          relayId={relay.id}
+          listType="allowlistkind"
+          fieldName="kind"
+          placeholder="Event kind number (e.g. 1, 30023)"
+          icon={<Hash className="size-4 text-emerald-400" />}
+          onUpdate={onUpdate}
+        />
+      )}
+
+      {relay.block_list && (
+        <ListManager
+          title="Blocked Kinds"
+          description="Event kinds that are blocked from your relay"
+          items={relay.block_list.list_kinds.map((k) => ({ id: k.id, value: String(k.kind) }))}
+          relayId={relay.id}
+          listType="blocklistkind"
+          fieldName="kind"
+          placeholder="Event kind number (e.g. 1, 30023)"
+          icon={<Hash className="size-4 text-destructive" />}
+          onUpdate={onUpdate}
+        />
+      )}
     </div>
   );
 }
