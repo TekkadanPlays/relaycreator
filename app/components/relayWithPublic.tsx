@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 
-export const relayWithPublic = Prisma.validator<Prisma.RelayArgs>()({
+export const relayWithPublic = Prisma.validator<Prisma.RelayDefaultArgs>()({
     include: {
         owner: true,
         streams: {

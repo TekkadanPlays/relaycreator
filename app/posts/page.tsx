@@ -436,7 +436,7 @@ export default function PostsPage(
             //addToStatus("connecting: " + nrelaydata);
         });
 
-        ndkPool.on("relay:authfail", (relay: NDKRelay) => {
+        ndkPool.on("relay:disconnect", (relay: NDKRelay) => {
             if (relay.url == nrelaydata) {
                 addToStatus("unauthorized");
             }

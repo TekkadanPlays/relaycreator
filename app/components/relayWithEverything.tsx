@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 
-export const relayWithEverything = Prisma.validator<Prisma.RelayArgs>()({
+export const relayWithEverything = Prisma.validator<Prisma.RelayDefaultArgs>()({
     include: {
         owner: true,
         streams: {
@@ -38,7 +38,7 @@ export type RelayWithEverything = Prisma.RelayGetPayload<
     typeof relayWithEverything
 >;
 
-export const modWithRelays = Prisma.validator<Prisma.ModeratorArgs>()({
+export const modWithRelays = Prisma.validator<Prisma.ModeratorDefaultArgs>()({
     include: {
         relay: {
             include: {
