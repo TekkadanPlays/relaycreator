@@ -1,7 +1,8 @@
-import { useParams } from "react-router";
+import { useParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Globe, Shield, Calendar, Copy, Check, Loader2 } from "lucide-react";
+import { useAuth } from "../stores/auth";
+import { Globe, Shield, Calendar, Copy, Check, Loader2, Settings } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ interface RelayData {
 
 export default function RelayDetail() {
   const { slug } = useParams();
+  const { user } = useAuth();
   const [copied, setCopied] = useState(false);
 
   const { data, isLoading, error } = useQuery({
@@ -95,6 +97,13 @@ export default function RelayDetail() {
               </p>
             </div>
           </div>
+          {user && (user.pubkey === relay.owner.pubkey || user.admin) && (
+            <Button size="sm" variant="outline" className="ml-auto gap-1.5 self-end" asChild>
+              <Link to={`/relays/${slug}/settings`}>
+                <Settings className="size-4" /> Settings
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
 

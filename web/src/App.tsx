@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import CreateRelay from "./pages/CreateRelay";
 import MyRelays from "./pages/MyRelays";
 import RelayDetail from "./pages/RelayDetail";
+import RelaySettings from "./pages/RelaySettings";
 import Invoices from "./pages/Invoices";
 import Directory from "./pages/Directory";
 
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="signup" element={<CreateRelay />} />
         <Route path="relays/myrelays" element={<MyRelays />} />
         <Route path="relays/:slug" element={<RelayDetail />} />
+        <Route path="relays/:slug/settings" element={<RelaySettings />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="directory" element={<Directory />} />
       </Route>
