@@ -1,7 +1,23 @@
 import { Outlet, Link } from "react-router";
 import { useAuth } from "../stores/auth";
-import { Radio, LogOut, Menu, Zap, Globe, User } from "lucide-react";
+import { Radio, LogOut, Menu, Zap, Globe, User, Loader2, X } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 export default function Layout() {
   const { user, login, logout, loading } = useAuth();
@@ -17,72 +33,119 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-base-100">
-      <div className="navbar bg-base-100 shadow-sm mx-auto max-w-7xl">
-        <div className="flex-1">
-          <Link to="/" className="text-2xl lg:text-4xl font-extrabold text-primary flex items-center gap-2">
-            <Radio className="w-8 h-8" />
-            relay.tools
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
+          <Link to="/" className="flex items-center gap-2.5 text-2xl font-extrabold tracking-tight text-primary transition-colors hover:text-primary/80">
+            <Radio className="size-7" />
+            <span>relay.tools</span>
           </Link>
-        </div>
 
-        <div className="flex-none">
-          {loading ? (
-            <span className="loading loading-spinner loading-sm" />
-          ) : user ? (
-            <div className="dropdown dropdown-end">
-              <label tabIndex={0} className="btn btn-ghost btn-circle avatar placeholder">
-                <div className="bg-primary text-primary-content rounded-full w-10">
-                  <span className="text-sm font-mono">{user.pubkey.slice(0, 4)}</span>
-                </div>
-              </label>
-              <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-lg bg-base-200 rounded-box w-52">
-                <li><Link to="/relays/myrelays"><Zap className="w-4 h-4" /> My Relays</Link></li>
-                <li><Link to="/invoices"><Globe className="w-4 h-4" /> Invoices</Link></li>
-                <li><Link to="/directory"><User className="w-4 h-4" /> Directory</Link></li>
-                <li className="border-t border-base-300 mt-1 pt-1">
-                  <Link to="/signup"><Radio className="w-4 h-4" /> Create Relay</Link>
-                </li>
-                <li>
-                  <button onClick={logout}><LogOut className="w-4 h-4" /> Sign Out</button>
-                </li>
-              </ul>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Link to="/" className="btn btn-ghost btn-sm hidden lg:flex">Home</Link>
-              <Link to="/directory" className="btn btn-ghost btn-sm hidden lg:flex">Directory</Link>
-              <button onClick={handleLogin} className="btn btn-primary btn-sm">Sign In</button>
+          <nav className="hidden items-center gap-1 md:flex">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/directory">Directory</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/signup">Create Relay</Link>
+            </Button>
+          </nav>
 
-              {/* Mobile menu */}
-              <div className="dropdown dropdown-end lg:hidden">
-                <label tabIndex={0} className="btn btn-ghost btn-circle">
-                  <Menu className="w-5 h-5" />
-                </label>
-                <ul tabIndex={0} className="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-lg bg-base-200 rounded-box w-52">
-                  <li><Link to="/">Home</Link></li>
-                  <li><Link to="/directory">Directory</Link></li>
-                  <li><Link to="/signup">Create Relay</Link></li>
-                  <li><button onClick={handleLogin}>Sign In</button></li>
-                </ul>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {loading ? (
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            ) : user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar className="size-9">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-mono">
+                        {user.pubkey.slice(0, 4)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem asChild>
+                    <Link to="/relays/myrelays" className="cursor-pointer">
+                      <Zap className="mr-2 size-4" /> My Relays
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/directory" className="cursor-pointer">
+                      <Globe className="mr-2 size-4" /> Directory
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/signup" className="cursor-pointer">
+                      <Radio className="mr-2 size-4" /> Create Relay
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
+                    <LogOut className="mr-2 size-4" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button onClick={handleLogin} size="sm" className="gap-1.5">
+                  <User className="size-4" /> Sign In
+                </Button>
+
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="md:hidden">
+                      <Menu className="size-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-64">
+                    <SheetTitle className="text-lg font-bold text-primary">relay.tools</SheetTitle>
+                    <Separator className="my-4" />
+                    <nav className="flex flex-col gap-2">
+                      <Button variant="ghost" className="justify-start" asChild>
+                        <Link to="/">Home</Link>
+                      </Button>
+                      <Button variant="ghost" className="justify-start" asChild>
+                        <Link to="/directory">Directory</Link>
+                      </Button>
+                      <Button variant="ghost" className="justify-start" asChild>
+                        <Link to="/signup">Create Relay</Link>
+                      </Button>
+                      <Separator className="my-2" />
+                      <Button onClick={handleLogin} className="justify-start gap-2">
+                        <User className="size-4" /> Sign In
+                      </Button>
+                    </nav>
+                  </SheetContent>
+                </Sheet>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </header>
 
       {loginError && (
-        <div className="max-w-7xl mx-auto px-4 mt-2">
-          <div className="alert alert-error text-sm">
+        <div className="mx-auto max-w-7xl px-4 pt-3">
+          <div className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             <span>{loginError}</span>
-            <button className="btn btn-ghost btn-xs" onClick={() => setLoginError("")}>✕</button>
+            <button onClick={() => setLoginError("")} className="ml-2 rounded-md p-1 hover:bg-destructive/20">
+              <X className="size-4" />
+            </button>
           </div>
         </div>
       )}
 
-      <main className="mx-auto max-w-7xl p-4">
+      <main className="mx-auto max-w-7xl px-4 py-6">
         <Outlet />
       </main>
+
+      <footer className="border-t border-border/40 mt-auto">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-6 text-sm text-muted-foreground">
+          <span>relay.tools</span>
+          <span>Powered by strfry</span>
+        </div>
+      </footer>
     </div>
   );
 }

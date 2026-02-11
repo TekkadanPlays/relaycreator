@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import { useAuth } from "../stores/auth";
-import { Radio, Settings, Globe } from "lucide-react";
+import { Radio, Settings, Globe, Loader2, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface Relay {
   id: string;
@@ -25,57 +28,80 @@ export default function MyRelays() {
 
   if (!user) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-2xl font-bold mb-4">Sign in to view your relays</h2>
-        <p className="text-base-content/60">Use a NIP-07 extension to authenticate</p>
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <h2 className="text-2xl font-bold">Sign in to view your relays</h2>
+        <p className="mt-2 text-muted-foreground">Use a NIP-07 extension to authenticate</p>
       </div>
     );
   }
 
   if (isLoading) {
-    return <div className="flex justify-center py-20"><span className="loading loading-spinner loading-lg" /></div>;
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="alert alert-error">{(error as Error).message}</div>;
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        {(error as Error).message}
+      </div>
+    );
   }
 
   const relays = data?.myRelays || [];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">My Relays</h1>
-        <Link to="/signup" className="btn btn-primary btn-sm gap-1">
-          <Radio className="w-4 h-4" /> New Relay
-        </Link>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-extrabold tracking-tight">My Relays</h1>
+        <Button size="sm" className="gap-1.5" asChild>
+          <Link to="/signup">
+            <Plus className="size-4" /> New Relay
+          </Link>
+        </Button>
       </div>
 
       {relays.length === 0 ? (
-        <div className="text-center py-16">
-          <Globe className="w-16 h-16 mx-auto text-base-content/20 mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No relays yet</h3>
-          <p className="text-base-content/60 mb-4">Create your first Nostr relay to get started</p>
-          <Link to="/signup" className="btn btn-primary">Create Relay</Link>
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20 text-center">
+          <Globe className="size-16 text-muted-foreground/30 mb-4" />
+          <h3 className="text-xl font-semibold">No relays yet</h3>
+          <p className="mt-1 text-muted-foreground">Create your first Nostr relay to get started</p>
+          <Button className="mt-6 gap-2" asChild>
+            <Link to="/signup">
+              <Radio className="size-4" /> Create Relay
+            </Link>
+          </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {relays.map((relay) => (
-            <Link key={relay.id} to={`/relays/${relay.name}`} className="card bg-base-200 hover:shadow-lg transition-shadow">
-              <div className="card-body">
-                <h2 className="card-title">
-                  {relay.name}
-                  <span className={`badge badge-sm ${relay.status === "running" ? "badge-success" : "badge-warning"}`}>
-                    {relay.status}
-                  </span>
-                </h2>
-                <p className="text-sm text-base-content/60 font-mono">
-                  wss://{relay.name}.{relay.domain}
-                </p>
-                <div className="card-actions justify-end mt-2">
-                  <Settings className="w-4 h-4 text-base-content/40" />
-                </div>
-              </div>
+            <Link key={relay.id} to={`/relays/${relay.name}`}>
+              <Card className="group h-full transition-all duration-200 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-bold group-hover:text-primary transition-colors">
+                        {relay.name}
+                      </h2>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        wss://{relay.name}.{relay.domain}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={relay.status === "running" ? "default" : "secondary"}
+                      className={relay.status === "running" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : ""}
+                    >
+                      {relay.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-4 flex items-center justify-end">
+                    <Settings className="size-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+                  </div>
+                </CardContent>
+              </Card>
             </Link>
           ))}
         </div>

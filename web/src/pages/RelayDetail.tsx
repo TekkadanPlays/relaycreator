@@ -1,8 +1,13 @@
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Globe, Shield, Calendar, Copy } from "lucide-react";
+import { Globe, Shield, Calendar, Copy, Check, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 interface RelayData {
   id: string;
@@ -30,14 +35,19 @@ export default function RelayDetail() {
   });
 
   if (isLoading) {
-    return <div className="flex justify-center py-20"><span className="loading loading-spinner loading-lg" /></div>;
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   if (error || !data?.relay) {
     return (
-      <div className="text-center py-20">
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Globe className="size-12 text-muted-foreground/30 mb-4" />
         <h2 className="text-2xl font-bold">Relay not found</h2>
-        <p className="text-base-content/60 mt-2">The relay you are looking for does not exist.</p>
+        <p className="mt-2 text-muted-foreground">The relay you are looking for does not exist.</p>
       </div>
     );
   }
@@ -52,100 +62,118 @@ export default function RelayDetail() {
   };
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Banner */}
-      <div className="relative rounded-xl overflow-hidden mb-6">
-        <div className="w-full h-48 bg-gradient-to-r from-primary/20 to-secondary/20">
+      <div className="relative overflow-hidden rounded-xl">
+        <div className="h-48 w-full bg-gradient-to-br from-primary/20 via-purple-500/10 to-secondary/20">
           {relay.banner_image && (
-            <img src={relay.banner_image} alt="" className="w-full h-full object-cover opacity-50" />
+            <img src={relay.banner_image} alt="" className="size-full object-cover opacity-40" />
           )}
         </div>
-        <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-base-300/90 to-transparent">
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent p-6">
           <div className="flex items-end gap-4">
-            <div className="w-20 h-20 rounded-full border-4 border-base-100 bg-base-200 overflow-hidden">
+            <Avatar className="size-20 border-4 border-background shadow-xl">
               {relay.profile_image ? (
-                <img src={relay.profile_image} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-primary">
-                  {relay.name[0]?.toUpperCase()}
-                </div>
-              )}
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white">{relay.name}</h1>
-              <p className="text-sm text-white/80 font-mono flex items-center gap-1">
-                <Globe className="w-3 h-3" /> {relayUrl}
+                <AvatarImage src={relay.profile_image} alt={relay.name} />
+              ) : null}
+              <AvatarFallback className="bg-primary/20 text-primary text-2xl font-bold">
+                {relay.name[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-1">
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-extrabold tracking-tight">{relay.name}</h1>
+                <Badge
+                  variant={relay.status === "running" ? "default" : "secondary"}
+                  className={relay.status === "running" ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : ""}
+                >
+                  {relay.status}
+                </Badge>
+              </div>
+              <p className="flex items-center gap-1.5 font-mono text-sm text-muted-foreground">
+                <Globe className="size-3.5" /> {relayUrl}
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* About */}
-        <div className="lg:col-span-2">
-          <div className="card bg-base-200 mb-6">
-            <div className="card-body">
-              <h2 className="card-title">About</h2>
-              <p>{relay.details || "A Nostr relay powered by relay.tools"}</p>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Main content */}
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>About</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                {relay.details || "A Nostr relay powered by relay.tools"}
+              </p>
+            </CardContent>
+          </Card>
 
-          {/* Team */}
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title">Team</h2>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary" />
-                  <span className="font-mono text-sm">{relay.owner.pubkey.slice(0, 16)}...</span>
-                  <span className="badge badge-primary badge-sm">owner</span>
-                </div>
-                {relay.moderators.map((mod) => (
-                  <div key={mod.id} className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-secondary" />
-                    <span className="font-mono text-sm">{mod.user.pubkey.slice(0, 16)}...</span>
-                    <span className="badge badge-secondary badge-sm">mod</span>
-                  </div>
-                ))}
+          <Card>
+            <CardHeader>
+              <CardTitle>Team</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                <Shield className="size-4 text-primary shrink-0" />
+                <span className="font-mono text-sm truncate flex-1">{relay.owner.pubkey.slice(0, 16)}...</span>
+                <Badge className="bg-primary/15 text-primary border-primary/30">owner</Badge>
               </div>
-            </div>
-          </div>
+              {relay.moderators.map((mod) => (
+                <div key={mod.id} className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                  <Shield className="size-4 text-muted-foreground shrink-0" />
+                  <span className="font-mono text-sm truncate flex-1">{mod.user.pubkey.slice(0, 16)}...</span>
+                  <Badge variant="secondary">mod</Badge>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}
-        <div>
-          <div className="card bg-base-200 mb-4">
-            <div className="card-body">
-              <h2 className="card-title">Connect</h2>
-              <div className="flex items-center gap-2 bg-base-300 p-3 rounded-md">
-                <span className="font-mono text-xs break-all flex-1">{relayUrl}</span>
-                <button className="btn btn-ghost btn-sm" onClick={copyUrl}>
-                  <Copy className="w-4 h-4" />
-                </button>
-              </div>
-              {copied && <p className="text-xs text-success mt-1">Copied!</p>}
-            </div>
-          </div>
-
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title text-sm">Info</h2>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>Created {relay.created_at ? new Date(relay.created_at).toLocaleDateString() : "Unknown"}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {relay.auth_required ? (
-                    <span className="badge badge-secondary badge-sm">Auth required</span>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Connect</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 rounded-lg bg-muted p-3">
+                <span className="flex-1 break-all font-mono text-xs text-muted-foreground">{relayUrl}</span>
+                <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={copyUrl}>
+                  {copied ? (
+                    <Check className="size-4 text-emerald-400" />
                   ) : (
-                    <span className="badge badge-outline badge-sm">No auth</span>
+                    <Copy className="size-4" />
                   )}
-                </div>
+                </Button>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Info</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="size-4 shrink-0" />
+                <span>Created {relay.created_at ? new Date(relay.created_at).toLocaleDateString() : "Unknown"}</span>
+              </div>
+              <Separator />
+              <div>
+                {relay.auth_required ? (
+                  <Badge variant="secondary" className="gap-1">
+                    <Shield className="size-3" /> Auth required
+                  </Badge>
+                ) : (
+                  <Badge variant="outline">Open relay</Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

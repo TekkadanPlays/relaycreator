@@ -2,8 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../stores/auth";
 import { api } from "../lib/api";
-import { Radio, Check } from "lucide-react";
+import { Radio, Check, Loader2, Sparkles } from "lucide-react";
 import { nip19 } from "nostr-tools";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export default function CreateRelay() {
   const { user } = useAuth();
@@ -61,136 +67,143 @@ export default function CreateRelay() {
     }
   }
 
+  const plans = [
+    {
+      id: "standard" as const,
+      name: "Standard",
+      price: "21",
+      features: ["Customizable on-the-fly", "Inbox / Outbox support", "Public / Private modes", "Communities / DMs"],
+    },
+    {
+      id: "premium" as const,
+      name: "Premium",
+      price: "2,100",
+      badge: "RECOMMENDED",
+      features: ["All standard features", "Streaming from other relays", "Enhanced filtering by social graph"],
+    },
+  ];
+
   return (
-    <div className="min-h-[80vh] p-4">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2">Create Your Nostr Relay</h1>
-        <p className="text-lg text-base-content/60">Choose your plan and get started in minutes</p>
+    <div className="space-y-8 pb-8">
+      <div className="text-center space-y-2">
+        <h1 className="text-4xl font-extrabold tracking-tight">Create Your Nostr Relay</h1>
+        <p className="text-lg text-muted-foreground">Choose your plan and get started in minutes</p>
       </div>
 
-      {/* Plan Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 max-w-4xl mx-auto">
-        <div
-          className={`card border-2 cursor-pointer transition-all ${
-            selectedPlan === "standard"
-              ? "border-primary bg-primary/10 shadow-lg"
-              : "border-base-300 hover:border-primary/50"
-          }`}
-          onClick={() => setSelectedPlan("standard")}
-        >
-          <div className="card-body">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="card-title text-2xl">Standard</h2>
-              <input type="radio" className="radio radio-primary" checked={selectedPlan === "standard"} readOnly />
-            </div>
-            <div className="text-3xl font-bold text-primary mb-4">
-              21 <span className="text-sm font-normal text-base-content/50">sats</span>
-            </div>
-            <ul className="space-y-2 text-sm">
-              {["Customizable on-the-fly", "Inbox / Outbox support", "Public / Private modes", "Communities / DMs"].map((f) => (
-                <li key={f} className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-success" /> {f}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div
-          className={`card border-2 cursor-pointer transition-all ${
-            selectedPlan === "premium"
-              ? "border-secondary bg-secondary/10 shadow-lg"
-              : "border-base-300 hover:border-secondary/50"
-          }`}
-          onClick={() => setSelectedPlan("premium")}
-        >
-          <div className="card-body">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="card-title text-2xl">Premium</h2>
-              <input type="radio" className="radio radio-secondary" checked={selectedPlan === "premium"} readOnly />
-            </div>
-            <div className="badge badge-secondary badge-sm mb-2">RECOMMENDED</div>
-            <div className="text-3xl font-bold text-secondary mb-4">
-              2,100 <span className="text-sm font-normal text-base-content/50">sats</span>
-            </div>
-            <ul className="space-y-2 text-sm">
-              {["All standard features", "Streaming from other relays", "Enhanced filtering by social graph"].map((f) => (
-                <li key={f} className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-success" /> {f}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="card shadow-xl max-w-4xl mx-auto">
-        <div className="card-body">
-          <h3 className="card-title text-xl mb-6">Configure Your Relay</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="label"><span className="label-text font-semibold">Your Pubkey</span></label>
-              <input
-                type="text"
-                className="input input-bordered w-full"
-                value={user?.pubkey || ""}
-                placeholder="Sign in to auto-fill"
-                readOnly
-              />
-              {!user && <p className="text-sm text-warning mt-1">Sign in with NIP-07 to continue</p>}
-            </div>
-
-            <div>
-              <label className="label"><span className="label-text font-semibold">Relay Subdomain</span></label>
-              <div className="flex">
-                <input
-                  type="text"
-                  className="input input-bordered flex-1"
-                  placeholder="yourname"
-                  autoComplete="off"
-                  autoFocus
-                  value={name}
-                  onChange={(e) => validateName(e.target.value)}
-                />
-                <span className="input input-bordered input-disabled flex items-center px-3 ml-2 text-base-content/50">
-                  .{domain}
-                </span>
+      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-5 md:grid-cols-2">
+        {plans.map((plan) => (
+          <Card
+            key={plan.id}
+            className={cn(
+              "relative cursor-pointer transition-all duration-200 hover:shadow-lg",
+              selectedPlan === plan.id
+                ? "border-primary bg-primary/5 ring-2 ring-primary/30 shadow-lg shadow-primary/10"
+                : "border-border/50 hover:border-primary/40"
+            )}
+            onClick={() => setSelectedPlan(plan.id)}
+          >
+            {plan.badge && (
+              <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground">
+                <Sparkles className="mr-1 size-3" /> {plan.badge}
+              </Badge>
+            )}
+            <CardContent className="p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold">{plan.name}</h2>
+                <div className={cn(
+                  "size-5 rounded-full border-2 transition-colors",
+                  selectedPlan === plan.id
+                    ? "border-primary bg-primary"
+                    : "border-muted-foreground/30"
+                )}>
+                  {selectedPlan === plan.id && (
+                    <Check className="size-full p-0.5 text-primary-foreground" />
+                  )}
+                </div>
               </div>
-              {nameError && <p className="text-sm text-error mt-1">{nameError}</p>}
-              {name && !nameError && (
-                <p className="text-sm text-base-content/60 mt-1">
-                  Your relay: <span className="font-semibold text-primary">{name}.{domain}</span>
-                </p>
-              )}
-            </div>
-          </div>
+              <div className="mb-5">
+                <span className="text-4xl font-extrabold text-primary">{plan.price}</span>
+                <span className="ml-1.5 text-sm text-muted-foreground">sats</span>
+              </div>
+              <ul className="space-y-2.5">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-center gap-2.5 text-sm">
+                    <Check className="size-4 shrink-0 text-emerald-400" /> {f}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-          {error && (
-            <div className="alert alert-error mt-4">
-              <span>{error}</span>
-            </div>
-          )}
+      <Card className="mx-auto max-w-4xl">
+        <CardHeader>
+          <CardTitle>Configure Your Relay</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="pubkey">Your Pubkey</Label>
+                <Input
+                  id="pubkey"
+                  value={user?.pubkey || ""}
+                  placeholder="Sign in to auto-fill"
+                  readOnly
+                  className="font-mono text-xs"
+                />
+                {!user && (
+                  <p className="text-sm text-amber-400">Sign in with NIP-07 to continue</p>
+                )}
+              </div>
 
-          <div className="flex justify-center mt-8">
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg px-8"
-              disabled={!isValid() || submitting}
-            >
-              {submitting ? (
-                <span className="loading loading-spinner loading-sm" />
-              ) : (
-                <>
-                  <Radio className="w-5 h-5" />
-                  Deploy {selectedPlan === "premium" ? "Premium" : "Standard"} Relay
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </form>
+              <div className="space-y-2">
+                <Label htmlFor="relayname">Relay Subdomain</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="relayname"
+                    placeholder="yourname"
+                    autoComplete="off"
+                    autoFocus
+                    value={name}
+                    onChange={(e) => validateName(e.target.value)}
+                    className={cn(nameError && "border-destructive focus-visible:ring-destructive")}
+                  />
+                  <div className="flex items-center rounded-md border border-border bg-muted px-3 text-sm text-muted-foreground">
+                    .{domain}
+                  </div>
+                </div>
+                {nameError && <p className="text-sm text-destructive">{nameError}</p>}
+                {name && !nameError && (
+                  <p className="text-sm text-muted-foreground">
+                    Your relay: <span className="font-semibold text-primary">{name}.{domain}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div className="flex justify-center pt-2">
+              <Button type="submit" size="lg" className="gap-2 px-8" disabled={!isValid() || submitting}>
+                {submitting ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <>
+                    <Radio className="size-5" />
+                    Deploy {selectedPlan === "premium" ? "Premium" : "Standard"} Relay
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,7 +1,9 @@
 import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Check, Clock } from "lucide-react";
+import { Check, Clock, Loader2, FileX } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface OrderData {
   order: {
@@ -33,54 +35,78 @@ export default function Invoices() {
 
   if (!orderId) {
     return (
-      <div className="text-center py-20">
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <FileX className="size-12 text-muted-foreground/30 mb-4" />
         <h2 className="text-2xl font-bold">No invoice selected</h2>
-        <p className="text-base-content/60 mt-2">Create a relay to generate an invoice.</p>
+        <p className="mt-2 text-muted-foreground">Create a relay to generate an invoice.</p>
       </div>
     );
   }
 
   if (isLoading) {
-    return <div className="flex justify-center py-20"><span className="loading loading-spinner loading-lg" /></div>;
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   const order = data?.order;
   if (!order) {
-    return <div className="alert alert-error">Invoice not found</div>;
+    return (
+      <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        Invoice not found
+      </div>
+    );
   }
 
   return (
-    <div className="max-w-lg mx-auto py-10">
-      <div className="card bg-base-200">
-        <div className="card-body items-center text-center">
+    <div className="mx-auto max-w-lg py-10">
+      <Card>
+        <CardContent className="flex flex-col items-center p-8 text-center">
           {order.paid ? (
             <>
-              <Check className="w-16 h-16 text-success mb-4" />
-              <h2 className="card-title text-2xl">Payment Confirmed!</h2>
-              <p className="text-base-content/60">
-                Your relay <span className="font-bold text-primary">{order.relay.name}.{order.relay.domain}</span> is being provisioned.
+              <div className="mb-4 rounded-full bg-emerald-500/10 p-4">
+                <Check className="size-12 text-emerald-400" />
+              </div>
+              <h2 className="text-2xl font-bold">Payment Confirmed!</h2>
+              <p className="mt-2 text-muted-foreground">
+                Your relay{" "}
+                <span className="font-bold text-primary">
+                  {order.relay.name}.{order.relay.domain}
+                </span>{" "}
+                is being provisioned.
               </p>
-              <p className="text-sm text-base-content/40 mt-2">Status: {order.relay.status}</p>
+              <Badge
+                variant="secondary"
+                className="mt-3"
+              >
+                Status: {order.relay.status}
+              </Badge>
             </>
           ) : (
             <>
-              <Clock className="w-16 h-16 text-warning mb-4 animate-pulse" />
-              <h2 className="card-title text-2xl">Awaiting Payment</h2>
-              <p className="text-base-content/60 mb-4">
-                Pay <span className="font-bold">{order.amount} sats</span> to provision{" "}
-                <span className="font-bold text-primary">{order.relay.name}.{order.relay.domain}</span>
+              <div className="mb-4 rounded-full bg-amber-500/10 p-4">
+                <Clock className="size-12 animate-pulse text-amber-400" />
+              </div>
+              <h2 className="text-2xl font-bold">Awaiting Payment</h2>
+              <p className="mt-2 text-muted-foreground">
+                Pay <span className="font-bold text-foreground">{order.amount} sats</span> to provision{" "}
+                <span className="font-bold text-primary">
+                  {order.relay.name}.{order.relay.domain}
+                </span>
               </p>
               {order.lnurl && order.lnurl !== "0000" && (
-                <div className="w-full">
-                  <div className="bg-base-300 p-3 rounded-md break-all text-xs font-mono max-h-32 overflow-y-auto">
+                <div className="mt-6 w-full rounded-lg bg-muted p-4">
+                  <p className="break-all font-mono text-xs text-muted-foreground">
                     {order.lnurl}
-                  </div>
+                  </p>
                 </div>
               )}
             </>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

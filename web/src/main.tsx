@@ -3,7 +3,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ToastContainer } from "react-toastify";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import App from "./App";
 
 const queryClient = new QueryClient({
@@ -16,8 +17,10 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <App />
-        <ToastContainer position="bottom-right" theme="dark" />
+        <TooltipProvider>
+          <App />
+          <Toaster position="bottom-right" theme="dark" richColors />
+        </TooltipProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>
