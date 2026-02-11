@@ -10,6 +10,7 @@ import invoiceRoutes from "./routes/invoices.js";
 import relayRoutes from "./routes/relays.js";
 import sconfigRoutes from "./routes/sconfig.js";
 import nip86Routes from "./routes/nip86.js";
+import { startPaymentChecker } from "./lib/paymentChecker.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 app.listen(env.PORT, () => {
   console.log(`relaycreator-api listening on port ${env.PORT}`);
   console.log(`Serving SPA from ${spaDistPath}`);
+  startPaymentChecker();
 });
 
 export default app;
