@@ -282,11 +282,11 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
         </CardContent>
       </Card>
 
-      {!allow && relay.allow_list && (
+      {!allow && (
         <ListManager
           title="Allowed Pubkeys"
           description="Pubkeys that are allowed to post on your relay"
-          items={relay.allow_list.list_pubkeys.map((p) => ({ id: p.id, value: p.pubkey }))}
+          items={(relay.allow_list?.list_pubkeys ?? []).map((p) => ({ id: p.id, value: p.pubkey }))}
           relayId={relay.id}
           listType="allowlistpubkey"
           fieldName="pubkey"
@@ -296,25 +296,23 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
         />
       )}
 
-      {relay.block_list && (
-        <ListManager
-          title="Blocked Pubkeys"
-          description="Pubkeys that are blocked from posting on your relay"
-          items={relay.block_list.list_pubkeys.map((p) => ({ id: p.id, value: p.pubkey }))}
-          relayId={relay.id}
-          listType="blocklistpubkey"
-          fieldName="pubkey"
-          placeholder="npub or hex pubkey"
-          icon={<X className="size-4 text-destructive" />}
-          onUpdate={onUpdate}
-        />
-      )}
+      <ListManager
+        title="Blocked Pubkeys"
+        description="Pubkeys that are blocked from posting on your relay"
+        items={(relay.block_list?.list_pubkeys ?? []).map((p) => ({ id: p.id, value: p.pubkey }))}
+        relayId={relay.id}
+        listType="blocklistpubkey"
+        fieldName="pubkey"
+        placeholder="npub or hex pubkey"
+        icon={<X className="size-4 text-destructive" />}
+        onUpdate={onUpdate}
+      />
 
-      {!allow && relay.allow_list && (
+      {!allow && (
         <ListManager
           title="Allowed Keywords"
           description="Keywords that are allowed in events"
-          items={relay.allow_list.list_keywords.map((k) => ({ id: k.id, value: k.keyword }))}
+          items={(relay.allow_list?.list_keywords ?? []).map((k) => ({ id: k.id, value: k.keyword }))}
           relayId={relay.id}
           listType="allowlistkeyword"
           fieldName="keyword"
@@ -324,25 +322,23 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
         />
       )}
 
-      {relay.block_list && (
-        <ListManager
-          title="Blocked Keywords"
-          description="Keywords that are blocked from events"
-          items={relay.block_list.list_keywords.map((k) => ({ id: k.id, value: k.keyword }))}
-          relayId={relay.id}
-          listType="blocklistkeyword"
-          fieldName="keyword"
-          placeholder="keyword"
-          icon={<Hash className="size-4 text-destructive" />}
-          onUpdate={onUpdate}
-        />
-      )}
+      <ListManager
+        title="Blocked Keywords"
+        description="Keywords that are blocked from events"
+        items={(relay.block_list?.list_keywords ?? []).map((k) => ({ id: k.id, value: k.keyword }))}
+        relayId={relay.id}
+        listType="blocklistkeyword"
+        fieldName="keyword"
+        placeholder="keyword"
+        icon={<Hash className="size-4 text-destructive" />}
+        onUpdate={onUpdate}
+      />
 
-      {!allow && relay.allow_list && (
+      {!allow && (
         <ListManager
           title="Allowed Kinds"
           description="Event kinds that are allowed on your relay"
-          items={relay.allow_list.list_kinds.map((k) => ({ id: k.id, value: String(k.kind) }))}
+          items={(relay.allow_list?.list_kinds ?? []).map((k) => ({ id: k.id, value: String(k.kind) }))}
           relayId={relay.id}
           listType="allowlistkind"
           fieldName="kind"
@@ -352,19 +348,17 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
         />
       )}
 
-      {relay.block_list && (
-        <ListManager
-          title="Blocked Kinds"
-          description="Event kinds that are blocked from your relay"
-          items={relay.block_list.list_kinds.map((k) => ({ id: k.id, value: String(k.kind) }))}
-          relayId={relay.id}
-          listType="blocklistkind"
-          fieldName="kind"
-          placeholder="Event kind number (e.g. 1, 30023)"
-          icon={<Hash className="size-4 text-destructive" />}
-          onUpdate={onUpdate}
-        />
-      )}
+      <ListManager
+        title="Blocked Kinds"
+        description="Event kinds that are blocked from your relay"
+        items={(relay.block_list?.list_kinds ?? []).map((k) => ({ id: k.id, value: String(k.kind) }))}
+        relayId={relay.id}
+        listType="blocklistkind"
+        fieldName="kind"
+        placeholder="Event kind number (e.g. 1, 30023)"
+        icon={<Hash className="size-4 text-destructive" />}
+        onUpdate={onUpdate}
+      />
     </div>
   );
 }
