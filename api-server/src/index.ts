@@ -41,6 +41,10 @@ app.use("/api/sconfig", sconfigRoutes);
 app.use("/auth", authRoutes);
 app.use("/sconfig", sconfigRoutes);
 
+// Mount sconfig relay sub-routes at /api/relay for cookiecutter daemon compatibility
+// cookiecutter calls: PUT /api/relay/:id/status, GET /api/relay/:id/strfry, GET /api/relay/:id/nostrjson
+app.use("/api", sconfigRoutes);
+
 // NIP-86 relay management (used by Nostr clients)
 app.use("/api/86", nip86Routes);
 app.use("/86", nip86Routes);

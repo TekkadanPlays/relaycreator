@@ -563,4 +563,290 @@ router.put("/jobs/:jobId/status", (req: Request, res: Response) => {
   })();
 });
 
+/**
+ * PUT /sconfig/relay/:id/status
+ * Update relay status. Used by cookiecutter daemon after provisioning.
+ * Query params: status ("running" or "deleted")
+ * Note: cookiecutter calls PUT /api/relay/:id/status?status=running
+ */
+router.put("/relay/:id/status", (req: Request, res: Response) => {
+  if (!verifyDeployPubkey(req, res)) return;
+
+  const relayId = req.params.id as string;
+  const status = req.query.status as string | undefined;
+
+  if (!relayId) {
+    res.status(400).json({ error: "no relay id" });
+    return;
+  }
+
+  if (!status || (status !== "running" && status !== "deleted")) {
+    res.status(400).json({ error: "no relay status, or invalid status (running or deleted)" });
+    return;
+  }
+
+  void (async () => {
+    try {
+      const updated = await prisma.relay.update({
+        where: { id: relayId },
+        data: { status },
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating relay status:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  })();
+});
+
+/**
+ * GET /sconfig/relay/:id/strfry
+ * Generate strfry.conf for a relay. Used by cookiecutter daemon.
+ * Note: cookiecutter calls GET /api/relay/:id/strfry
+ */
+router.get("/relay/:id/strfry", (req: Request, res: Response) => {
+  if (!verifyDeployPubkey(req, res)) return;
+
+  const relayId = req.params.id as string;
+
+  void (async () => {
+    try {
+      const thisRelay = await prisma.relay.findFirst({
+        where: { id: relayId },
+        select: {
+          id: true,
+          owner: true,
+          port: true,
+          domain: true,
+          ip: true,
+          name: true,
+          details: true,
+        },
+      });
+
+      if (!thisRelay) {
+        res.status(404).json({ error: "relay not found" });
+        return;
+      }
+
+      const useIP = thisRelay.ip || "127.0.0.1";
+
+      const strfry_cfg = `
+##
+## Default strfry config
+##
+
+# Directory that contains the strfry LMDB database (restart required)
+db = "./strfry-db/"
+
+dbParams {
+    # Maximum number of threads/processes that can simultaneously have LMDB transactions open (restart required)
+    maxreaders = 256
+
+    # Size of mmap() to use when loading LMDB (default is 10TB, does *not* correspond to disk-space used) (restart required)
+    mapsize = 10995116277760
+
+    # Disables read-ahead when accessing the LMDB mapping. Reduces IO activity when DB size is larger than RAM. (restart required)
+    noReadAhead = false
+}
+
+relay {
+    # Interface to listen on. Use 0.0.0.0 to listen on all interfaces (restart required)
+    #bind = "0.0.0.0"
+    bind = "${useIP}"
+
+    # Port to open for the nostr websocket protocol (restart required)
+    port = ${thisRelay.port}
+
+    # Set OS-limit on maximum number of open files/sockets (if 0, don't attempt to set) (restart required)
+    #nofiles = 1000000
+
+    # HTTP header that contains the client's real IP, before reverse proxying (ie x-real-ip) (MUST be all lower-case)
+    realIpHeader = "x-real-ip"
+
+    info {
+        # NIP-11: Name of this server. Short/descriptive (< 30 characters)
+        name = "${thisRelay.name}"
+
+        # NIP-11: Detailed information about relay, free-form
+        description = "managed by relay.tools"
+
+        # NIP-11: Administrative nostr pubkey, for contact purposes
+        pubkey = "${thisRelay.owner.pubkey}"
+
+        # NIP-11: Alternative administrative contact (email, website, etc)
+        contact = ""
+    }
+
+    # Maximum accepted incoming websocket frame size (should be larger than max event and yesstr msg) (restart required)
+    maxWebsocketPayloadSize = 262200
+
+    # Maximum number of filters allowed in a REQ
+    maxReqFilterSize = 1000
+
+    # Websocket-level PING message frequency (should be less than any reverse proxy idle timeouts) (restart required)
+    autoPingSeconds = 55
+
+    # If TCP keep-alive should be enabled (detect dropped connections to upstream reverse proxy)
+    enableTcpKeepalive = true
+
+    # How much uninterrupted CPU time a REQ query should get during its DB scan
+    queryTimesliceBudgetMicroseconds = 10000
+
+    # Maximum records that can be returned per filter
+    maxFilterLimit = 10000
+
+    # Maximum number of subscriptions (concurrent REQs) a connection can have open at any time
+    maxSubsPerConnection = 80
+
+    writePolicy {
+        # If non-empty, path to an executable script that implements the writePolicy plugin logic
+        plugin = "/usr/local/bin/spamblaster"
+
+        # Number of seconds to search backwards for lookback events when starting the writePolicy plugin (0 for no lookback)
+        lookbackSeconds = 0
+    }
+
+    compression {
+        # Use permessage-deflate compression if supported by client. Reduces bandwidth, but slight increase in CPU (restart required)
+        enabled = true
+
+        # Maintain a sliding window buffer for each connection. Improves compression, but uses more memory (restart required)
+        slidingWindow = true
+    }
+
+    logging {
+        # Dump all incoming messages
+        dumpInAll = false
+
+        # Dump all incoming EVENT messages
+        dumpInEvents = false
+
+        # Dump all incoming REQ/CLOSE messages
+        dumpInReqs = false
+
+        # Log performance metrics for initial REQ database scans
+        dbScanPerf = false
+
+        # Log reason for invalid event rejection? Can be disabled to silence excessive logging
+        invalidEvents = false
+    }
+
+    numThreads {
+        # Ingester threads: route incoming requests, validate events/sigs (restart required)
+        ingester = 3
+
+        # reqWorker threads: Handle initial DB scan for events (restart required)
+        reqWorker = 3
+
+        # reqMonitor threads: Handle filtering of new events (restart required)
+        reqMonitor = 3
+
+        # negentropy threads: Handle negentropy protocol messages (restart required)
+        negentropy = 2
+    }
+    
+    negentropy {
+       # Support negentropy protocol messages
+        enabled = true
+
+        # Maximum records that sync will process before returning an error
+        maxSyncEvents = 1000000
+    }
+}
+
+events {
+    # Maximum size of normalised JSON, in bytes
+    maxEventSize = 262140
+
+    # Events newer than this will be rejected
+    rejectEventsNewerThanSeconds = 900
+
+    # Events older than this will be rejected
+    rejectEventsOlderThanSeconds = 94608000
+
+    # Ephemeral events older than this will be rejected
+    rejectEphemeralEventsOlderThanSeconds = 60
+
+    # Ephemeral events will be deleted from the DB when older than this
+    ephemeralEventsLifetimeSeconds = 300
+
+    # Maximum number of tags allowed
+    maxNumTags = 10000
+
+    # Maximum size for tag values, in bytes
+    maxTagValSize = 4096
+}
+`;
+
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-disposition", 'filename="strfry.conf"');
+      res.end(strfry_cfg);
+    } catch (error) {
+      console.error("Error generating strfry config:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  })();
+});
+
+/**
+ * GET /sconfig/relay/:id/nostrjson
+ * Return NIP-11 relay information document.
+ * Note: cookiecutter/HAProxy rewrites relay subdomain requests to this path.
+ */
+router.get("/relay/:id/nostrjson", (req: Request, res: Response) => {
+  const relayId = req.params.id as string;
+
+  void (async () => {
+    try {
+      const relay = await prisma.relay.findFirst({
+        where: { id: relayId },
+        select: {
+          id: true,
+          name: true,
+          domain: true,
+          details: true,
+          owner: { select: { pubkey: true } },
+          payment_required: true,
+          payment_amount: true,
+          auth_required: true,
+        },
+      });
+
+      if (!relay) {
+        res.status(404).json({ error: "relay not found" });
+        return;
+      }
+
+      const nip11 = {
+        name: relay.name,
+        description: relay.details || `${relay.name}.${relay.domain} - managed by relay.tools`,
+        pubkey: relay.owner.pubkey,
+        contact: "",
+        supported_nips: [1, 2, 4, 9, 11, 12, 15, 16, 20, 22, 28, 33, 40],
+        software: "https://github.com/hoytech/strfry",
+        version: "1.0.4",
+        limitation: {
+          payment_required: relay.payment_required,
+          auth_required: relay.auth_required,
+        },
+        ...(relay.payment_required && {
+          payments_url: `https://${relay.domain}/api/relay/${relay.id}/payment`,
+          fees: {
+            admission: [{ amount: relay.payment_amount * 1000, unit: "msats" }],
+          },
+        }),
+      };
+
+      res.setHeader("Content-Type", "application/nostr+json");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.json(nip11);
+    } catch (error) {
+      console.error("Error generating NIP-11:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  })();
+});
+
 export default router;
