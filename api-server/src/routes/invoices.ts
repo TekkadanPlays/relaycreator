@@ -21,6 +21,7 @@ const createInvoiceQuery = z.object({
  * Create a new relay reservation + invoice (or topup an existing relay).
  */
 router.get("/", optionalAuth, validateQuery(createInvoiceQuery), async (req: Request, res: Response) => {
+ try {
   const { relayname, pubkey, plan, referrer, topup, sats } = req.query as unknown as z.infer<typeof createInvoiceQuery>;
   const env = getEnv();
 
@@ -220,6 +221,10 @@ router.get("/", optionalAuth, validateQuery(createInvoiceQuery), async (req: Req
     });
 
     res.json({ order_id: orderCreated.id });
+  }
+ } catch (err: any) {
+    console.error("POST /invoices error:", err);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 });
 
