@@ -14,6 +14,9 @@ const envSchema = z.object({
   INVOICE_AMOUNT: z.coerce.number().default(21),
   INVOICE_PREMIUM_AMOUNT: z.coerce.number().default(2100),
   INTERCEPTOR_PORT: z.coerce.number().default(9696),
+  HAPROXY_STATS_USER: z.string().default("haproxy"),
+  HAPROXY_STATS_PASS: z.string().default("haproxy"),
+  HAPROXY_PEM: z.string().default("nostr1.pem"),
 });
 
 export type Env = z.infer<typeof envSchema>;
