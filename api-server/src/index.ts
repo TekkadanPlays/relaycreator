@@ -44,7 +44,8 @@ const spaDistPath = path.resolve(__dirname, "../../web/dist");
 app.use(express.static(spaDistPath));
 
 // SPA fallback: any non-API route serves index.html for client-side routing
-app.get("*", (_req, res, next) => {
+// Express 5 uses path-to-regexp v8 which requires named wildcards
+app.get("/{*splat}", (_req, res, next) => {
   // Don't serve index.html for API routes
   if (_req.path.startsWith("/api/") || _req.path.startsWith("/sconfig/") || _req.path.startsWith("/auth/") || _req.path === "/health") {
     next();
