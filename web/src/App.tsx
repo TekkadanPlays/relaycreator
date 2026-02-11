@@ -12,6 +12,7 @@ const RelaySettings = lazy(() => import("./pages/RelaySettings"));
 const Invoices = lazy(() => import("./pages/Invoices"));
 const Directory = lazy(() => import("./pages/Directory"));
 const FAQ = lazy(() => import("./pages/FAQ"));
+const Wallet = lazy(() => import("./pages/Wallet"));
 
 function PageLoader() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="invoices" element={<Invoices />} />
           <Route path="directory" element={<Directory />} />
           <Route path="faq" element={<FAQ />} />
+          <Route path="wallet" element={<Wallet />} />
         </Route>
       </Routes>
     </Suspense>

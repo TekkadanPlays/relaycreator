@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router";
 import { useAuth } from "../stores/auth";
-import { Radio, LogOut, Menu, Zap, Globe, User, Loader2, X, HelpCircle, Github } from "lucide-react";
+import { Radio, LogOut, Menu, Zap, Globe, User, Loader2, X, HelpCircle, Github, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -100,6 +100,11 @@ export default function Layout() {
                   <DropdownMenuItem asChild>
                     <Link to="/directory" className="cursor-pointer gap-2">
                       <Globe className="size-4" /> Directory
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/wallet" className="cursor-pointer gap-2">
+                      <Wallet className="size-4" /> Wallet
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

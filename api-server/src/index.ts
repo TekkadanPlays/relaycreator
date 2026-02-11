@@ -11,6 +11,7 @@ import relayRoutes from "./routes/relays.js";
 import sconfigRoutes from "./routes/sconfig.js";
 import nip86Routes from "./routes/nip86.js";
 import { startPaymentChecker } from "./lib/paymentChecker.js";
+import coinosRoutes from "./routes/coinos.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,6 +38,7 @@ app.get("/api/config", (_req, res) => {
   res.json({
     domain: env.CREATOR_DOMAIN,
     payments_enabled: env.PAYMENTS_ENABLED === "true",
+    coinos_enabled: env.COINOS_ENABLED === "true",
     invoice_amount: env.INVOICE_AMOUNT,
     invoice_premium_amount: env.INVOICE_PREMIUM_AMOUNT,
   });
@@ -55,6 +57,9 @@ app.use("/sconfig", sconfigRoutes);
 // Mount sconfig relay sub-routes at /api/relay for cookiecutter daemon compatibility
 // cookiecutter calls: PUT /api/relay/:id/status, GET /api/relay/:id/strfry, GET /api/relay/:id/nostrjson
 app.use("/api", sconfigRoutes);
+
+// CoinOS wallet proxy (optional)
+app.use("/api/coinos", coinosRoutes);
 
 // NIP-86 relay management (used by Nostr clients)
 app.use("/api/86", nip86Routes);
