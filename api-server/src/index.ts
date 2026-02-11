@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.js";
 import invoiceRoutes from "./routes/invoices.js";
 import relayRoutes from "./routes/relays.js";
 import sconfigRoutes from "./routes/sconfig.js";
+import nip86Routes from "./routes/nip86.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +24,7 @@ app.use(helmet({
 }));
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(express.json());
+app.use(express.text({ type: "application/nostr+json+rpc" }));
 
 // Health check
 app.get("/health", (_req, res) => {
@@ -38,6 +40,10 @@ app.use("/api/sconfig", sconfigRoutes);
 // Also mount without /api prefix for backward compatibility with sconfig daemons
 app.use("/auth", authRoutes);
 app.use("/sconfig", sconfigRoutes);
+
+// NIP-86 relay management (used by Nostr clients)
+app.use("/api/86", nip86Routes);
+app.use("/86", nip86Routes);
 
 // Serve SPA static files in production
 const spaDistPath = path.resolve(__dirname, "../../web/dist");
