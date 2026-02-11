@@ -1,4 +1,6 @@
 const API_BASE = "/api";
+// In production, Express serves both API and SPA on the same port.
+// In dev, Vite proxies /api/* to Express on :4000.
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem("token");
