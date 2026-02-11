@@ -81,27 +81,9 @@ router.get("/public", async (_req: Request, res: Response) => {
 });
 
 /**
- * GET /relays/:id
- * Get a single relay by ID. Returns public or full data based on ownership.
- */
-router.get("/:id", async (req: Request, res: Response) => {
-  const id = req.params.id as string;
-  const relay = await prisma.relay.findFirst({
-    where: { id },
-    include: relayPublicInclude,
-  });
-
-  if (!relay) {
-    res.status(404).json({ error: "relay not found" });
-    return;
-  }
-
-  res.json({ relay });
-});
-
-/**
  * GET /relays/by-name/:name
  * Get a relay by subdomain name. Returns full data if requester is owner/mod/admin.
+ * NOTE: This MUST be registered before /:id to avoid /:id matching "by-name" as an id.
  */
 router.get("/by-name/:name", async (req: Request, res: Response) => {
   const name = req.params.name as string;
@@ -139,6 +121,25 @@ router.get("/by-name/:name", async (req: Request, res: Response) => {
   const relay = await prisma.relay.findFirst({
     where: { name },
     include: useFull ? relayFullInclude : relayPublicInclude,
+  });
+
+  if (!relay) {
+    res.status(404).json({ error: "relay not found" });
+    return;
+  }
+
+  res.json({ relay });
+});
+
+/**
+ * GET /relays/:id
+ * Get a single relay by ID. Returns public or full data based on ownership.
+ */
+router.get("/:id", async (req: Request, res: Response) => {
+  const id = req.params.id as string;
+  const relay = await prisma.relay.findFirst({
+    where: { id },
+    include: relayPublicInclude,
   });
 
   if (!relay) {

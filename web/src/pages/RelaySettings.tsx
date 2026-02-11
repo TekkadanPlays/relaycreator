@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -157,6 +157,12 @@ function ProfileTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
   const [listed, setListed] = useState(relay.listed_in_directory);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    setDetails(relay.details || "");
+    setBannerImage(relay.banner_image || "");
+    setListed(relay.listed_in_directory);
+  }, [relay.details, relay.banner_image, relay.listed_in_directory]);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -225,6 +231,12 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
   const [allow, setAllow] = useState(relay.default_message_policy);
   const [authRequired, setAuthRequired] = useState(relay.auth_required);
   const [allowTagged, setAllowTagged] = useState(relay.allow_tagged);
+
+  useEffect(() => {
+    setAllow(relay.default_message_policy);
+    setAuthRequired(relay.auth_required);
+    setAllowTagged(relay.allow_tagged);
+  }, [relay.default_message_policy, relay.auth_required, relay.allow_tagged]);
 
   const toggleSetting = async (key: string, value: boolean, setter: (v: boolean) => void) => {
     try {
@@ -620,6 +632,11 @@ function PaymentsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => vo
   const [payRequired, setPayRequired] = useState(relay.payment_required);
   const [amount, setAmount] = useState(relay.payment_amount.toString());
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setPayRequired(relay.payment_required);
+    setAmount(relay.payment_amount.toString());
+  }, [relay.payment_required, relay.payment_amount]);
 
   const togglePayment = async (value: boolean) => {
     try {
