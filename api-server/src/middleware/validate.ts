@@ -28,7 +28,10 @@ export function validateBody(schema: ZodSchema) {
 export function validateQuery(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      req.query = schema.parse(req.query) as any;
+      // Express 5: req.query is read-only (getter), so store parsed result on req body
+      // Route handlers should use (req as any).validatedQuery or req.query directly
+      const parsed = schema.parse(req.query);
+      (req as any).validatedQuery = parsed;
       next();
     } catch (err) {
       if (err instanceof ZodError) {

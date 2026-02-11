@@ -22,7 +22,7 @@ const createInvoiceQuery = z.object({
  */
 router.get("/", optionalAuth, validateQuery(createInvoiceQuery), async (req: Request, res: Response) => {
  try {
-  const { relayname, pubkey, plan, referrer, topup, sats } = req.query as unknown as z.infer<typeof createInvoiceQuery>;
+  const { relayname, pubkey, plan, referrer, topup, sats } = (req as any).validatedQuery as z.infer<typeof createInvoiceQuery>;
   const env = getEnv();
 
   // --- TOPUP FLOW ---
