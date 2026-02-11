@@ -9,6 +9,7 @@ import RelayDetail from "./pages/RelayDetail";
 import RelaySettings from "./pages/RelaySettings";
 import Invoices from "./pages/Invoices";
 import Directory from "./pages/Directory";
+import FAQ from "./pages/FAQ";
 
 export default function App() {
   const checkAuth = useAuth((s) => s.checkAuth);
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="relays/:slug/settings" element={<RelaySettings />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="directory" element={<Directory />} />
+        <Route path="faq" element={<FAQ />} />
       </Route>
     </Routes>
   );

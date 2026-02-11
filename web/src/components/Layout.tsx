@@ -1,6 +1,6 @@
 import { Outlet, Link } from "react-router";
 import { useAuth } from "../stores/auth";
-import { Radio, LogOut, Menu, Zap, Globe, User, Loader2, X } from "lucide-react";
+import { Radio, LogOut, Menu, Zap, Globe, User, Loader2, X, HelpCircle } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -48,6 +48,9 @@ export default function Layout() {
             <Button variant="ghost" size="sm" asChild>
               <Link to="/signup">Create Relay</Link>
             </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/faq">FAQ</Link>
+            </Button>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -81,6 +84,11 @@ export default function Layout() {
                       <Radio className="mr-2 size-4" /> Create Relay
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/faq" className="cursor-pointer">
+                      <HelpCircle className="mr-2 size-4" /> FAQ
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
                     <LogOut className="mr-2 size-4" /> Sign Out
@@ -111,6 +119,9 @@ export default function Layout() {
                       </Button>
                       <Button variant="ghost" className="justify-start" asChild>
                         <Link to="/signup">Create Relay</Link>
+                      </Button>
+                      <Button variant="ghost" className="justify-start" asChild>
+                        <Link to="/faq">FAQ</Link>
                       </Button>
                       <Separator className="my-2" />
                       <Button onClick={handleLogin} className="justify-start gap-2">
