@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Check, Clock, Loader2, FileX, Copy, ExternalLink, Radio } from "lucide-react";
+import { Check, Clock, Loader2, FileX, Copy, ExternalLink, Radio, Zap } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,11 +37,40 @@ export default function Invoices() {
     refetchInterval: 5000,
   });
 
+  const [weblnPaying, setWeblnPaying] = useState(false);
+  const [weblnAvailable, setWeblnAvailable] = useState(false);
+
   const copyInvoice = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const payWithWebLN = async (invoice: string) => {
+    try {
+      setWeblnPaying(true);
+      await (window as any).webln.enable();
+      await (window as any).webln.sendPayment(invoice);
+    } catch (err) {
+      console.log("WebLN payment failed or cancelled:", err);
+    } finally {
+      setWeblnPaying(false);
+    }
+  };
+
+  // Auto-detect WebLN and attempt auto-pay
+  useEffect(() => {
+    if ((window as any).webln) {
+      setWeblnAvailable(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const order = data?.order;
+    if (order && !order.paid && order.lnurl && order.lnurl !== "0000" && weblnAvailable) {
+      payWithWebLN(order.lnurl);
+    }
+  }, [data?.order?.lnurl, data?.order?.paid, weblnAvailable]);
 
   if (!orderId) {
     return (
@@ -136,12 +165,25 @@ export default function Invoices() {
                     {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
                     {copied ? "Copied!" : "Copy Invoice"}
                   </Button>
-                  <a
-                    href={`lightning:${order.lnurl}`}
-                    className="flex items-center justify-center gap-1.5 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="size-3.5" /> Open in wallet
-                  </a>
+                  <div className="flex gap-2">
+                    <a
+                      href={`lightning:${order.lnurl}`}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted transition-colors"
+                    >
+                      <ExternalLink className="size-3.5" /> Open in wallet
+                    </a>
+                    {weblnAvailable && (
+                      <Button
+                        variant="default"
+                        className="flex-1 gap-1.5"
+                        onClick={() => payWithWebLN(order.lnurl)}
+                        disabled={weblnPaying}
+                      >
+                        {weblnPaying ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
+                        {weblnPaying ? "Paying..." : "Pay with WebLN"}
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground animate-pulse">
                     Checking for payment...
                   </p>
