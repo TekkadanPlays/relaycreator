@@ -32,6 +32,16 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Public config endpoint (non-sensitive settings for the frontend)
+app.get("/api/config", (_req, res) => {
+  res.json({
+    domain: env.CREATOR_DOMAIN,
+    payments_enabled: env.PAYMENTS_ENABLED === "true",
+    invoice_amount: env.INVOICE_AMOUNT,
+    invoice_premium_amount: env.INVOICE_PREMIUM_AMOUNT,
+  });
+});
+
 // API routes (prefixed with /api in production)
 app.use("/api/auth", authRoutes);
 app.use("/api/invoices", invoiceRoutes);

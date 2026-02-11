@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../stores/auth";
 import { api } from "../lib/api";
 import { Radio, Check, Loader2, Sparkles } from "lucide-react";
@@ -21,7 +22,13 @@ export default function CreateRelay() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const domain = "mycelium.social";
+  const { data: config } = useQuery({
+    queryKey: ["config"],
+    queryFn: () => api.get<{ domain: string; payments_enabled: boolean; invoice_amount: number; invoice_premium_amount: number }>("/config"),
+    staleTime: 60_000,
+  });
+
+  const domain = config?.domain || "nostr1.com";
 
   function validateName(val: string) {
     setName(val);
@@ -67,17 +74,20 @@ export default function CreateRelay() {
     }
   }
 
+  const standardPrice = config?.invoice_amount ?? 21;
+  const premiumPrice = config?.invoice_premium_amount ?? 2100;
+
   const plans = [
     {
       id: "standard" as const,
       name: "Standard",
-      price: "21",
+      price: standardPrice.toLocaleString(),
       features: ["Customizable on-the-fly", "Inbox / Outbox support", "Public / Private modes", "Communities / DMs"],
     },
     {
       id: "premium" as const,
       name: "Premium",
-      price: "2,100",
+      price: premiumPrice.toLocaleString(),
       badge: "RECOMMENDED",
       features: ["All standard features", "Streaming from other relays", "Enhanced filtering by social graph"],
     },
