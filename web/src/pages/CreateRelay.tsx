@@ -3,12 +3,13 @@ import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../stores/auth";
 import { api } from "../lib/api";
-import { Radio, Check, Loader2, Sparkles, Zap, Globe, Shield, Workflow, ArrowRight } from "lucide-react";
+import { Radio, Check, Loader2, Zap, Globe, Shield, Workflow } from "lucide-react";
 import { nip19 } from "nostr-tools";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default function CreateRelay() {
@@ -82,113 +83,61 @@ export default function CreateRelay() {
       name: "Standard",
       price: standardPrice.toLocaleString(),
       description: "Everything you need to run a personal relay",
-      features: [
-        { text: "Customizable on-the-fly", icon: Zap },
-        { text: "Inbox / Outbox support", icon: Globe },
-        { text: "Public / Private modes", icon: Shield },
-        { text: "Communities & DMs", icon: Radio },
-      ],
-      gradient: "from-blue-500/10 via-transparent to-transparent",
-      accent: "border-blue-500/30",
-      glow: "bg-blue-500/10",
+      features: ["Customizable on-the-fly", "Inbox / Outbox support", "Public / Private modes", "Communities & DMs"],
     },
     {
       id: "premium" as const,
       name: "Premium",
       price: premiumPrice.toLocaleString(),
       description: "For power users who want the full experience",
-      badge: true,
-      features: [
-        { text: "All Standard features", icon: Check },
-        { text: "Relay-to-relay streaming", icon: Workflow },
-        { text: "Social graph filtering", icon: Shield },
-        { text: "Priority provisioning", icon: Sparkles },
-      ],
-      gradient: "from-primary/10 via-purple-500/5 to-transparent",
-      accent: "border-primary/30",
-      glow: "bg-primary/10",
+      recommended: true,
+      features: ["All Standard features", "Relay-to-relay streaming", "Social graph filtering", "Priority provisioning"],
     },
   ];
 
   return (
-    <div className="space-y-10 pb-12 animate-fade-up">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
-          <Sparkles className="size-3.5" /> Deploy in under a minute
-        </div>
-        <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-          Create Your <span className="text-gradient">Nostr Relay</span>
-        </h1>
-        <p className="mx-auto max-w-lg text-lg text-muted-foreground">
-          Choose your plan, pick a name, and you're live. It's that simple.
-        </p>
+    <div className="space-y-8 pb-8 animate-in">
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-extrabold tracking-tight">Create Your Relay</h1>
+        <p className="text-muted-foreground">Choose a plan, pick a name, and deploy.</p>
       </div>
 
       {/* Plan cards */}
-      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 md:grid-cols-2">
         {plans.map((plan) => (
           <Card
             key={plan.id}
             className={cn(
-              "group relative cursor-pointer overflow-hidden transition-all duration-500 hover:-translate-y-1",
+              "relative cursor-pointer transition-colors",
               selectedPlan === plan.id
-                ? `border-primary/40 bg-card/60 shadow-2xl shadow-primary/10 ring-1 ring-primary/20`
-                : "border-border/30 bg-card/30 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5"
+                ? "border-primary ring-1 ring-primary/20"
+                : "border-border/50 hover:border-border"
             )}
             onClick={() => setSelectedPlan(plan.id)}
           >
-            {/* Background gradient */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${plan.gradient} opacity-50 transition-opacity duration-500 ${selectedPlan === plan.id ? "opacity-100" : "group-hover:opacity-75"}`} />
-
-            {/* Glow blob */}
-            <div className={`absolute -top-16 -right-16 size-40 rounded-full ${plan.glow} blur-3xl transition-opacity duration-500 ${selectedPlan === plan.id ? "opacity-60" : "opacity-0 group-hover:opacity-30"}`} />
-
-            {/* Shimmer */}
-            <div className="absolute inset-0 -translate-x-full group-hover:animate-shimmer bg-gradient-to-r from-transparent via-white/[0.03] to-transparent" />
-
-            {/* Badge */}
-            {plan.badge && (
-              <div className="absolute -top-px inset-x-0 flex justify-center">
-                <span className="inline-flex items-center gap-1.5 rounded-b-lg bg-gradient-to-r from-primary to-purple-500 px-4 py-1 text-xs font-bold text-primary-foreground shadow-lg shadow-primary/20">
-                  <Sparkles className="size-3" /> RECOMMENDED
-                </span>
-              </div>
+            {plan.recommended && (
+              <Badge className="absolute -top-2.5 right-4">Recommended</Badge>
             )}
-
-            <CardContent className={`relative p-7 ${plan.badge ? "pt-9" : ""}`}>
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-2xl font-bold">{plan.name}</h2>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">{plan.name}</h2>
                 <div className={cn(
-                  "size-6 rounded-full border-2 transition-all duration-300 flex items-center justify-center",
-                  selectedPlan === plan.id
-                    ? "border-primary bg-primary scale-110"
-                    : "border-muted-foreground/20 group-hover:border-muted-foreground/40"
+                  "size-5 rounded-full border-2 flex items-center justify-center",
+                  selectedPlan === plan.id ? "border-primary bg-primary" : "border-muted-foreground/20"
                 )}>
-                  {selectedPlan === plan.id && (
-                    <Check className="size-3.5 text-primary-foreground" />
-                  )}
+                  {selectedPlan === plan.id && <Check className="size-3 text-primary-foreground" />}
                 </div>
               </div>
-
-              {/* Price */}
-              <div className="mb-2">
-                <span className={`text-5xl font-extrabold tracking-tight ${selectedPlan === plan.id ? "text-gradient" : "text-foreground"}`}>
-                  {plan.price}
-                </span>
-                <span className="ml-2 text-sm text-muted-foreground">sats</span>
+              <div className="mb-1">
+                <span className="text-4xl font-extrabold">{plan.price}</span>
+                <span className="ml-1.5 text-sm text-muted-foreground">sats</span>
               </div>
-              <p className="text-sm text-muted-foreground mb-6">{plan.description}</p>
-
-              {/* Features */}
-              <ul className="space-y-3">
+              <p className="text-sm text-muted-foreground mb-5">{plan.description}</p>
+              <ul className="space-y-2">
                 {plan.features.map((f) => (
-                  <li key={f.text} className="flex items-center gap-3 text-sm">
-                    <div className="rounded-md bg-emerald-500/10 p-1">
-                      <f.icon className="size-3.5 text-emerald-400" />
-                    </div>
-                    <span className="text-muted-foreground">{f.text}</span>
+                  <li key={f} className="flex items-center gap-2 text-sm">
+                    <Check className="size-3.5 text-emerald-400 shrink-0" />
+                    <span className="text-muted-foreground">{f}</span>
                   </li>
                 ))}
               </ul>
@@ -198,34 +147,29 @@ export default function CreateRelay() {
       </div>
 
       {/* Configure form */}
-      <Card className="mx-auto max-w-4xl border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
-        <CardContent className="p-8">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold">Configure Your Relay</h2>
-            <p className="text-sm text-muted-foreground mt-1">Choose a subdomain and deploy</p>
-          </div>
-
+      <Card className="mx-auto max-w-3xl">
+        <CardHeader>
+          <CardTitle>Configure Your Relay</CardTitle>
+        </CardHeader>
+        <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="pubkey" className="text-sm font-medium">Your Pubkey</Label>
+                <Label htmlFor="pubkey">Your Pubkey</Label>
                 <Input
                   id="pubkey"
                   value={user?.pubkey || ""}
                   placeholder="Sign in to auto-fill"
                   readOnly
-                  className="font-mono text-xs bg-muted/30 border-border/30"
+                  className="font-mono text-xs"
                 />
                 {!user && (
-                  <p className="text-sm text-amber-400 flex items-center gap-1.5">
-                    <Zap className="size-3.5" /> Sign in with NIP-07 to continue
-                  </p>
+                  <p className="text-sm text-amber-400">Sign in with NIP-07 to continue</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="relayname" className="text-sm font-medium">Relay Subdomain</Label>
+                <Label htmlFor="relayname">Relay Subdomain</Label>
                 <div className="flex gap-2">
                   <Input
                     id="relayname"
@@ -234,50 +178,35 @@ export default function CreateRelay() {
                     autoFocus
                     value={name}
                     onChange={(e) => validateName(e.target.value)}
-                    className={cn(
-                      "bg-muted/30 border-border/30",
-                      nameError && "border-destructive focus-visible:ring-destructive",
-                      name && !nameError && "border-emerald-500/30 focus-visible:ring-emerald-500/30"
-                    )}
+                    className={cn(nameError && "border-destructive focus-visible:ring-destructive")}
                   />
-                  <div className="flex items-center rounded-lg border border-border/30 bg-muted/30 px-4 text-sm text-muted-foreground font-mono">
+                  <div className="flex items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground font-mono">
                     .{domain}
                   </div>
                 </div>
                 {nameError && <p className="text-sm text-destructive">{nameError}</p>}
                 {name && !nameError && (
-                  <div className="flex items-center gap-2 text-sm animate-fade-up">
-                    <span className="relative flex size-2">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
-                    </span>
-                    <span className="text-muted-foreground">
-                      Your relay: <span className="font-bold text-gradient font-mono">{name}.{domain}</span>
-                    </span>
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Your relay: <span className="font-semibold text-foreground font-mono">{name}.{domain}</span>
+                  </p>
                 )}
               </div>
             </div>
 
             {error && (
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive animate-fade-up">
+              <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
               </div>
             )}
 
-            <div className="flex justify-center pt-4">
-              <Button
-                type="submit"
-                size="lg"
-                className="gap-2.5 px-10 h-13 text-base bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 border-0 shadow-xl shadow-primary/25 transition-all duration-300 hover:shadow-primary/40 hover:scale-[1.02] disabled:opacity-40 disabled:hover:scale-100"
-                disabled={!isValid() || submitting}
-              >
+            <div className="flex justify-center pt-2">
+              <Button type="submit" size="lg" className="gap-2 px-8" disabled={!isValid() || submitting}>
                 {submitting ? (
                   <Loader2 className="size-5 animate-spin" />
                 ) : (
                   <>
+                    <Radio className="size-5" />
                     Deploy {selectedPlan === "premium" ? "Premium" : "Standard"} Relay
-                    <ArrowRight className="size-4" />
                   </>
                 )}
               </Button>

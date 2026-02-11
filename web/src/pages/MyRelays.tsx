@@ -17,29 +17,24 @@ interface Relay {
   created_at: string | null;
 }
 
-function StatusIndicator({ status }: { status: string | null }) {
+function StatusBadge({ status }: { status: string | null }) {
   if (status === "running") {
     return (
-      <div className="flex items-center gap-1.5">
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
-        </span>
-        <span className="text-xs font-medium text-emerald-400">Running</span>
-      </div>
+      <Badge variant="secondary" className="gap-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+        <span className="size-1.5 rounded-full bg-emerald-400" />
+        Running
+      </Badge>
     );
   }
   if (status === "provision") {
     return (
-      <div className="flex items-center gap-1.5">
-        <Loader2 className="size-3 animate-spin text-amber-400" />
-        <span className="text-xs font-medium text-amber-400">Provisioning</span>
-      </div>
+      <Badge variant="secondary" className="gap-1.5 bg-amber-500/10 text-amber-400 border-amber-500/20">
+        <Loader2 className="size-3 animate-spin" />
+        Provisioning
+      </Badge>
     );
   }
-  return (
-    <Badge variant="secondary" className="text-xs">{status}</Badge>
-  );
+  return <Badge variant="secondary">{status}</Badge>;
 }
 
 export default function MyRelays() {
@@ -53,12 +48,10 @@ export default function MyRelays() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center animate-fade-up">
-        <div className="rounded-2xl bg-muted/30 p-6 mb-6">
-          <Lock className="size-12 text-muted-foreground/40" />
-        </div>
-        <h2 className="text-2xl font-bold">Sign in to view your relays</h2>
-        <p className="mt-2 text-muted-foreground">Use a NIP-07 browser extension to authenticate</p>
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Lock className="size-10 text-muted-foreground/30 mb-4" />
+        <h2 className="text-xl font-bold">Sign in to view your relays</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Use a NIP-07 browser extension to authenticate</p>
       </div>
     );
   }
@@ -66,14 +59,14 @@ export default function MyRelays() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-24">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive animate-fade-up">
+      <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
         {(error as Error).message}
       </div>
     );
@@ -82,15 +75,15 @@ export default function MyRelays() {
   const relays = data?.myRelays || [];
 
   return (
-    <div className="space-y-8 animate-fade-up">
+    <div className="space-y-6 animate-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">My Relays</h1>
-          <p className="mt-1 text-muted-foreground">
-            {relays.length} relay{relays.length !== 1 ? "s" : ""} in your fleet
+          <h1 className="text-2xl font-bold tracking-tight">My Relays</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {relays.length} relay{relays.length !== 1 ? "s" : ""}
           </p>
         </div>
-        <Button className="gap-1.5 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 border-0 shadow-lg shadow-primary/20" asChild>
+        <Button size="sm" className="gap-1.5" asChild>
           <Link to="/signup">
             <Plus className="size-4" /> New Relay
           </Link>
@@ -98,69 +91,50 @@ export default function MyRelays() {
       </div>
 
       {relays.length === 0 ? (
-        <div className="relative flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/50 py-24 text-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5" />
-          <div className="relative">
-            <div className="mx-auto mb-6 rounded-2xl bg-muted/30 p-6">
-              <Globe className="size-16 text-muted-foreground/30" />
-            </div>
-            <h3 className="text-xl font-bold">No relays yet</h3>
-            <p className="mt-2 text-muted-foreground max-w-sm">Create your first Nostr relay and join the decentralized network</p>
-            <Button className="mt-8 gap-2 bg-gradient-to-r from-primary to-purple-500 border-0 shadow-lg shadow-primary/20" asChild>
-              <Link to="/signup">
-                <Radio className="size-4" /> Create Your First Relay
-              </Link>
-            </Button>
-          </div>
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-20 text-center">
+          <Globe className="size-10 text-muted-foreground/30 mb-4" />
+          <h3 className="font-semibold">No relays yet</h3>
+          <p className="mt-1 text-sm text-muted-foreground max-w-sm">Create your first Nostr relay and join the decentralized network</p>
+          <Button className="mt-6 gap-2" asChild>
+            <Link to="/signup">
+              <Radio className="size-4" /> Create Your First Relay
+            </Link>
+          </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {relays.map((relay, i) => (
-            <Card
-              key={relay.id}
-              className="group relative overflow-hidden border-border/30 bg-card/40 backdrop-blur-sm transition-all duration-500 hover:bg-card/70 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 hover:border-primary/30 animate-fade-up"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              {/* Top gradient accent */}
-              <div className={`absolute inset-x-0 top-0 h-px ${relay.status === "running" ? "bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" : "bg-gradient-to-r from-transparent via-amber-500/50 to-transparent"}`} />
-
-              {/* Shimmer */}
-              <div className="absolute inset-0 -translate-x-full group-hover:animate-shimmer bg-gradient-to-r from-transparent via-white/[0.02] to-transparent" />
-
-              <CardContent className="relative p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="space-y-1.5">
-                    <h2 className="text-xl font-bold group-hover:text-primary transition-colors duration-300">
-                      {relay.name}
-                    </h2>
-                    <p className="font-mono text-xs text-muted-foreground/70">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {relays.map((relay) => (
+            <Card key={relay.id} className="border-border/50 transition-colors hover:border-border">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0">
+                    <h2 className="font-semibold truncate">{relay.name}</h2>
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">
                       wss://{relay.name}.{relay.domain}
                     </p>
                   </div>
-                  <StatusIndicator status={relay.status} />
+                  <StatusBadge status={relay.status} />
                 </div>
 
-                {/* Feature pills */}
-                <div className="flex flex-wrap gap-1.5 mb-5">
+                <div className="flex flex-wrap gap-1.5 mb-4">
                   {relay.auth_required && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs text-rose-400">
+                    <Badge variant="outline" className="gap-1 text-xs font-normal">
                       <Shield className="size-3" /> Auth
-                    </span>
+                    </Badge>
                   )}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs text-primary">
+                  <Badge variant="outline" className="gap-1 text-xs font-normal">
                     <Zap className="size-3" /> {relay.default_message_policy ? "Open" : "Private"}
-                  </span>
+                  </Badge>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 pt-2 border-t border-border/20">
-                  <Button size="sm" variant="ghost" className="flex-1 gap-1.5 text-xs text-muted-foreground hover:text-foreground" asChild>
+                <div className="flex items-center gap-2 pt-3 border-t border-border/50">
+                  <Button size="sm" variant="ghost" className="flex-1 gap-1.5 text-xs" asChild>
                     <Link to={`/relays/${relay.name}`}>
                       <ExternalLink className="size-3.5" /> View
                     </Link>
                   </Button>
-                  <div className="w-px h-4 bg-border/30" />
-                  <Button size="sm" variant="ghost" className="flex-1 gap-1.5 text-xs text-muted-foreground hover:text-primary" asChild>
+                  <div className="w-px h-4 bg-border" />
+                  <Button size="sm" variant="ghost" className="flex-1 gap-1.5 text-xs" asChild>
                     <Link to={`/relays/${relay.name}/settings`}>
                       <Settings className="size-3.5" /> Settings
                     </Link>

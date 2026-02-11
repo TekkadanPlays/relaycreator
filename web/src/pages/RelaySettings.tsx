@@ -69,12 +69,10 @@ export default function RelaySettings() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center animate-fade-up">
-        <div className="rounded-2xl bg-muted/30 p-6 mb-6">
-          <Lock className="size-12 text-muted-foreground/30" />
-        </div>
-        <h2 className="text-2xl font-bold">Sign in required</h2>
-        <p className="mt-2 text-muted-foreground">Sign in to manage your relay settings.</p>
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Lock className="size-10 text-muted-foreground/30 mb-4" />
+        <h2 className="text-xl font-bold">Sign in required</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Sign in to manage your relay settings.</p>
       </div>
     );
   }
@@ -82,19 +80,17 @@ export default function RelaySettings() {
   if (isLoading) {
     return (
       <div className="flex justify-center py-24">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   if (error || !data?.relay) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center animate-fade-up">
-        <div className="rounded-2xl bg-muted/30 p-6 mb-6">
-          <Globe className="size-12 text-muted-foreground/30" />
-        </div>
-        <h2 className="text-2xl font-bold">Relay not found</h2>
-        <p className="mt-2 text-muted-foreground">The relay does not exist or you don't have access.</p>
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Globe className="size-10 text-muted-foreground/30 mb-4" />
+        <h2 className="text-xl font-bold">Relay not found</h2>
+        <p className="mt-1 text-sm text-muted-foreground">The relay does not exist or you don't have access.</p>
       </div>
     );
   }
@@ -102,46 +98,34 @@ export default function RelaySettings() {
   const relay = data.relay;
 
   return (
-    <div className="space-y-8 animate-fade-up">
+    <div className="space-y-6 animate-in">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/20 bg-gradient-to-br from-primary/5 via-card/50 to-purple-500/5 p-6 sm:p-8">
-        <div className="absolute -top-20 -right-20 size-48 rounded-full bg-primary/10 blur-3xl" />
-        <div className="flex items-center justify-between relative">
-          <div className="flex items-center gap-4">
-            <div className="rounded-xl bg-primary/10 p-3">
-              <Settings className="size-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                {relay.name}
-              </h1>
-              <p className="mt-0.5 font-mono text-sm text-muted-foreground/70">
-                wss://{relay.name}.{relay.domain}
-              </p>
-            </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Settings className="size-5 text-muted-foreground" />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{relay.name}</h1>
+            <p className="font-mono text-sm text-muted-foreground">wss://{relay.name}.{relay.domain}</p>
           </div>
-          {relay.status === "running" ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
-              <span className="relative flex size-1.5">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
-              </span>
-              Online
-            </span>
-          ) : (
-            <Badge variant="secondary">{relay.status}</Badge>
-          )}
         </div>
+        {relay.status === "running" ? (
+          <Badge variant="secondary" className="gap-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+            <span className="size-1.5 rounded-full bg-emerald-400" />
+            Online
+          </Badge>
+        ) : (
+          <Badge variant="secondary">{relay.status}</Badge>
+        )}
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 bg-muted/30 border border-border/20 p-1 h-auto">
-          <TabsTrigger value="profile" className="gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none py-2.5"><Globe className="size-3.5 hidden sm:block" /> Profile</TabsTrigger>
-          <TabsTrigger value="access" className="gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none py-2.5"><Shield className="size-3.5 hidden sm:block" /> Access</TabsTrigger>
-          <TabsTrigger value="moderators" className="gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none py-2.5"><Users className="size-3.5 hidden sm:block" /> Team</TabsTrigger>
-          <TabsTrigger value="streams" className="gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none py-2.5"><Radio className="size-3.5 hidden sm:block" /> Streams</TabsTrigger>
-          <TabsTrigger value="payments" className="gap-1.5 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none py-2.5"><Zap className="size-3.5 hidden sm:block" /> Payments</TabsTrigger>
-          <TabsTrigger value="danger" className="gap-1.5 data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive data-[state=active]:shadow-none py-2.5"><Trash2 className="size-3.5 hidden sm:block" /> Danger</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto">
+          <TabsTrigger value="profile" className="gap-1.5 py-2"><Globe className="size-3.5 hidden sm:block" /> Profile</TabsTrigger>
+          <TabsTrigger value="access" className="gap-1.5 py-2"><Shield className="size-3.5 hidden sm:block" /> Access</TabsTrigger>
+          <TabsTrigger value="moderators" className="gap-1.5 py-2"><Users className="size-3.5 hidden sm:block" /> Team</TabsTrigger>
+          <TabsTrigger value="streams" className="gap-1.5 py-2"><Radio className="size-3.5 hidden sm:block" /> Streams</TabsTrigger>
+          <TabsTrigger value="payments" className="gap-1.5 py-2"><Zap className="size-3.5 hidden sm:block" /> Payments</TabsTrigger>
+          <TabsTrigger value="danger" className="gap-1.5 py-2"><Trash2 className="size-3.5 hidden sm:block" /> Danger</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -194,19 +178,16 @@ function ProfileTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
   };
 
   return (
-    <Card className="border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+    <Card>
       <CardHeader>
         <CardTitle>Relay Profile</CardTitle>
         <CardDescription>Configure your relay's public-facing information and directory listing.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-4 transition-colors hover:bg-muted/30">
+        <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
           <div>
-            <p className="font-medium flex items-center gap-2">
-              <Globe className="size-4 text-primary" /> Listed in Directory
-            </p>
-            <p className="text-sm text-muted-foreground mt-0.5">Show this relay in the public relay directory</p>
+            <p className="font-medium">Listed in Directory</p>
+            <p className="text-sm text-muted-foreground">Show this relay in the public relay directory</p>
           </div>
           <Switch checked={listed} onCheckedChange={setListed} />
         </div>
@@ -219,7 +200,6 @@ function ProfileTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             rows={4}
-            className="bg-muted/20 border-border/30 focus:border-primary/40"
           />
         </div>
 
@@ -230,16 +210,15 @@ function ProfileTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
             placeholder="https://example.com/banner.jpg"
             value={bannerImage}
             onChange={(e) => setBannerImage(e.target.value)}
-            className="bg-muted/20 border-border/30 focus:border-primary/40"
           />
           {bannerImage && (
-            <div className="mt-2 h-32 overflow-hidden rounded-xl border border-border/20">
+            <div className="mt-2 h-32 overflow-hidden rounded-lg border border-border/50">
               <img src={bannerImage} alt="Banner preview" className="size-full object-cover" />
             </div>
           )}
         </div>
 
-        <Button onClick={handleSave} disabled={saving} className="gap-2 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 border-0 shadow-lg shadow-primary/20">
+        <Button onClick={handleSave} disabled={saving} className="gap-2">
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           Save Profile
         </Button>
@@ -273,20 +252,16 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
 
   return (
     <div className="space-y-6">
-      <Card className="border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/20 to-transparent" />
+      <Card>
         <CardHeader>
           <CardTitle>Access Control Mode</CardTitle>
           <CardDescription>Choose how your relay handles incoming events by default.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-4 transition-colors hover:bg-muted/30">
+          <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
             <div>
-              <p className="font-medium flex items-center gap-2">
-                {allow ? <Unlock className="size-4 text-amber-400" /> : <Lock className="size-4 text-emerald-400" />}
-                {allow ? "Allow by default" : "Block by default"}
-              </p>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <p className="font-medium">{allow ? "Allow by default" : "Block by default"}</p>
+              <p className="text-sm text-muted-foreground">
                 {allow
                   ? "All events accepted unless explicitly blocked"
                   : "All events blocked unless explicitly allowed"}
@@ -295,22 +270,18 @@ function AccessTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => void
             <Switch checked={allow} onCheckedChange={(v) => toggleSetting("default_message_policy", v, setAllow)} />
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-4 transition-colors hover:bg-muted/30">
+          <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
             <div>
-              <p className="font-medium flex items-center gap-2">
-                <Shield className="size-4 text-blue-400" /> Authentication (NIP-42)
-              </p>
-              <p className="text-sm text-muted-foreground mt-0.5">Require clients to authenticate before connecting</p>
+              <p className="font-medium">Authentication (NIP-42)</p>
+              <p className="text-sm text-muted-foreground">Require clients to authenticate before connecting</p>
             </div>
             <Switch checked={authRequired} onCheckedChange={(v) => toggleSetting("auth_required", v, setAuthRequired)} />
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-4 transition-colors hover:bg-muted/30">
+          <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
             <div>
-              <p className="font-medium flex items-center gap-2">
-                <Tag className="size-4 text-purple-400" /> Allow Tagged Events
-              </p>
-              <p className="text-sm text-muted-foreground mt-0.5">Accept events from non-members if they tag your members</p>
+              <p className="font-medium">Allow Tagged Events</p>
+              <p className="text-sm text-muted-foreground">Accept events from non-members if they tag your members</p>
             </div>
             <Switch checked={allowTagged} onCheckedChange={(v) => toggleSetting("allow_tagged", v, setAllowTagged)} />
           </div>
@@ -441,7 +412,7 @@ function ListManager({
   };
 
   return (
-    <Card className="border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
+    <Card>
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -453,19 +424,19 @@ function ListManager({
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="font-mono text-xs bg-muted/20 border-border/30 focus:border-primary/40"
+            className="font-mono text-xs"
           />
-          <Button size="sm" onClick={handleAdd} disabled={adding || !newValue.trim()} className="gap-1 shrink-0 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 border-0">
+          <Button size="sm" onClick={handleAdd} disabled={adding || !newValue.trim()} className="gap-1 shrink-0">
             {adding ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             Add
           </Button>
         </div>
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground/50 py-6 text-center">No entries yet</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">No entries yet</p>
         ) : (
           <div className="space-y-1.5 max-h-64 overflow-y-auto">
             {items.map((item) => (
-              <div key={item.id} className="flex items-center gap-2 rounded-xl bg-muted/20 border border-border/10 px-3 py-2 transition-colors hover:bg-muted/30">
+              <div key={item.id} className="flex items-center gap-2 rounded-lg border border-border/50 px-3 py-2">
                 {icon}
                 <span className="flex-1 truncate font-mono text-xs">{item.value}</span>
                 <Button variant="ghost" size="icon" className="size-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(item.id)}>
@@ -511,31 +482,30 @@ function ModeratorsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => 
   };
 
   return (
-    <Card className="border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+    <Card>
       <CardHeader>
         <CardTitle>Moderators</CardTitle>
         <CardDescription>Moderators can edit access control lists and have posting access by default.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center gap-3 rounded-xl bg-muted/20 border border-border/10 p-3 transition-colors hover:bg-muted/30">
-          <Shield className="size-4 text-primary shrink-0" />
+        <div className="flex items-center gap-3 rounded-lg border border-border/50 p-3">
+          <Shield className="size-4 text-muted-foreground shrink-0" />
           <span className="font-mono text-sm truncate flex-1">{relay.owner.pubkey.slice(0, 24)}...</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">owner</span>
+          <Badge variant="secondary">Owner</Badge>
         </div>
 
         {relay.moderators.map((mod) => (
-          <div key={mod.id} className="flex items-center gap-3 rounded-xl bg-muted/20 border border-border/10 p-3 transition-colors hover:bg-muted/30">
+          <div key={mod.id} className="flex items-center gap-3 rounded-lg border border-border/50 p-3">
             <Users className="size-4 text-muted-foreground shrink-0" />
             <span className="font-mono text-sm truncate flex-1">{mod.user.pubkey.slice(0, 24)}...</span>
-            <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">mod</span>
+            <Badge variant="outline">Mod</Badge>
             <Button variant="ghost" size="icon" className="size-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(mod.id)}>
               <X className="size-3.5" />
             </Button>
           </div>
         ))}
 
-        <Separator className="opacity-20" />
+        <Separator />
 
         <div className="flex gap-2">
           <Input
@@ -543,9 +513,9 @@ function ModeratorsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => 
             value={newPubkey}
             onChange={(e) => setNewPubkey(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            className="font-mono text-xs bg-muted/20 border-border/30 focus:border-primary/40"
+            className="font-mono text-xs"
           />
-          <Button size="sm" onClick={handleAdd} disabled={adding || !newPubkey.trim()} className="gap-1 shrink-0 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 border-0">
+          <Button size="sm" onClick={handleAdd} disabled={adding || !newPubkey.trim()} className="gap-1 shrink-0">
             {adding ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             Add
           </Button>
@@ -587,25 +557,24 @@ function StreamsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
   };
 
   return (
-    <Card className="border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+    <Card>
       <CardHeader>
         <CardTitle>Streams</CardTitle>
         <CardDescription>Configure relay-to-relay streaming. Streams sync events between your relay and others.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {relay.streams.length === 0 ? (
-          <p className="text-sm text-muted-foreground/50 py-6 text-center">No streams configured</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">No streams configured</p>
         ) : (
           <div className="space-y-2">
             {relay.streams.map((stream) => (
-              <div key={stream.id} className="flex items-center gap-3 rounded-xl bg-muted/20 border border-border/10 p-3 transition-colors hover:bg-muted/30">
-                <Radio className="size-4 text-primary shrink-0" />
+              <div key={stream.id} className="flex items-center gap-3 rounded-lg border border-border/50 p-3">
+                <Radio className="size-4 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-xs truncate">{stream.url}</p>
-                  <p className="text-xs text-muted-foreground/60">Direction: {stream.direction}</p>
+                  <p className="text-xs text-muted-foreground">Direction: {stream.direction}</p>
                 </div>
-                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">{stream.status || "pending"}</span>
+                <Badge variant="secondary">{stream.status || "pending"}</Badge>
                 <Button variant="ghost" size="icon" className="size-7 shrink-0 text-muted-foreground hover:text-destructive" onClick={() => handleRemove(stream.id)}>
                   <X className="size-3.5" />
                 </Button>
@@ -614,7 +583,7 @@ function StreamsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
           </div>
         )}
 
-        <Separator className="opacity-20" />
+        <Separator />
 
         <div className="space-y-3">
           <div className="space-y-2">
@@ -623,7 +592,7 @@ function StreamsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
               placeholder="wss://relay.example.com"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="font-mono text-xs bg-muted/20 border-border/30 focus:border-primary/40"
+              className="font-mono text-xs"
             />
           </div>
           <div className="space-y-2">
@@ -635,14 +604,14 @@ function StreamsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => voi
                   variant={direction === d ? "default" : "outline"}
                   size="sm"
                   onClick={() => setDirection(d)}
-                  className={cn("capitalize", direction === d && "bg-gradient-to-r from-primary to-purple-500 border-0", direction !== d && "border-border/30")}
+                  className="capitalize"
                 >
                   {d}
                 </Button>
               ))}
             </div>
           </div>
-          <Button onClick={handleAdd} disabled={adding || !url.trim()} className="gap-1 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 border-0">
+          <Button onClick={handleAdd} disabled={adding || !url.trim()} className="gap-1">
             {adding ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
             Add Stream
           </Button>
@@ -688,25 +657,22 @@ function PaymentsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => vo
   };
 
   return (
-    <Card className="border-border/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+    <Card>
       <CardHeader>
         <CardTitle>Lightning Payments</CardTitle>
         <CardDescription>Require Lightning payments for relay access.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="flex items-center justify-between rounded-xl border border-border/20 bg-muted/20 p-4 transition-colors hover:bg-muted/30">
+        <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
           <div>
-            <p className="font-medium flex items-center gap-2">
-              <Zap className="size-4 text-amber-400" /> Require Payment
-            </p>
-            <p className="text-sm text-muted-foreground mt-0.5">Users must pay to access this relay</p>
+            <p className="font-medium">Require Payment</p>
+            <p className="text-sm text-muted-foreground">Users must pay to access this relay</p>
           </div>
           <Switch checked={payRequired} onCheckedChange={togglePayment} />
         </div>
 
         {payRequired && (
-          <div className="space-y-4 animate-fade-up">
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="amount">Payment Amount (sats)</Label>
               <Input
@@ -714,10 +680,9 @@ function PaymentsTab({ relay, onUpdate }: { relay: RelayFull; onUpdate: () => vo
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="bg-muted/20 border-border/30 focus:border-primary/40"
               />
             </div>
-            <Button onClick={handleSave} disabled={saving} className="gap-2 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90 border-0 shadow-lg shadow-primary/20">
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
               Save Amount
             </Button>
@@ -748,18 +713,15 @@ function DangerTab({ relay, onDelete }: { relay: RelayFull; onDelete: () => void
   };
 
   return (
-    <Card className="border-destructive/20 bg-card/30 backdrop-blur-sm overflow-hidden">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-destructive/30 to-transparent" />
+    <Card className="border-destructive/30">
       <CardHeader>
         <CardTitle className="text-destructive">Danger Zone</CardTitle>
         <CardDescription>Irreversible actions. Proceed with caution.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-5 space-y-4">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-4">
           <div>
-            <p className="font-medium text-destructive flex items-center gap-2">
-              <Trash2 className="size-4" /> Delete Relay
-            </p>
+            <p className="font-medium text-destructive">Delete Relay</p>
             <p className="text-sm text-muted-foreground mt-1">
               This will permanently delete your relay and all associated data. This action cannot be undone.
             </p>
@@ -772,14 +734,13 @@ function DangerTab({ relay, onDelete }: { relay: RelayFull; onDelete: () => void
               placeholder={relay.name}
               value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}
-              className="bg-muted/20 border-border/30 focus:border-destructive/40"
             />
           </div>
           <Button
             variant="destructive"
             onClick={handleDelete}
             disabled={confirmName !== relay.name || deleting}
-            className="gap-2 shadow-lg shadow-destructive/10"
+            className="gap-2"
           >
             {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
             Delete Relay Permanently
