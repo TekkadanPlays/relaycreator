@@ -1,9 +1,12 @@
-import { useSearchParams } from "react-router";
+import { useState } from "react";
+import { useSearchParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { Check, Clock, Loader2, FileX } from "lucide-react";
+import { Check, Clock, Loader2, FileX, Copy, ExternalLink, Radio } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface OrderData {
   order: {
@@ -25,6 +28,7 @@ interface OrderData {
 export default function Invoices() {
   const [params] = useSearchParams();
   const orderId = params.get("order_id");
+  const [copied, setCopied] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["invoice", orderId],
@@ -32,6 +36,12 @@ export default function Invoices() {
     enabled: !!orderId,
     refetchInterval: 5000,
   });
+
+  const copyInvoice = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (!orderId) {
     return (
@@ -75,14 +85,26 @@ export default function Invoices() {
                 <span className="font-bold text-primary">
                   {order.relay.name}.{order.relay.domain}
                 </span>{" "}
-                is being provisioned.
+                {order.relay.status === "running" ? "is live!" : "is being provisioned."}
               </p>
               <Badge
-                variant="secondary"
-                className="mt-3"
+                variant={order.relay.status === "running" ? "default" : "secondary"}
+                className={order.relay.status === "running" ? "mt-3 bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "mt-3"}
               >
-                Status: {order.relay.status}
+                {order.relay.status === "running" ? "Running" : `Status: ${order.relay.status}`}
               </Badge>
+              <div className="mt-6 flex gap-3">
+                <Button asChild className="gap-1.5">
+                  <Link to={`/relays/${order.relay.name}`}>
+                    <Radio className="size-4" /> View Relay
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild className="gap-1.5">
+                  <Link to={`/relays/${order.relay.name}/settings`}>
+                    Settings
+                  </Link>
+                </Button>
+              </div>
             </>
           ) : (
             <>
@@ -97,9 +119,31 @@ export default function Invoices() {
                 </span>
               </p>
               {order.lnurl && order.lnurl !== "0000" && (
-                <div className="mt-6 w-full rounded-lg bg-muted p-4">
-                  <p className="break-all font-mono text-xs text-muted-foreground">
-                    {order.lnurl}
+                <div className="mt-6 space-y-4 w-full">
+                  <div className="flex justify-center rounded-xl bg-white p-4">
+                    <QRCodeSVG
+                      value={order.lnurl}
+                      size={220}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 font-mono text-xs"
+                    onClick={() => copyInvoice(order.lnurl)}
+                  >
+                    {copied ? <Check className="size-4 text-emerald-400" /> : <Copy className="size-4" />}
+                    {copied ? "Copied!" : "Copy Invoice"}
+                  </Button>
+                  <a
+                    href={`lightning:${order.lnurl}`}
+                    className="flex items-center justify-center gap-1.5 text-sm text-primary hover:underline"
+                  >
+                    <ExternalLink className="size-3.5" /> Open in wallet
+                  </a>
+                  <p className="text-xs text-muted-foreground animate-pulse">
+                    Checking for payment...
                   </p>
                 </div>
               )}
