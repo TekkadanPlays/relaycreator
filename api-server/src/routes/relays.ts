@@ -377,6 +377,182 @@ router.delete("/:id/streams/:streamId", requireAuth, async (req: Request, res: R
   res.json(deleted);
 });
 
+// --- ACL LIST CRUD ---
+
+// Helper to ensure allow_list exists for a relay
+async function ensureAllowList(relayId: string) {
+  let list = await prisma.allowList.findFirst({ where: { relayId } });
+  if (!list) {
+    list = await prisma.allowList.create({ data: { relayId } });
+  }
+  return list;
+}
+
+// Helper to ensure block_list exists for a relay
+async function ensureBlockList(relayId: string) {
+  let list = await prisma.blockList.findFirst({ where: { relayId } });
+  if (!list) {
+    list = await prisma.blockList.create({ data: { relayId } });
+  }
+  return list;
+}
+
+// --- Allow List Pubkeys ---
+
+router.post("/:id/allowlistpubkey", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { pubkey, reason } = req.body;
+  const list = await ensureAllowList(relay.id);
+  const entry = await prisma.listEntryPubkey.create({
+    data: { AllowListId: list.id, pubkey, reason: reason || null },
+  });
+  res.json(entry);
+});
+
+router.delete("/:id/allowlistpubkey", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { id: entryId } = req.body;
+  if (!entryId) { res.status(400).json({ error: "id required" }); return; }
+
+  const list = await ensureAllowList(relay.id);
+  await prisma.listEntryPubkey.delete({ where: { id: entryId, AllowListId: list.id } });
+  res.json({ success: true });
+});
+
+// --- Block List Pubkeys ---
+
+router.post("/:id/blocklistpubkey", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { pubkey, reason } = req.body;
+  const list = await ensureBlockList(relay.id);
+  const entry = await prisma.listEntryPubkey.create({
+    data: { BlockListId: list.id, pubkey, reason: reason || null },
+  });
+  res.json(entry);
+});
+
+router.delete("/:id/blocklistpubkey", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { id: entryId } = req.body;
+  if (!entryId) { res.status(400).json({ error: "id required" }); return; }
+
+  const list = await ensureBlockList(relay.id);
+  await prisma.listEntryPubkey.delete({ where: { id: entryId, BlockListId: list.id } });
+  res.json({ success: true });
+});
+
+// --- Allow List Keywords ---
+
+router.post("/:id/allowlistkeyword", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { keyword, reason } = req.body;
+  const list = await ensureAllowList(relay.id);
+  const entry = await prisma.listEntryKeyword.create({
+    data: { AllowListId: list.id, keyword, reason: reason || null },
+  });
+  res.json(entry);
+});
+
+router.delete("/:id/allowlistkeyword", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { id: entryId } = req.body;
+  if (!entryId) { res.status(400).json({ error: "id required" }); return; }
+
+  const list = await ensureAllowList(relay.id);
+  await prisma.listEntryKeyword.delete({ where: { id: entryId, AllowListId: list.id } });
+  res.json({ success: true });
+});
+
+// --- Block List Keywords ---
+
+router.post("/:id/blocklistkeyword", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { keyword, reason } = req.body;
+  const list = await ensureBlockList(relay.id);
+  const entry = await prisma.listEntryKeyword.create({
+    data: { BlockListId: list.id, keyword, reason: reason || null },
+  });
+  res.json(entry);
+});
+
+router.delete("/:id/blocklistkeyword", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { id: entryId } = req.body;
+  if (!entryId) { res.status(400).json({ error: "id required" }); return; }
+
+  const list = await ensureBlockList(relay.id);
+  await prisma.listEntryKeyword.delete({ where: { id: entryId, BlockListId: list.id } });
+  res.json({ success: true });
+});
+
+// --- Allow List Kinds ---
+
+router.post("/:id/allowlistkind", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { kind, reason } = req.body;
+  const list = await ensureAllowList(relay.id);
+  const entry = await prisma.listEntryKind.create({
+    data: { AllowListId: list.id, kind: parseInt(kind), reason: reason || null },
+  });
+  res.json(entry);
+});
+
+router.delete("/:id/allowlistkind", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { id: entryId } = req.body;
+  if (!entryId) { res.status(400).json({ error: "id required" }); return; }
+
+  const list = await ensureAllowList(relay.id);
+  await prisma.listEntryKind.delete({ where: { id: entryId, AllowListId: list.id } });
+  res.json({ success: true });
+});
+
+// --- Block List Kinds ---
+
+router.post("/:id/blocklistkind", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { kind, reason } = req.body;
+  const list = await ensureBlockList(relay.id);
+  const entry = await prisma.listEntryKind.create({
+    data: { BlockListId: list.id, kind: parseInt(kind), reason: reason || null },
+  });
+  res.json(entry);
+});
+
+router.delete("/:id/blocklistkind", requireAuth, async (req: Request, res: Response) => {
+  const relay = await checkRelayAccess(req.auth!.userId, req.params.id as string);
+  if (!relay) { res.status(403).json({ error: "not authorized" }); return; }
+
+  const { id: entryId } = req.body;
+  if (!entryId) { res.status(400).json({ error: "id required" }); return; }
+
+  const list = await ensureBlockList(relay.id);
+  await prisma.listEntryKind.delete({ where: { id: entryId, BlockListId: list.id } });
+  res.json({ success: true });
+});
+
 // --- HELPERS ---
 
 async function checkRelayOwnership(userId: string, relayId: string) {
