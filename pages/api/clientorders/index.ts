@@ -53,10 +53,7 @@ export default async function handle(req: any, res: any) {
         out: false,
     });
 
-    let usePaymentRequest = newInvoice.payment_request
-    if(usePaymentRequest == null) {
-        usePaymentRequest = newInvoice.bolt11
-    }
+    const usePaymentRequest = newInvoice.payment_request ?? newInvoice.bolt11 ?? "";
 
     const newClientOrder = await prisma.clientOrder.create({
         data: {

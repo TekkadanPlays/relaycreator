@@ -84,10 +84,7 @@ export default async function handle(req: any, res: any) {
             });
             console.log(newInvoice)
 
-            let usePaymentRequest = newInvoice.payment_request
-            if(usePaymentRequest == null) {
-                usePaymentRequest = newInvoice.bolt11
-            }
+            const usePaymentRequest = newInvoice.payment_request ?? newInvoice.bolt11 ?? "";
 
             const orderCreated = await prisma.order.create({
                 data: {
@@ -247,10 +244,7 @@ export default async function handle(req: any, res: any) {
             out: false,
         });
         console.log(newInvoice)
-        let usePaymentRequest = newInvoice.payment_request
-        if(usePaymentRequest == null) {
-            usePaymentRequest = newInvoice.bolt11
-        }
+        const usePaymentRequest = newInvoice.payment_request ?? newInvoice.bolt11 ?? "";
 
         const orderCreated = await prisma.order.create({
             data: {
