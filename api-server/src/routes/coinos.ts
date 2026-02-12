@@ -19,11 +19,27 @@ function coinosEnabled(_req: Request, res: Response, next: Function) {
   next();
 }
 
+/** Build headers for proxied requests to CoinOS. Always includes x-api-key. */
+function coinosHeaders(req?: Request): Record<string, string> {
+  const env = getEnv();
+  const h: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-api-key": env.COINOS_API_KEY,
+  };
+  const coinosToken = req?.headers?.["x-coinos-token"];
+  if (coinosToken && typeof coinosToken === "string") {
+    h["Authorization"] = `Bearer ${coinosToken}`;
+  }
+  return h;
+}
+
 // GET /api/coinos/status — check if coinos is enabled and reachable
 router.get("/status", coinosEnabled, async (_req: Request, res: Response) => {
   const env = getEnv();
   try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/health`);
+    const response = await fetch(`${env.COINOS_ENDPOINT}/health`, {
+      headers: { "x-api-key": env.COINOS_API_KEY },
+    });
     if (response.ok) {
       const data = await response.json() as Record<string, unknown>;
       res.json({ enabled: true, healthy: true, ...data });
@@ -41,7 +57,7 @@ router.post("/register", coinosEnabled, requireAuth, async (req: Request, res: R
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/register`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: coinosHeaders(req),
       body: JSON.stringify(req.body),
     });
     const data = await response.json();
@@ -57,7 +73,7 @@ router.post("/login", coinosEnabled, async (req: Request, res: Response) => {
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: coinosHeaders(req),
       body: JSON.stringify(req.body),
     });
     const data = await response.json();
@@ -70,13 +86,9 @@ router.post("/login", coinosEnabled, async (req: Request, res: Response) => {
 // GET /api/coinos/me — get current CoinOS user info
 router.get("/me", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
   const env = getEnv();
-  const coinosToken = req.headers["x-coinos-token"];
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/me`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(coinosToken ? { Authorization: `Bearer ${coinosToken}` } : {}),
-      },
+      headers: coinosHeaders(req),
     });
     const data = await response.json();
     res.status(response.status).json(data);
@@ -88,7 +100,6 @@ router.get("/me", coinosEnabled, requireAuth, async (req: Request, res: Response
 // GET /api/coinos/payments — list payments (supports limit, offset, start, end, aid)
 router.get("/payments", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
   const env = getEnv();
-  const coinosToken = req.headers["x-coinos-token"];
   const qs = new URLSearchParams();
   for (const key of ["limit", "offset", "start", "end", "aid"]) {
     if (req.query[key]) qs.set(key, String(req.query[key]));
@@ -96,10 +107,7 @@ router.get("/payments", coinosEnabled, requireAuth, async (req: Request, res: Re
   const qsStr = qs.toString();
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/payments${qsStr ? `?${qsStr}` : ""}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(coinosToken ? { Authorization: `Bearer ${coinosToken}` } : {}),
-      },
+      headers: coinosHeaders(req),
     });
     const data = await response.json();
     res.status(response.status).json(data);
@@ -111,14 +119,10 @@ router.get("/payments", coinosEnabled, requireAuth, async (req: Request, res: Re
 // POST /api/coinos/invoice — create a Lightning invoice via CoinOS
 router.post("/invoice", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
   const env = getEnv();
-  const coinosToken = req.headers["x-coinos-token"];
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/invoice`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(coinosToken ? { Authorization: `Bearer ${coinosToken}` } : {}),
-      },
+      headers: coinosHeaders(req),
       body: JSON.stringify(req.body),
     });
     const data = await response.json();
@@ -131,14 +135,10 @@ router.post("/invoice", coinosEnabled, requireAuth, async (req: Request, res: Re
 // POST /api/coinos/payments — send a payment via CoinOS
 router.post("/payments", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
   const env = getEnv();
-  const coinosToken = req.headers["x-coinos-token"];
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/payments`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(coinosToken ? { Authorization: `Bearer ${coinosToken}` } : {}),
-      },
+      headers: coinosHeaders(req),
       body: JSON.stringify(req.body),
     });
     const data = await response.json();
@@ -151,13 +151,9 @@ router.post("/payments", coinosEnabled, requireAuth, async (req: Request, res: R
 // GET /api/coinos/info — get node info
 router.get("/info", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
   const env = getEnv();
-  const coinosToken = req.headers["x-coinos-token"];
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/info`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(coinosToken ? { Authorization: `Bearer ${coinosToken}` } : {}),
-      },
+      headers: coinosHeaders(req),
     });
     const data = await response.json();
     res.status(response.status).json(data);
@@ -170,7 +166,9 @@ router.get("/info", coinosEnabled, requireAuth, async (req: Request, res: Respon
 router.get("/challenge", coinosEnabled, async (_req: Request, res: Response) => {
   const env = getEnv();
   try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/challenge`);
+    const response = await fetch(`${env.COINOS_ENDPOINT}/challenge`, {
+      headers: { "x-api-key": env.COINOS_API_KEY },
+    });
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (err: any) {
@@ -184,7 +182,7 @@ router.post("/nostrAuth", coinosEnabled, async (req: Request, res: Response) => 
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/nostrAuth`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: coinosHeaders(),
       body: JSON.stringify(req.body),
     });
     const data = await response.json();
@@ -198,7 +196,9 @@ router.post("/nostrAuth", coinosEnabled, async (req: Request, res: Response) => 
 router.get("/rates", coinosEnabled, async (_req: Request, res: Response) => {
   const env = getEnv();
   try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/rates`);
+    const response = await fetch(`${env.COINOS_ENDPOINT}/rates`, {
+      headers: { "x-api-key": env.COINOS_API_KEY },
+    });
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (err: any) {

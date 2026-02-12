@@ -19,6 +19,7 @@ const envSchema = z.object({
   HAPROXY_PEM: z.string().default("bundle.pem"),
   COINOS_ENABLED: z.string().default("false"),
   COINOS_ENDPOINT: z.string().default("http://127.0.0.1:3119"),
+  COINOS_API_KEY: z.string().default("nStack"),
 });
 
 export type Env = z.infer<typeof envSchema>;
