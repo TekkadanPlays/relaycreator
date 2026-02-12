@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../stores/auth";
 import {
   coinos,
@@ -32,9 +32,17 @@ import {
   Loader2,
   Bitcoin,
   LogOut,
-  UserPlus,
-  LogIn,
+  Link,
 } from "lucide-react";
+
+declare global {
+  interface Window {
+    nostr?: {
+      getPublicKey: () => Promise<string>;
+      signEvent: (event: any) => Promise<any>;
+    };
+  }
+}
 
 interface AppConfig {
   coinos_enabled: boolean;
@@ -52,13 +60,8 @@ export default function Wallet() {
   const [incoming, setIncoming] = useState(0);
   const [outgoing, setOutgoing] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
-
-  // Auth form
-  const [authMode, setAuthMode] = useState<"login" | "register">("login");
-  const [authUsername, setAuthUsername] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
 
   // Invoice creation
   const [invoiceAmount, setInvoiceAmount] = useState("");
@@ -76,6 +79,43 @@ export default function Wallet() {
   // Pagination
   const [page, setPage] = useState(0);
   const pageSize = 10;
+
+  const connectWithNostr = useCallback(async () => {
+    if (!window.nostr) {
+      setError("No Nostr extension found");
+      return false;
+    }
+    setConnecting(true);
+    try {
+      const { challenge } = await coinos.challenge();
+
+      const event = {
+        kind: 27235,
+        created_at: Math.floor(Date.now() / 1000),
+        content: "",
+        tags: [
+          ["u", `${window.location.origin}/api/coinos/nostrAuth`],
+          ["method", "POST"],
+          ["challenge", challenge],
+        ],
+      };
+
+      const signedEvent = await window.nostr.signEvent(event);
+      const result = await coinos.nostrAuth({ challenge, event: signedEvent });
+
+      if (result.token) {
+        localStorage.setItem("coinos_token", result.token);
+        return true;
+      }
+      setError("Authentication failed — no token received");
+      return false;
+    } catch (err: any) {
+      setError(err.message || "Failed to connect wallet");
+      return false;
+    } finally {
+      setConnecting(false);
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -96,8 +136,13 @@ export default function Wallet() {
       const s = await coinos.status();
       setStatus(s);
 
-      if (s.healthy && localStorage.getItem("coinos_token")) {
-        await loadWalletData();
+      if (s.healthy) {
+        if (localStorage.getItem("coinos_token")) {
+          await loadWalletData();
+        } else if (window.nostr) {
+          const ok = await connectWithNostr();
+          if (ok) await loadWalletData();
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -125,7 +170,6 @@ export default function Wallet() {
       setOutgoing(resp.outgoing || 0);
       setPage(pageNum);
     } catch {
-      // Fallback: API might not support paginated format
       try {
         const legacy = await coinos.paymentsLegacy();
         const arr = Array.isArray(legacy) ? legacy : [];
@@ -137,26 +181,10 @@ export default function Wallet() {
     }
   }
 
-  async function handleAuth(e: React.FormEvent) {
-    e.preventDefault();
-    setAuthLoading(true);
+  async function handleConnect() {
     setError("");
-    try {
-      const fn = authMode === "register" ? coinos.register : coinos.login;
-      const result = await fn({
-        username: authUsername,
-        password: authPassword,
-      });
-      if (result.token) {
-        localStorage.setItem("coinos_token", result.token);
-      }
-      setAuthUsername("");
-      setAuthPassword("");
-      await loadWalletData();
-    } catch (err: any) {
-      setError(err.message || `Failed to ${authMode}`);
-    }
-    setAuthLoading(false);
+    const ok = await connectWithNostr();
+    if (ok) await loadWalletData();
   }
 
   function handleLogout() {
@@ -276,93 +304,40 @@ export default function Wallet() {
     );
   }
 
-  // ── Not logged into CoinOS — show auth form ──
+  // ── Not logged into CoinOS — auto-connect prompt ──
   if (!coinosUser) {
     return (
       <div className="mx-auto max-w-md py-8 animate-in">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-xl">
-              {authMode === "login" ? "Connect Wallet" : "Create Wallet"}
-            </CardTitle>
+            <CardTitle className="text-xl">Connect Wallet</CardTitle>
             <CardDescription>
-              {authMode === "login"
-                ? "Sign in to your CoinOS account"
-                : "Create a new CoinOS Lightning wallet"}
+              Link your Nostr identity to a CoinOS Lightning wallet.
+              {" "}Your extension will sign a one-time auth event.
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleAuth}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="coinos-user">Username</Label>
-                <Input
-                  id="coinos-user"
-                  placeholder="satoshi"
-                  autoComplete="username"
-                  value={authUsername}
-                  onChange={(e) => setAuthUsername(e.target.value)}
-                  required
-                />
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
+                <AlertCircle className="size-4 shrink-0" />
+                {error}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="coinos-pass">Password</Label>
-                <Input
-                  id="coinos-pass"
-                  type="password"
-                  placeholder="••••••••"
-                  autoComplete={authMode === "register" ? "new-password" : "current-password"}
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                  required
-                />
-              </div>
-              {error && (
-                <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 text-sm text-destructive">
-                  <AlertCircle className="size-4 shrink-0" />
-                  {error}
-                </div>
+            )}
+          </CardContent>
+          <CardFooter>
+            <Button
+              onClick={handleConnect}
+              disabled={connecting}
+              className="w-full gap-2"
+            >
+              {connecting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Link className="size-4" />
               )}
-            </CardContent>
-            <CardFooter className="flex-col gap-3">
-              <Button
-                type="submit"
-                className="w-full gap-2"
-                disabled={!authUsername || !authPassword || authLoading}
-              >
-                {authLoading ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : authMode === "login" ? (
-                  <LogIn className="size-4" />
-                ) : (
-                  <UserPlus className="size-4" />
-                )}
-                {authMode === "login" ? "Sign In" : "Create Account"}
-              </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                {authMode === "login" ? (
-                  <>No account?{" "}
-                    <button
-                      type="button"
-                      className="underline underline-offset-2 hover:text-foreground"
-                      onClick={() => { setAuthMode("register"); setError(""); }}
-                    >
-                      Create one
-                    </button>
-                  </>
-                ) : (
-                  <>Already have an account?{" "}
-                    <button
-                      type="button"
-                      className="underline underline-offset-2 hover:text-foreground"
-                      onClick={() => { setAuthMode("login"); setError(""); }}
-                    >
-                      Sign in
-                    </button>
-                  </>
-                )}
-              </p>
-            </CardFooter>
-          </form>
+              {connecting ? "Connecting..." : "Connect with Nostr"}
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     );

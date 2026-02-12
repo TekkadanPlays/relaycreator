@@ -166,6 +166,34 @@ router.get("/info", coinosEnabled, requireAuth, async (req: Request, res: Respon
   }
 });
 
+// GET /api/coinos/challenge — get a challenge for Nostr auth
+router.get("/challenge", coinosEnabled, async (_req: Request, res: Response) => {
+  const env = getEnv();
+  try {
+    const response = await fetch(`${env.COINOS_ENDPOINT}/challenge`);
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (err: any) {
+    res.status(502).json({ error: "Failed to connect to CoinOS server" });
+  }
+});
+
+// POST /api/coinos/nostrAuth — authenticate with a signed Nostr event
+router.post("/nostrAuth", coinosEnabled, async (req: Request, res: Response) => {
+  const env = getEnv();
+  try {
+    const response = await fetch(`${env.COINOS_ENDPOINT}/nostrAuth`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+    const data = await response.json();
+    res.status(response.status).json(data);
+  } catch (err: any) {
+    res.status(502).json({ error: "Failed to connect to CoinOS server" });
+  }
+});
+
 // GET /api/coinos/rates — get exchange rates
 router.get("/rates", coinosEnabled, async (_req: Request, res: Response) => {
   const env = getEnv();

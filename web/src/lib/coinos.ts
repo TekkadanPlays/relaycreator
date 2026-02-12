@@ -76,6 +76,14 @@ async function coinosRequest<T>(path: string, options?: RequestInit): Promise<T>
 export const coinos = {
   status: () => coinosRequest<CoinosStatus>("/status"),
   
+  challenge: () => coinosRequest<{ challenge: string }>("/challenge"),
+
+  nostrAuth: (body: { challenge: string; event: any }) =>
+    coinosRequest<{ user: CoinosUser; token: string }>("/nostrAuth", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   register: (body: { username: string; password: string }) =>
     coinosRequest<{ user: CoinosUser; token: string }>("/register", {
       method: "POST",
