@@ -37,7 +37,7 @@ export default async function handle(req: any, res: any) {
         endpoint: process.env.LNBITS_ENDPOINT,
     });
 
-    const checkinvoice = await wallet.checkInvoice({
+    const checkinvoice = await (wallet as any).checkInvoice({
         payment_hash: clientOrder.payment_hash,
     });
 

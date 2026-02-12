@@ -57,7 +57,7 @@ export default async function handle(req: any, res: any) {
         return
     }
 
-    const checkinvoice = await wallet.checkInvoice({
+    const checkinvoice = await (wallet as any).checkInvoice({
         payment_hash: findOrder.payment_hash,
     });
 

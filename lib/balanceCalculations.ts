@@ -113,7 +113,7 @@ export async function createOrGetDonationInvoice(relay: any) {
 
             var checkinvoice: any = null
             try {
-            checkinvoice = await wallet.checkInvoice({
+            checkinvoice = await (wallet as any).checkInvoice({
                 payment_hash: recentOrder.payment_hash,
             });
 
@@ -168,7 +168,7 @@ export async function createOrGetDonationInvoice(relay: any) {
                     userId: relay.ownerId,
                     paid: false,
                     payment_hash: newInvoice.payment_hash,
-                    lnurl: newInvoice.payment_request,
+                    lnurl: newInvoice.payment_request || "",
                     expires_at: new Date(
                         new Date().getTime() + 3600 * 1000
                     ),
