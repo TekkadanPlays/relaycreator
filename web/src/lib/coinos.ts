@@ -16,6 +16,14 @@ export interface CoinosPayment {
   type: string;
   created: number;
   ref?: string;
+  confirmed?: boolean;
+}
+
+export interface CoinosPaymentsResponse {
+  count: number;
+  payments: CoinosPayment[];
+  incoming: number;
+  outgoing: number;
 }
 
 export interface CoinosUser {
@@ -82,7 +90,14 @@ export const coinos = {
 
   me: () => coinosRequest<CoinosUser>("/me"),
 
-  payments: () => coinosRequest<CoinosPayment[]>("/payments"),
+  payments: (limit = 10, offset = 0) =>
+    coinosRequest<CoinosPaymentsResponse>(`/payments?limit=${limit}&offset=${offset}`),
+
+  paymentsLegacy: () => coinosRequest<CoinosPayment[]>("/payments"),
+
+  logout: () => {
+    localStorage.removeItem("coinos_token");
+  },
 
   createInvoice: (body: { amount: number; memo?: string; type?: string }) =>
     coinosRequest<CoinosInvoice>("/invoice", {

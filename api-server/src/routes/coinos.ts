@@ -85,12 +85,17 @@ router.get("/me", coinosEnabled, requireAuth, async (req: Request, res: Response
   }
 });
 
-// GET /api/coinos/payments — list payments
+// GET /api/coinos/payments — list payments (supports limit, offset, start, end, aid)
 router.get("/payments", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
   const env = getEnv();
   const coinosToken = req.headers["x-coinos-token"];
+  const qs = new URLSearchParams();
+  for (const key of ["limit", "offset", "start", "end", "aid"]) {
+    if (req.query[key]) qs.set(key, String(req.query[key]));
+  }
+  const qsStr = qs.toString();
   try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/payments`, {
+    const response = await fetch(`${env.COINOS_ENDPOINT}/payments${qsStr ? `?${qsStr}` : ""}`, {
       headers: {
         "Content-Type": "application/json",
         ...(coinosToken ? { Authorization: `Bearer ${coinosToken}` } : {}),
