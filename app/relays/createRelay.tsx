@@ -307,7 +307,7 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
                 </div>
 
                 <div className="text-center mt-8 text-gray-600">
-                    relay.tools 2025 &middot; Made with 🤙🏻 in the PNW &middot;{" "}
+                    {process.env.NEXT_PUBLIC_CREATOR_DOMAIN || "nostr1.com"} {new Date().getFullYear()} &middot; Made with 🤙🏻 in the PNW &middot;{" "}
                     <a href="https://github.com/relaytools" className="link">
                         <IoLogoGithub className="inline" />
                     </a>

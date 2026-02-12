@@ -40,8 +40,7 @@ export async function middleware(req: NextRequest) {
         }
         
         // Skip root domains and local IPs
-        if (host == "relay.tools"
-         || host == skipThis
+        if (host == skipThis
          || host?.includes("10.0")
          || host?.includes("192.168")
          || host?.includes("127.0")
