@@ -57,115 +57,96 @@ export default function Relay(
     }
 
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "http://localhost:3000"
+    const bannerUrl = edited ? (profileBanner || null) : (props.relay.banner_image || null)
+    const displayDetails = edited ? (profileDetail || "") : useDetails
+
     return (
-        <div id={props.relay.id + "rootview"} className="flex-1 lg:flex-auto lg:w-1/4">
-            {props.showDetail &&
-                <a href={useRelayHttps} className="">
-                    <div className="card rounded-none text-white selectable hover:bg-gray-800 hover:text-white hover:bg-opacity-80" style={{
-                        backgroundImage: `url(${edited ? (profileBanner || "/green-check.png") : (props.relay.banner_image || "/green-check.png")})`,
-                        backgroundSize: "cover",
-                        textShadow: "0px 0px 5px rgba(0, 0, 0, 0.5)",
-                        height: "394px",
-                    }}>
-                        <div className="grow h-1/2"/>
-                        <div className="font-condensed card-body bg-black bg-opacity-80 hover:bg-gray-800 hover:text-white hover:bg-opacity-80 grow h-1/2">
-                            <h2 className="card-title" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{props.relay.name}</h2>
-                            <p className="text-sm" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{useRelayWSS}</p>
-                            <p className="text-sm" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{edited ? (profileDetail || "") : (useDetails)}</p>
-                        </div>
+        <div id={props.relay.id + "rootview"} className="group">
+            {/* Card View (showDetail or showSettings or showCopy) */}
+            {(props.showDetail || props.showSettings || props.showCopy) && (
+                <a
+                    href={props.showSettings ? `/curator?relay_id=${props.relay.id}` : useRelayHttps}
+                    onClick={props.showCopy ? (e: any) => { e.preventDefault(); copyToClipboard(e, useRelayWSS); } : undefined}
+                    className="block rounded-lg border border-base-300/50 overflow-hidden hover:border-base-content/20 transition-all"
+                >
+                    {/* Banner */}
+                    <div className="h-32 bg-base-300 relative overflow-hidden">
+                        {bannerUrl ? (
+                            <img src={bannerUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-base-100/90 to-transparent" />
                     </div>
 
-
-                </a>
-            }
-
-            {props.showCopy &&
-                <div onClick={(e) => copyToClipboard(e, (useRelayWSS))} className="card rounded-none text-white selectable hover:bg-gray-800 hover:text-white hover:bg-opacity-80" style={{
-                    backgroundImage: `url(${edited ? (profileBanner || "/green-check.png") : (props.relay.banner_image || "/green-check.png")})`,
-                    backgroundSize: "cover",
-                    textShadow: "0px 0px 5px rgba(0, 0, 0, 0.5)",
-                    height: "394px",
-                }}>
-                    <div className="grow h-1/2"/>
-                    <div className="font-condensed card-body bg-black bg-opacity-80 hover:bg-gray-800 hover:text-white hover:bg-opacity-80 grow h-1/2">
-                        <h2 className="card-title" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{props.relay.name}</h2>
-                        <p className="text-sm" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{useRelayWSS}</p>
-                        <p className="text-sm" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{edited ? (profileDetail || "") : (useDetails)}</p>
-                    </div>
-                </div>
-            }
-
-            {props.showSettings &&
-                <a href={`/curator?relay_id=${props.relay.id}`} className="">
-                    <div className="card rounded-none text-white selectable hover:bg-gray-800 hover:text-white hover:bg-opacity-80" style={{
-                        backgroundImage: `url(${edited ? (profileBanner || "/green-check.png") : (props.relay.banner_image || "/green-check.png")})`,
-                        backgroundSize: "cover",
-                        textShadow: "0px 0px 5px rgba(0, 0, 0, 0.5)",
-                        height: "394px",
-                    }}>
-                        <div className="grow"/>
-                        <div className="font-condensed card-body bg-black bg-opacity-80 hover:bg-gray-800 hover:text-white hover:bg-opacity-80 max-h-40">
-                            <h2 className="card-title" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{props.relay.name}</h2>
-                            <p className="text-sm" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{useRelayWSS}</p>
-                            <p className="text-sm" style={{ whiteSpace: "pre-line", overflow: "hidden" }}>{edited ? (profileDetail || "") : (useDetails)}</p>
-                        </div>
+                    {/* Content */}
+                    <div className="p-4 -mt-8 relative">
+                        <h3 className="font-semibold text-sm mb-1 truncate">{props.relay.name}</h3>
+                        <p className="text-xs font-mono text-base-content/40 mb-2 truncate">{useRelayWSS}</p>
+                        {displayDetails && (
+                            <p className="text-xs text-base-content/60 line-clamp-2 leading-relaxed">{displayDetails}</p>
+                        )}
                     </div>
                 </a>
-            }
-            {props.showCopy &&
-                <div>
-                    <div className="justify-center mt-2">
-                        <button className="btn uppercase btn-notice"
-                            onClick={(e) => copyToClipboard(e, (useRelayWSS))}>
-                            copy to clipboard
-                        </button>
+            )}
+
+            {/* Copy Button */}
+            {props.showCopy && (
+                <button
+                    className="btn btn-ghost btn-xs w-full mt-2 text-xs"
+                    onClick={(e) => copyToClipboard(e, useRelayWSS)}
+                >
+                    Copy WSS URL
+                </button>
+            )}
+
+            {/* Edit Button */}
+            {props.showEdit && (
+                <button
+                    className="btn btn-ghost btn-xs w-full mt-2 text-xs"
+                    onClick={() => setEditing(true)}
+                >
+                    Edit Details
+                </button>
+            )}
+
+            {/* Edit Form */}
+            {editing && (
+                <div className="mt-3 p-4 rounded-lg border border-base-300 bg-base-200/30 space-y-3">
+                    <div>
+                        <label className="block text-xs font-medium mb-1">Description</label>
+                        <textarea
+                            id={props.relay.id + "textareaedit"}
+                            className="textarea textarea-bordered w-full h-20 text-sm"
+                            placeholder="Relay description..."
+                            value={profileDetail || ""}
+                            onChange={(e) => setProfileDetails(e.target.value)}
+                        />
                     </div>
-                </div>
-
-            }
-
-            {props.showEdit &&
-                <div className="justify-center mt-2">
-                    <button className="btn uppercase btn-primary"
-                        onClick={() => setEditing(true)}>
-                        edit details
-                    </button>
-                </div>
-            }
-            {
-                editing &&
-                <div className="form-control mt-4">
-                    <label className="label">
-                        <span className="label-text">Relay Profile</span>
-                    </label>
-                    <textarea id={props.relay.id + "textareaedit"} className="textarea textarea-bordered h-24"
-                        placeholder="description"
-                        value={profileDetail || ""}
-                        onChange={(e) => setProfileDetails(e.target.value)}>
-                    </textarea>
-                    <label className="label">
-                        <span className="label-text">Banner image url</span>
-                    </label>
-                    <input id={props.relay.id + "urlid"} type="text" placeholder="enter image url" className="input input-bordered w-full"
-                        onChange={(e) => setProfileBanner(e.target.value)}
-                        value={profileBanner || ""} />
+                    <div>
+                        <label className="block text-xs font-medium mb-1">Banner Image URL</label>
+                        <input
+                            id={props.relay.id + "urlid"}
+                            type="text"
+                            placeholder="https://..."
+                            className="input input-bordered input-sm w-full"
+                            onChange={(e) => setProfileBanner(e.target.value)}
+                            value={profileBanner || ""}
+                        />
+                    </div>
                     <div className="flex justify-end gap-2">
-                        <button className="btn uppercase btn-primary mt-2" onClick={(e) => handleSubmitEdit(e)}>Save</button>
-                        <button className="btn uppercase btn-primary mt-2" onClick={() => setEditing(false)}>Cancel</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+                        <button className="btn btn-primary btn-sm" onClick={(e) => handleSubmitEdit(e)}>Save</button>
                     </div>
                 </div>
-            }
-            {props.showExplorer &&
-                <div>
-                    <div className="justify-center mt-2">
-                        <a href={useRelayHttps} className="btn uppercase btn-secondary">
-                            open in relay explorer (alpha)<span className="sr-only">, {props.relay.id}</span>
-                        </a>
-                    </div>
+            )}
 
-                </div>
-            }
+            {/* Explorer Link */}
+            {props.showExplorer && (
+                <a href={useRelayHttps} className="btn btn-ghost btn-xs w-full mt-2 text-xs">
+                    Open in Explorer
+                </a>
+            )}
         </div>
-
     )
 }

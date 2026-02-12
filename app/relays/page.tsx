@@ -4,35 +4,21 @@ import PublicRelays from "./publicRelays";
 import CreateRelay from "./createRelay";
 import HelpfulInfo from "./helpfulInfo";
 import RelayDashboard from "./relayDashboard";
-import Link from "next/link";
 
 export default async function Relays() {
 
     const session = await getServerSession(authOptions);
 
-    let showSignup = false;
-
     if (!session || !(session as any).user.name) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-base-100 to-base-200">
-                <div className="container mx-auto px-4 py-8">
-                    {showSignup && (
-                        <div className="card bg-base-200 mb-8">
-                            <div className="card-body">
-                                <CreateRelay />
-                            </div>
+            <div className="px-4 py-8">
+                <div className="max-w-6xl mx-auto">
+                    <HelpfulInfo />
+
+                    <div className="mt-12">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-xl font-bold tracking-tight">Public Relays</h2>
                         </div>
-                    )}
-                    
-                    {!showSignup && (
-                        <div className="card bg-base-200 mb-8">
-                            <div className="card-body">
-                                <HelpfulInfo />
-                            </div>
-                        </div>
-                    )}
-                    
-                    <div className="card bg-base-100 shadow-lg">
                         <PublicRelays />
                     </div>
                 </div>
@@ -40,11 +26,5 @@ export default async function Relays() {
         );
     }
 
-    // Pass session data to client component - let it handle component rendering
-    return (
-        // Show dashboard for logged-in users
-        <div>
-            <RelayDashboard />
-        </div>
-    );
+    return <RelayDashboard />;
 }

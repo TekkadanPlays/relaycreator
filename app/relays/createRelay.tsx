@@ -1,5 +1,5 @@
 "use client";
-import { IoLogoGithub } from "react-icons/io5";
+import { IoLogoGithub, IoCheckmarkCircle, IoArrowForward, IoFlashOutline, IoStarOutline } from "react-icons/io5";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,9 +15,6 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
     useEffect(() => {
         setReferrer(document.referrer);
     }, []);
-
-    console.log("DETECTING REFERRER");
-    console.log(referrer);
 
     if (p == null) {
         return <>no p</>;
@@ -58,7 +55,6 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
         setPubkey(pubkey);
         const validPubkey = convertOrValidatePubkey(pubkey);
         setPubkeyError("");
-        console.log(validPubkey);
         if (validPubkey) {
             setPubkeyError("✅");
             setPubkeyErrorDescription("");
@@ -69,10 +65,8 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
     }
 
     function validateRelayName(name: string) {
-        // use javascript regex to detect hostname from name
         const valid = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}$/.test(name);
 
-        // check blank
         if (name == "") {
             setNameErrorDescription("name cannot be blank");
             return false;
@@ -111,8 +105,6 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
             submitHex = pubkey;
         }
 
-        // here double check name isn't taken via the api, if it's taken, the api will return error.  if it's available the api will
-        // 'reserve it' to this user pubkey.. and return the order_id here. the next page, will lookup the order id and populate with invoice.
         const response = await fetch(
             `/api/invoices?relayname=${name}&pubkey=${submitHex}&plan=${selectedPlan}`
         );
@@ -130,186 +122,191 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
 
     const useDomain = process.env.NEXT_PUBLIC_CREATOR_DOMAIN || "nostr1.com";
 
+    const standardFeatures = [
+        "Customizable on-the-fly",
+        "Inbox / Outbox support",
+        "Public / Private modes",
+        "Communities / DMs",
+    ];
+
+    const premiumFeatures = [
+        "All standard features",
+        "Streaming from other relays",
+        "Enhanced filtering by social graph",
+    ];
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-base-100 to-base-200 p-4">
-            <div className="container mx-auto max-w-6xl">
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-primary mb-2">Create Your Nostr Relay</h1>
-                    <p className="text-lg text-gray-600">Choose your plan and get started in minutes</p>
+        <div className="px-4 py-8">
+            <div className="max-w-5xl mx-auto">
+                {/* Header */}
+                <div className="text-center mb-10">
+                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
+                        Deploy Your Relay
+                    </h1>
+                    <p className="text-base-content/60">
+                        Choose a plan, configure, and launch in under a minute.
+                    </p>
                 </div>
 
                 {/* Plan Selection */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                     {/* Standard Plan */}
-                    <div 
-                        className={`card border-2 cursor-pointer transition-all ${
-                            selectedPlan === "standard" 
-                                ? "border-primary bg-primary/10 shadow-lg" 
-                                : "border-base-300 hover:border-primary/50"
+                    <button
+                        type="button"
+                        className={`text-left p-6 rounded-lg border-2 transition-all ${
+                            selectedPlan === "standard"
+                                ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
+                                : "border-base-300 hover:border-base-content/20"
                         }`}
                         onClick={() => setSelectedPlan("standard")}
                     >
-                        <div className="card-body">
-                            <div className="flex items-center justify-between mb-4">
-                                <h2 className="card-title text-2xl">Standard Plan</h2>
-                                <input 
-                                    type="radio" 
-                                    name="plan" 
-                                    className="radio radio-primary" 
-                                    checked={selectedPlan === "standard"}
-                                    onChange={() => setSelectedPlan("standard")}
-                                />
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <IoFlashOutline className="w-5 h-5 text-primary" />
+                                    <span className="font-semibold text-lg">Standard</span>
+                                </div>
+                                <div className="text-2xl font-bold">
+                                    {process.env.NEXT_PUBLIC_INVOICE_AMOUNT || "21"}{" "}
+                                    <span className="text-sm font-normal text-base-content/50">sats / mo</span>
+                                </div>
                             </div>
-                            <div className="text-3xl font-bold text-primary mb-4">
-                                {process.env.NEXT_PUBLIC_INVOICE_AMOUNT || "21"} sats
-                                <span className="text-sm font-normal text-gray-500 ml-2">initial payment</span>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                selectedPlan === "standard" ? "border-primary bg-primary" : "border-base-300"
+                            }`}>
+                                {selectedPlan === "standard" && (
+                                    <div className="w-2 h-2 rounded-full bg-primary-content" />
+                                )}
                             </div>
-                            <ul className="space-y-2 text-sm">
-                                <li className="flex items-center">
-                                    <svg className="w-4 h-4 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Customizable on-the-fly
-                                </li>
-                                <li className="flex items-center">
-                                    <svg className="w-4 h-4 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Inbox / Outbox support
-                                </li>
-                                <li className="flex items-center">
-                                    <svg className="w-4 h-4 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Public / Private modes
-                                </li>
-                                <li className="flex items-center">
-                                    <svg className="w-4 h-4 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Communities / DMs
-                                </li>
-                            </ul>
                         </div>
-                    </div>
+                        <ul className="space-y-2">
+                            {standardFeatures.map((f) => (
+                                <li key={f} className="flex items-center gap-2 text-sm text-base-content/70">
+                                    <IoCheckmarkCircle className="w-4 h-4 text-secondary shrink-0" />
+                                    {f}
+                                </li>
+                            ))}
+                        </ul>
+                    </button>
 
                     {/* Premium Plan */}
-                    <div 
-                        className={`card border-2 cursor-pointer transition-all ${
-                            selectedPlan === "premium" 
-                                ? "border-secondary bg-secondary/10 shadow-lg" 
-                                : "border-base-300 hover:border-secondary/50"
+                    <button
+                        type="button"
+                        className={`text-left p-6 rounded-lg border-2 transition-all relative ${
+                            selectedPlan === "premium"
+                                ? "border-secondary bg-secondary/5 shadow-lg shadow-secondary/10"
+                                : "border-base-300 hover:border-base-content/20"
                         }`}
                         onClick={() => setSelectedPlan("premium")}
                     >
-                        <div className="card-body">
-                            <div className="flex items-center justify-between mb-2">
-                                <h2 className="card-title text-2xl">Premium Plan</h2>
-                                <input 
-                                    type="radio" 
-                                    name="plan" 
-                                    className="radio radio-secondary" 
-                                    checked={selectedPlan === "premium"}
-                                    onChange={() => setSelectedPlan("premium")}
-                                />
-                            </div>
-                            <div className="badge badge-secondary badge-sm mb-2">RECOMMENDED</div>
-                            <div className="text-3xl font-bold text-secondary mb-4">
-                                {process.env.NEXT_PUBLIC_INVOICE_PREMIUM_AMOUNT || "2100"} sats
-                                <span className="text-sm font-normal text-gray-500 ml-2">initial payment</span>
-                            </div>
-                            <ul className="space-y-2 text-sm">
-                                <li className="flex items-center">
-                                    <svg className="w-4 h-4 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    All standard features
-                                </li>
-                                <li className="flex items-center">
-                                    <svg className="w-4 h-4 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Streaming from other relays 
-                                </li>
-                                <li className="flex items-center">
-                                    <svg className="w-4 h-4 text-success mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Enhanced filtering by social graph 
-                                </li>
-                            </ul>
+                        <div className="absolute -top-2.5 right-4">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-content">
+                                <IoStarOutline className="w-3 h-3" />
+                                Recommended
+                            </span>
                         </div>
-                    </div>
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <IoStarOutline className="w-5 h-5 text-secondary" />
+                                    <span className="font-semibold text-lg">Premium</span>
+                                </div>
+                                <div className="text-2xl font-bold">
+                                    {process.env.NEXT_PUBLIC_INVOICE_PREMIUM_AMOUNT || "2100"}{" "}
+                                    <span className="text-sm font-normal text-base-content/50">sats / mo</span>
+                                </div>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                                selectedPlan === "premium" ? "border-secondary bg-secondary" : "border-base-300"
+                            }`}>
+                                {selectedPlan === "premium" && (
+                                    <div className="w-2 h-2 rounded-full bg-secondary-content" />
+                                )}
+                            </div>
+                        </div>
+                        <ul className="space-y-2">
+                            {premiumFeatures.map((f) => (
+                                <li key={f} className="flex items-center gap-2 text-sm text-base-content/70">
+                                    <IoCheckmarkCircle className="w-4 h-4 text-secondary shrink-0" />
+                                    {f}
+                                </li>
+                            ))}
+                        </ul>
+                    </button>
                 </div>
 
                 {/* Configuration Form */}
-                <div className="card shadow-xl">
-                    <div className="card-body">
-                        <h3 className="card-title text-xl mb-6">Configure Your Relay</h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="label">
-                                    <span className="label-text font-semibold">Your Pubkey</span>
-                                </label>
+                <div className="rounded-lg border border-base-300 bg-base-200/30 p-6 sm:p-8 mb-6">
+                    <h3 className="font-semibold text-lg mb-6">Configure Your Relay</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Pubkey */}
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Your Pubkey
+                            </label>
+                            <input
+                                type="text"
+                                name="pubkey"
+                                className="input input-bordered w-full"
+                                placeholder="sign-in or paste pubkey"
+                                autoComplete="off"
+                                value={pubkey}
+                                onChange={(event) => setAndValidatePubkey(event.target.value)}
+                            />
+                            {pubkeyErrorDescription && (
+                                <p className="text-xs text-error mt-1.5">{pubkeyErrorDescription}</p>
+                            )}
+                        </div>
+
+                        {/* Relay Name */}
+                        <div>
+                            <label className="block text-sm font-medium mb-2">
+                                Relay Subdomain
+                            </label>
+                            <div className="flex gap-2">
                                 <input
                                     type="text"
-                                    name="pubkey"
-                                    className="input input-bordered w-full"
-                                    placeholder="sign-in or paste pubkey"
+                                    className="input input-bordered flex-1 min-w-0"
+                                    placeholder="yourname"
                                     autoComplete="off"
-                                    value={pubkey}
-                                    onChange={(event) => setAndValidatePubkey(event.target.value)}
+                                    value={name}
+                                    onChange={(event) => setRelayName(event.target.value)}
                                 />
-                                {pubkeyErrorDescription && (
-                                    <div className="text-sm text-error mt-1">{pubkeyErrorDescription}</div>
-                                )}
+                                <span className="flex items-center px-3 text-sm text-base-content/50 bg-base-300/50 border border-base-300 rounded-lg whitespace-nowrap">
+                                    .{useDomain}
+                                </span>
                             </div>
-
-                            <div>
-                                <label className="label">
-                                    <span className="label-text font-semibold">Relay Subdomain</span>
-                                </label>
-                                <div className="flex">
-                                    <input
-                                        type="text"
-                                        className="input input-bordered flex-1"
-                                        placeholder="yourname"
-                                        autoComplete="off"
-                                        value={name}
-                                        onChange={(event) => setRelayName(event.target.value)}
-                                    />
-                                    <span className="input input-bordered input-disabled flex items-center px-3 ml-2">
-                                        .{useDomain}
-                                    </span>
-                                </div>
-                                {nameErrorDescription && (
-                                    <div className="text-sm text-error mt-1">{nameErrorDescription}</div>
-                                )}
-                                {name && (
-                                    <div className="text-sm text-gray-600 mt-1">
-                                        Your relay: <span className="font-semibold text-primary">{name}.{useDomain}</span>
-                                    </div>
-                                )}
-                            </div>
+                            {nameErrorDescription && (
+                                <p className="text-xs text-error mt-1.5">{nameErrorDescription}</p>
+                            )}
+                            {name && !nameErrorDescription && (
+                                <p className="text-xs text-base-content/50 mt-1.5">
+                                    Your relay will be at <span className="font-mono text-primary">{name}.{useDomain}</span>
+                                </p>
+                            )}
                         </div>
+                    </div>
 
-                        <div className="flex justify-center mt-8">
-                            <button
-                                className="btn btn-primary btn-lg px-8"
-                                onClick={handleSubmit}
-                                disabled={!isValidForm()}
-                            >
-                                Deploy {selectedPlan === "premium" ? "Premium" : "Standard"} Relay {nameError}
-                            </button>
-                        </div>
+                    {/* Deploy Button */}
+                    <div className="flex justify-center mt-8">
+                        <button
+                            className="btn btn-primary gap-2 px-8"
+                            onClick={handleSubmit}
+                            disabled={!isValidForm()}
+                        >
+                            Deploy {selectedPlan === "premium" ? "Premium" : "Standard"} Relay
+                            <IoArrowForward className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
 
-                <div className="text-center mt-8 text-gray-600">
-                    {process.env.NEXT_PUBLIC_CREATOR_DOMAIN || "nostr1.com"} {new Date().getFullYear()} &middot; Made with 🤙🏻 in the PNW &middot;{" "}
-                    <a href="https://github.com/relaytools" className="link">
-                        <IoLogoGithub className="inline" />
+                {/* Footer */}
+                <div className="text-center text-xs text-base-content/40">
+                    {useDomain} {new Date().getFullYear()} &middot;{" "}
+                    <a href="https://github.com/relaytools" className="hover:text-base-content/60 transition-colors inline-flex items-center gap-1">
+                        <IoLogoGithub className="w-3.5 h-3.5" />
+                        Open Source
                     </a>
                 </div>
             </div>

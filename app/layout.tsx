@@ -48,20 +48,25 @@ export default async function RootLayout({ children, }: React.PropsWithChildren)
   return (
     <html data-theme={currentTheme} className={`${robotoMono.variable} ${robotoCondensed.variable} ${roboto.variable} font-roboto leading-normal ${currentTheme === 'dark' ? 'dark' : ''}`}>
       <head></head>
-      <body>
-        <div className="bg-base-100 mx-auto lg:max-w-7xl max-w-screen font-roboto">
+      <body className="bg-base-100 min-h-screen">
           <AuthContext>
 
             {rewritten == null && !path?.includes('/posts') &&
-            <div className="flex justify-between font-roboto">
+            <div className="font-roboto">
                 <ShowSession theme={currentTheme}/>
-                <ThemeProvider />
             </div>
             }
 
-            {children}
+            <main className="mx-auto max-w-7xl font-roboto">
+              {children}
+            </main>
+
+            {rewritten == null && !path?.includes('/posts') &&
+            <div className="fixed bottom-4 right-4 z-40">
+                <ThemeProvider />
+            </div>
+            }
           </AuthContext>
-        </div>
       </body>
     </html >
   );

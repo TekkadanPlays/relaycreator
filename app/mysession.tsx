@@ -3,6 +3,7 @@ import { useSession } from "next-auth/react";
 import { signIn, signOut } from "next-auth/react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { IoRadio, IoLogOutOutline, IoMenuOutline, IoCloseOutline, IoFlashOutline, IoKeyOutline, IoReceiptOutline, IoGridOutline, IoAddCircleOutline, IoHelpCircleOutline, IoChatbubblesOutline } from "react-icons/io5";
 
 export default function ShowSession(
     props: React.PropsWithChildren<{
@@ -10,8 +11,6 @@ export default function ShowSession(
     }>
 ) {
     const doNip07Login = async () => {
-        // call to api to get a LoginToken
-
         const tokenResponse = await fetch(`/api/auth/logintoken`, {
             method: "GET",
             headers: { "Content-Type": "application/json" },
@@ -20,21 +19,11 @@ export default function ShowSession(
         const tokenData = await tokenResponse.json();
         const token = tokenData.token;
 
-        // we could support keys.band by requesting the pubkey,
-        // for now we will wait and see if upstream accepts the pull request to not require this:
-        // https://github.com/toastr-space/keys-band/pull/13
-        // now tracking issue in Spring as well.
-        // adding additional call to support new signing clients -- until we can get bugs fixed upstream
-        // oct-20 update, attempting to re-enable one event sign-in
         try {
-            // jun2025, trying the one key method again, the other signers with bugs are gone
-            // this allows us to only ask for one permission from the signer extension
-            //const thisPubkeyRes = await (window as any).nostr.getPublicKey();
             let signThis = {
                 kind: 27235,
                 created_at: Math.floor(Date.now() / 1000),
                 tags: [],
-                //pubkey: thisPubkeyRes,
                 content: token,
             };
             let useMe = await (window as any).nostr.signEvent(signThis);
@@ -46,7 +35,6 @@ export default function ShowSession(
                 sig: useMe.sig,
                 id: useMe.id,
                 callbackUrl: "/#",
-                // callbackUrl: "/signup?relayname=" + name
             });
         } catch {
             console.log("error signing event");
@@ -56,16 +44,15 @@ export default function ShowSession(
 
     const { data: session, status } = useSession();
     const [showLoginHelp, setShowLoginHelp] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const [curTheme, setCurTheme] = useState(props.theme);
 
     useEffect(() => {
-        // Get the current theme from the data-theme attribute
         const savedTheme = document.documentElement.getAttribute("data-theme");
         if (savedTheme) {
             setCurTheme(savedTheme);
         }
 
-        // Set up a MutationObserver to watch for changes to the data-theme attribute
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (
@@ -81,271 +68,223 @@ export default function ShowSession(
             });
         });
 
-        // Observe changes to the data-theme attribute on the <html> element
         observer.observe(document.documentElement, {
             attributes: true,
             attributeFilter: ["data-theme"],
         });
 
-        // Clean up the observer when the component unmounts
         return () => {
             observer.disconnect();
         };
     }, []);
 
-    // using absolute urls so that we can serve subdomain landing pages
     const rootDomain =
         process.env.NEXT_PUBLIC_ROOT_DOMAIN || "http://localhost:3000";
-
     const supportURL = process.env.NEXT_PUBLIC_SUPPORT_URL || "#";
+    const siteName = process.env.NEXT_PUBLIC_CREATOR_DOMAIN || "nostr1.com";
+
+    const navLinks = [
+        { href: rootDomain + "/", label: "Home" },
+        { href: rootDomain + "/directory", label: "Directory" },
+        { href: rootDomain + "/signup", label: "Create Relay" },
+        { href: supportURL, label: "Support" },
+    ];
+
+    const userLinks = [
+        { href: rootDomain + "/relays/myrelays", label: "My Relays", icon: <IoRadio className="w-4 h-4" /> },
+        { href: rootDomain + "/clientinvoices", label: "Subscriptions", icon: <IoFlashOutline className="w-4 h-4" /> },
+        { href: rootDomain + "/nip05", label: "NIP-05 Identity", icon: <IoKeyOutline className="w-4 h-4" /> },
+        { href: rootDomain + "/invoices", label: "Invoices", icon: <IoReceiptOutline className="w-4 h-4" /> },
+        { href: rootDomain + "/signup", label: "Create Relay", icon: <IoAddCircleOutline className="w-4 h-4" /> },
+        { href: supportURL, label: "Support", icon: <IoChatbubblesOutline className="w-4 h-4" /> },
+    ];
 
     return (
-        <div className="navbar p-0 bg-base-100">
+        <>
+            {/* NIP-07 Help Modal */}
             {showLoginHelp && (
-                <dialog
-                    id="my_modal_5"
-                    className="modal modal-bottom modal-open sm:modal-middle"
-                >
-                    <form method="dialog" className="modal-box">
-                        <h3 className="font-bold text-lg">
-                            To sign-in you need a NIP-07 extension
-                        </h3>
-                        <p className="py-4">for iOS: Nostore </p>
-                        <a
-                            className="link link-primary"
-                            href="https://apps.apple.com/us/app/nostore/id1666553677"
-                        >
-                            Nostore
-                        </a>
-                        <p className="py-4">
-                            for Android: Kiwi Browser with nos2x
-                        </p>
-                        <a
-                            className="link link-primary"
-                            href="https://play.google.com/store/apps/details?id=com.kiwibrowser.browser&pli=1"
-                        >
-                            Kiwi Browser
-                        </a>
-                        <p className="py-4">for Desktop: Nos2x</p>
-                        <a
-                            className="link link-primary"
-                            href="https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp"
-                        >
-                            Nos2x
-                        </a>
-                        <p className="py-4">for Desktop: GetAlby</p>
-                        <a
-                            className="link link-primary"
-                            href="https://chrome.google.com/webstore/detail/alby-bitcoin-lightning-wa/iokeahhehimjnekafflcihljlcjccdbe"
-                        >
-                            GetAlby
-                        </a>
-                        <div className="modal-action">
-                            {/* if there is a button in form, it will close the modal */}
-                            <button
-                                className="btn uppercase"
-                                onClick={() => setShowLoginHelp(false)}
-                            >
-                                Close
-                            </button>
+                <dialog className="modal modal-bottom modal-open sm:modal-middle">
+                    <div className="modal-box border border-base-300">
+                        <h3 className="font-bold text-lg mb-4">Sign in with Nostr</h3>
+                        <p className="text-sm opacity-70 mb-4">You need a NIP-07 browser extension to sign in.</p>
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                                <div>
+                                    <p className="font-medium text-sm">iOS</p>
+                                    <p className="text-xs opacity-60">Nostore</p>
+                                </div>
+                                <a className="btn btn-sm btn-primary" href="https://apps.apple.com/us/app/nostore/id1666553677">Install</a>
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                                <div>
+                                    <p className="font-medium text-sm">Android</p>
+                                    <p className="text-xs opacity-60">Kiwi Browser + nos2x</p>
+                                </div>
+                                <a className="btn btn-sm btn-primary" href="https://play.google.com/store/apps/details?id=com.kiwibrowser.browser&pli=1">Install</a>
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                                <div>
+                                    <p className="font-medium text-sm">Desktop</p>
+                                    <p className="text-xs opacity-60">nos2x or Alby extension</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <a className="btn btn-sm btn-ghost" href="https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp">nos2x</a>
+                                    <a className="btn btn-sm btn-ghost" href="https://chrome.google.com/webstore/detail/alby-bitcoin-lightning-wa/iokeahhehimjnekafflcihljlcjccdbe">Alby</a>
+                                </div>
+                            </div>
                         </div>
+                        <div className="modal-action">
+                            <button className="btn btn-ghost" onClick={() => setShowLoginHelp(false)}>Close</button>
+                        </div>
+                    </div>
+                    <form method="dialog" className="modal-backdrop">
+                        <button onClick={() => setShowLoginHelp(false)}>close</button>
                     </form>
                 </dialog>
             )}
-            {curTheme == "dark" && (
-                <div className="flex-1">
-                    <a
-                        href={rootDomain + "/"}
-                        className="lg:text-5xl font-extrabold text-2xl flex items-center justify-start max-h-40"
-                    >
-                        <Image
-                            src="/17.svg"
-                            alt="menu"
-                            width={500}
-                            height={30}
-                            priority
-                            style={{ width: '500px', height: 'auto', objectFit: 'cover' }}
-                        />
+
+            {/* Main Navbar */}
+            <nav className="sticky top-0 z-50 border-b border-base-300/50 bg-base-100/80 backdrop-blur-lg">
+                <div className="flex items-center justify-between h-16 px-4">
+                    {/* Logo */}
+                    <a href={rootDomain + "/"} className="flex items-center gap-2 shrink-0">
+                        <IoRadio className="w-6 h-6 text-primary" />
+                        <span className="font-bold text-lg tracking-tight">{siteName}</span>
                     </a>
-                </div>
-            )}
-            {curTheme != "dark" && (
-                <div className="flex-1">
-                    <a
-                        href={rootDomain + "/"}
-                        className="lg:text-5xl font-extrabold text-2xl flex items-center justify-start max-h-40"
-                    >
-                        <Image
-                            src="/19.svg"
-                            alt="menu"
-                            width={500}
-                            height={30}
-                            priority
-                            style={{ width: '500px', height: 'auto', objectFit: 'cover' }}
-                        />
-                    </a>
-                </div>
-            )}
 
-            <div className="flex-none items-center justify-center">
-                {!session ? (
-                    <div className="flex">
-                        <a
-                            href={rootDomain + "/"}
-                            className="btn uppercase btn-ghost normal-case text-lg hidden lg:flex"
-                        >
-                            HOME
-                        </a>
-                        <a
-                            href={
-                                "https://github.com/relaytools/relaycreator/blob/f253d2aa81bf385816f750f730c687c96b61ce6e/design/UserStories.md"
-                            }
-                            className="btn uppercase btn-ghost normal-case text-lg hidden lg:flex"
-                        >
-                            FAQ
-                        </a>
-                        <a
-                            href={supportURL}
-                            className="btn uppercase btn-ghost normal-case text-lg hidden lg:flex"
-                        >
-                            SUPPORT
-                        </a>
-
-                        <span className="text-center items-center hidden lg:flex">
-                            <button
-                                onClick={doNip07Login}
-                                className="btn uppercase btn-ghost normal-case text-lg hidden lg:flex ml-2"
+                    {/* Center Nav Links - Desktop */}
+                    <div className="hidden lg:flex items-center gap-1">
+                        {navLinks.map((link) => (
+                            <a
+                                key={link.label}
+                                href={link.href}
+                                className="px-3 py-2 text-sm font-medium text-base-content/70 hover:text-base-content hover:bg-base-200/60 rounded-lg transition-colors"
                             >
-                                SIGN-IN
-                            </button>
-                        </span>
+                                {link.label}
+                            </a>
+                        ))}
+                    </div>
 
-                        <div className="dropdown dropdown-end lg:hidden">
-                            <label
-                                tabIndex={0}
-                                className="btn uppercase cursor-pointer mask mask-squircle"
-                            >
-                                <div className="rounded-sm bg-white">
-                                    <Image
-                                        src="/settings2-svgrepo-com.svg"
-                                        alt="menu"
-                                        width={30}
-                                        height={30}
-                                    />
+                    {/* Right Side */}
+                    <div className="flex items-center gap-2">
+                        {!session ? (
+                            <>
+                                <button
+                                    onClick={doNip07Login}
+                                    className="btn btn-primary btn-sm hidden lg:inline-flex"
+                                >
+                                    Sign In
+                                </button>
+                                {/* Mobile menu button */}
+                                <button
+                                    onClick={() => setMobileOpen(!mobileOpen)}
+                                    className="btn btn-ghost btn-sm btn-square lg:hidden"
+                                >
+                                    {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                {/* User dropdown - Desktop */}
+                                <div className="dropdown dropdown-end hidden lg:block">
+                                    <label tabIndex={0} className="btn btn-ghost btn-sm gap-2 cursor-pointer">
+                                        <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center">
+                                            <span className="text-xs font-bold text-primary">
+                                                {session.user?.name?.substring(0, 2)?.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <span className="text-sm font-mono opacity-60">
+                                            {session.user?.name?.substring(0, 8)}...
+                                        </span>
+                                    </label>
+                                    <ul tabIndex={0} className="dropdown-content mt-2 p-1 shadow-xl bg-base-100 border border-base-300 rounded-lg w-56 z-50">
+                                        {userLinks.map((link) => (
+                                            <li key={link.label}>
+                                                <a href={link.href} className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-base-200 rounded-md transition-colors">
+                                                    <span className="opacity-60">{link.icon}</span>
+                                                    {link.label}
+                                                </a>
+                                            </li>
+                                        ))}
+                                        <li className="border-t border-base-200 mt-1 pt-1">
+                                            <a
+                                                onClick={() => signOut({ callbackUrl: "/" })}
+                                                className="flex items-center gap-3 px-3 py-2.5 text-sm text-error hover:bg-error/10 rounded-md cursor-pointer transition-colors"
+                                            >
+                                                <IoLogOutOutline className="w-4 h-4" />
+                                                Sign Out
+                                            </a>
+                                        </li>
+                                    </ul>
                                 </div>
-                            </label>
-                            <ul
-                                tabIndex={0}
-                                className="menu menu-lg dropdown-content mt-3 p-2 shadow-sm bg-base-200 font-bold rounded-box w-52 z-1"
-                            >
-                                <li>
-                                    <a href={rootDomain + "/"}>Faq</a>
-                                </li>
-                                <li>
-                                    <a href={supportURL}>Support</a>
-                                </li>
-                                <li className="border-b border-neutral">
-                                    <a href={rootDomain + "/signup"}>
-                                        Create Relay
-                                    </a>
-                                </li>
-                                <li>
-                                    <span className="text-center items-center">
-                                        <button
-                                            onClick={doNip07Login}
-                                            className="btn uppercase btn-ghost ml-2"
+                                {/* Mobile menu button */}
+                                <button
+                                    onClick={() => setMobileOpen(!mobileOpen)}
+                                    className="btn btn-ghost btn-sm btn-square lg:hidden"
+                                >
+                                    {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* Mobile Menu */}
+                {mobileOpen && (
+                    <div className="lg:hidden border-t border-base-300/50 bg-base-100 pb-4">
+                        <div className="px-4 pt-3 space-y-1">
+                            {session ? (
+                                <>
+                                    <div className="px-3 py-2 mb-2">
+                                        <p className="text-xs font-mono opacity-50">{session.user?.name?.substring(0, 16)}...</p>
+                                    </div>
+                                    {userLinks.map((link) => (
+                                        <a
+                                            key={link.label}
+                                            href={link.href}
+                                            className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-base-200 rounded-lg transition-colors"
+                                            onClick={() => setMobileOpen(false)}
                                         >
-                                            sign-in
-                                            <Image
-                                                alt="nostr"
-                                                src="/nostr_logo_prpl_wht_rnd.svg"
-                                                width={38}
-                                                height={38}
-                                            ></Image>
+                                            <span className="opacity-60">{link.icon}</span>
+                                            {link.label}
+                                        </a>
+                                    ))}
+                                    <div className="border-t border-base-200 mt-2 pt-2">
+                                        <a
+                                            onClick={() => { signOut({ callbackUrl: "/" }); setMobileOpen(false); }}
+                                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-error hover:bg-error/10 rounded-lg cursor-pointer transition-colors"
+                                        >
+                                            <IoLogOutOutline className="w-4 h-4" />
+                                            Sign Out
+                                        </a>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {navLinks.map((link) => (
+                                        <a
+                                            key={link.label}
+                                            href={link.href}
+                                            className="block px-3 py-2.5 text-sm hover:bg-base-200 rounded-lg transition-colors"
+                                            onClick={() => setMobileOpen(false)}
+                                        >
+                                            {link.label}
+                                        </a>
+                                    ))}
+                                    <div className="border-t border-base-200 mt-2 pt-2">
+                                        <button
+                                            onClick={() => { doNip07Login(); setMobileOpen(false); }}
+                                            className="btn btn-primary btn-sm w-full"
+                                        >
+                                            Sign In with Nostr
                                         </button>
-                                    </span>
-                                </li>
-                            </ul>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
-                ) : (
-                    <div className="dropdown dropdown-end">
-                        <label
-                            tabIndex={0}
-                            className="flex items-center justify-center mr-2"
-                        >
-                            {session?.user?.image && (
-                                <div className="avatar">
-                                    <div className="w-10 rounded-full">
-                                        <img src={session?.user?.image} />
-                                    </div>
-                                </div>
-                            )}
-                            {!session?.user?.image && (
-                                <div className="avatar placeholder">
-                                    {curTheme == "dark" && (
-                                        <div className="bg-primary text-white font-condensed rounded-full w-10">
-                                            <span className="text-lg">
-                                                {session.user?.name?.substring(
-                                                    0,
-                                                    4
-                                                )}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {curTheme != "dark" && (
-                                        <div className="bg-base-200 text-black font-condensed rounded-full w-15">
-                                            <span className="text-lg">
-                                                {session.user?.name?.substring(
-                                                    0,
-                                                    4
-                                                )}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </label>
-                        <ul
-                            tabIndex={0}
-                            className="menu menu-lg dropdown-content mt-3 p-2 shadow-lg bg-base-100 font-bold rounded-box w-52 z-50"
-                        >
-                            <li>
-                                <a href={rootDomain + "/relays/myrelays"}>
-                                    My Relays
-                                </a>
-                            </li>
-                            <li>
-                                <a href={rootDomain + "/clientinvoices"}>Subscriptions</a>
-                            </li>
-                            <li>
-                                <a href={rootDomain + "/nip05"}>NIP-05 Identity</a>
-                            </li>
-                            <li>
-                                <a href={rootDomain + "/invoices"}>Invoices</a>
-                            </li>
-                            <li>
-                                <a href={supportURL}>Support</a>
-                            </li>
-                            <li className="border-b border-base-200">
-                                <a href={rootDomain + "/signup"}>
-                                    Create Relay
-                                </a>
-                            </li>
-                            <li>
-                                <a
-                                    onClick={() =>
-                                        signOut({ callbackUrl: "/" })
-                                    }
-                                    className="cursor-pointer"
-                                >
-                                    Sign Out
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
                 )}
-            </div>
-        </div>
+            </nav>
+        </>
     );
 }

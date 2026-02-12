@@ -37,25 +37,35 @@ export default function PublicRelays() {
         setResults(r)
     }
 
-    //maybe try flex grow
-
     return (
-        <div className="">
-            <div className="">
-                <h1 className="text-2xl mb-5 mt-4 text-center lg:text-left">Explore relays</h1>
-                <div className="text-sm lg:visible hidden mb-5">Search and browse relays in the directory.  Check out their teams and mission statements and browse each relays content.</div>
-                <div>
-                    <div className="items-center justify-center lg:justify-left lg:items-left">
-                        <input className="input input-bordered" placeholder="Search" onChange={(e) => handleSearch(e)} />
-                    </div>
+        <div className="px-2">
+            {/* Search Bar */}
+            <div className="mb-6">
+                <div className="relative max-w-md">
+                    <input
+                        className="input input-bordered w-full pl-10"
+                        placeholder="Search relays..."
+                        onChange={(e) => handleSearch(e)}
+                    />
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                 </div>
+                <p className="text-xs text-base-content/40 mt-2">{results.length} relay{results.length !== 1 ? "s" : ""} found</p>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-12">
+            {/* Relay Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {results.map((relay) => (
                     <Relay key={"pub" + relay.id} modActions={false} relay={relay} showEdit={false} showSettings={false} showDetail={true} showExplorer={false} showCopy={false} />
                 ))}
             </div>
+
+            {results.length === 0 && allRelays.length > 0 && (
+                <div className="text-center py-12 text-base-content/40">
+                    <p className="text-sm">No relays match your search.</p>
+                </div>
+            )}
         </div>
     )
 }
