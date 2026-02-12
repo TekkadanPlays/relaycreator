@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../lib/api";
-import { Globe, Shield, Loader2, Search, Radio, ArrowRight } from "lucide-react";
+import { Globe, Shield, Loader2, Search, Radio, ArrowRight, Copy, Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,15 @@ interface Relay {
 
 export default function Directory() {
   const [search, setSearch] = useState("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  function copyWss(e: React.MouseEvent, relay: Relay) {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(`wss://${relay.name}.${relay.domain}`);
+    setCopiedId(relay.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ["publicRelays"],
@@ -98,45 +107,53 @@ export default function Directory() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((relay) => (
             <Link key={relay.id} to={`/relays/${relay.name}`}>
-              <Card className="group h-full border-border/50 transition-all duration-300 hover:border-border hover:shadow-lg hover:shadow-primary/5">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Avatar className="size-10 ring-2 ring-border/50 group-hover:ring-primary/30 transition-all">
+              <Card className="group h-full transition-all hover:bg-accent/50">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar className="size-9 shrink-0">
                       {relay.profile_image ? (
                         <AvatarImage src={relay.profile_image} alt={relay.name} />
                       ) : null}
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                         {relay.name[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <h2 className="font-semibold truncate group-hover:text-primary transition-colors">{relay.name}</h2>
-                      <p className="font-mono text-xs text-muted-foreground truncate">
-                        wss://{relay.name}.{relay.domain}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm font-semibold truncate">{relay.name}</h2>
+                        {relay.status === "running" && (
+                          <span className="size-1.5 rounded-full bg-emerald-400 shrink-0" title="Live" />
+                        )}
+                        {relay.auth_required && (
+                          <Shield className="size-3 text-muted-foreground shrink-0" />
+                        )}
+                      </div>
+                      {relay.details && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{relay.details}</p>
+                      )}
                     </div>
-                    <ArrowRight className="size-4 text-muted-foreground/20 group-hover:text-primary/60 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-foreground/50 shrink-0 mt-0.5 transition-colors" />
                   </div>
 
-                  {relay.details && (
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{relay.details}</p>
-                  )}
-
-                  <div className="flex items-center gap-1.5 pt-2 border-t border-border/50">
-                    {relay.auth_required && (
-                      <Badge variant="outline" className="gap-1 text-xs font-normal">
-                        <Shield className="size-3" /> Auth
-                      </Badge>
-                    )}
-                    {relay.status === "running" && (
-                      <Badge variant="secondary" className="gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Live
-                      </Badge>
-                    )}
+                  {/* Connection string — the thing users actually need */}
+                  <div className="mt-3 flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5">
+                    <code className="flex-1 truncate text-[11px] font-mono text-muted-foreground">
+                      wss://{relay.name}.{relay.domain}
+                    </code>
+                    <button
+                      onClick={(e) => copyWss(e, relay)}
+                      className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Copy connection string"
+                    >
+                      {copiedId === relay.id ? (
+                        <Check className="size-3 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
                   </div>
                 </CardContent>
               </Card>

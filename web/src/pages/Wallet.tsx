@@ -3,10 +3,9 @@ import { useAuth } from "../stores/auth";
 import { coinos, type CoinosStatus, type CoinosUser, type CoinosPayment, type NodeInfo } from "../lib/coinos";
 import { api } from "../lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   Wallet as WalletIcon,
@@ -18,7 +17,6 @@ import {
   RefreshCw,
   AlertCircle,
   Loader2,
-  Server,
   Bitcoin,
 } from "lucide-react";
 
@@ -48,9 +46,6 @@ export default function Wallet() {
   const [sendAmount, setSendAmount] = useState("");
   const [sendLoading, setSendLoading] = useState(false);
   const [sendResult, setSendResult] = useState("");
-
-  // Wallet tab
-  const [tab, setTab] = useState<"overview" | "receive" | "send" | "history">("overview");
 
   useEffect(() => {
     loadData();
@@ -193,320 +188,205 @@ export default function Wallet() {
     );
   }
 
-  const walletTabs = [
-    { id: "overview" as const, label: "Overview", icon: WalletIcon },
-    { id: "receive" as const, label: "Receive", icon: ArrowDownLeft },
-    { id: "send" as const, label: "Send", icon: ArrowUpRight },
-    { id: "history" as const, label: "History", icon: RefreshCw },
-  ];
-
   return (
-    <div className="animate-in">
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Sidebar */}
-        <aside className="lg:w-56 shrink-0 space-y-4">
-          <div className="flex items-center gap-2.5 px-1">
-            <div className="size-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <Zap className="size-4.5 text-amber-400" />
+    <div className="mx-auto max-w-3xl space-y-6 animate-in">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Wallet</h1>
+          <p className="text-sm text-muted-foreground">Lightning wallet powered by CoinOS</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5">
+          <RefreshCw className="size-3.5" /> Refresh
+        </Button>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          <span>{error}</span>
+          <button onClick={() => setError("")} className="ml-auto text-xs underline">dismiss</button>
+        </div>
+      )}
+
+      {/* Balance */}
+      <Card>
+        <CardContent className="flex items-center justify-between py-6">
+          <div>
+            <p className="text-sm text-muted-foreground">Balance</p>
+            <p className="text-3xl font-bold tabular-nums">
+              {coinosUser ? (
+                <>{formatSats(coinosUser.balance)} <span className="text-base font-normal text-muted-foreground">sats</span></>
+              ) : (
+                <span className="text-lg text-muted-foreground">Not connected</span>
+              )}
+            </p>
+            {coinosUser && (
+              <p className="text-xs text-muted-foreground mt-1">@{coinosUser.username}</p>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Received</p>
+              <p className="text-sm font-semibold tabular-nums text-emerald-500">
+                +{formatSats(payments.filter(p => p.amount > 0).reduce((a, b) => a + b.amount, 0))}
+              </p>
             </div>
-            <div>
-              <h1 className="font-bold text-sm">Lightning Wallet</h1>
-              <p className="text-[11px] text-muted-foreground">Powered by CoinOS</p>
+            <Separator orientation="vertical" className="h-8" />
+            <div className="text-center">
+              <p className="text-xs text-muted-foreground">Sent</p>
+              <p className="text-sm font-semibold tabular-nums text-orange-500">
+                -{formatSats(payments.filter(p => p.amount < 0).reduce((a, b) => a + Math.abs(b.amount), 0))}
+              </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Balance summary */}
-          <Card className="border-border/50">
-            <CardContent className="p-4">
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Balance</p>
-              <p className="text-2xl font-bold tabular-nums">
-                {coinosUser ? (
-                  <>{formatSats(coinosUser.balance)} <span className="text-sm font-normal text-muted-foreground">sats</span></>
-                ) : (
-                  <span className="text-muted-foreground text-base">Not logged in</span>
-                )}
-              </p>
-              {coinosUser && (
-                <p className="text-[11px] text-muted-foreground mt-1">@{coinosUser.username}</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <nav className="flex flex-row lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0">
-            {walletTabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap ${
-                  tab === t.id
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                }`}
-              >
-                <t.icon className="size-4 shrink-0" />
-                {t.label}
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 space-y-6">
-          {error && (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              <AlertCircle className="size-4 shrink-0" />
-              <span>{error}</span>
-              <button onClick={() => setError("")} className="ml-auto text-xs underline">dismiss</button>
+      {/* Receive + Send side by side */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Receive */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ArrowDownLeft className="size-4 text-emerald-500" /> Receive
+            </CardTitle>
+            <CardDescription>Create a Lightning invoice</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="invoice-amount">Amount (sats)</Label>
+              <Input
+                id="invoice-amount"
+                type="number"
+                placeholder="21000"
+                value={invoiceAmount}
+                onChange={(e) => setInvoiceAmount(e.target.value)}
+              />
             </div>
-          )}
-
-          {tab === "overview" && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">Overview</h2>
-                  <p className="text-sm text-muted-foreground">Wallet status and node information.</p>
+            <div className="space-y-1.5">
+              <Label htmlFor="invoice-memo">Memo (optional)</Label>
+              <Input
+                id="invoice-memo"
+                placeholder="What's this for?"
+                value={invoiceMemo}
+                onChange={(e) => setInvoiceMemo(e.target.value)}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex-col gap-3">
+            <Button
+              onClick={handleCreateInvoice}
+              disabled={!invoiceAmount || invoiceLoading}
+              className="w-full gap-2"
+            >
+              {invoiceLoading ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
+              Create Invoice
+            </Button>
+            {createdInvoice && (
+              <>
+                <div className="w-full rounded-md bg-muted p-3">
+                  <p className="break-all font-mono text-xs leading-relaxed">{createdInvoice}</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={loadData} className="gap-1.5 h-8">
-                  <RefreshCw className="size-3" /> Refresh
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyToClipboard(createdInvoice)}
+                  className="w-full gap-2"
+                >
+                  {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+                  {copied ? "Copied!" : "Copy Invoice"}
                 </Button>
-              </div>
+              </>
+            )}
+          </CardFooter>
+        </Card>
 
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                {[
-                  { label: "Balance", value: coinosUser ? `${formatSats(coinosUser.balance)}` : "—", icon: WalletIcon, color: "text-amber-400", bg: "bg-amber-500/10" },
-                  { label: "Transactions", value: String(payments.length), icon: RefreshCw, color: "text-blue-400", bg: "bg-blue-500/10" },
-                  { label: "Received", value: formatSats(payments.filter(p => p.amount > 0).reduce((a, b) => a + b.amount, 0)), icon: ArrowDownLeft, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-                  { label: "Sent", value: formatSats(payments.filter(p => p.amount < 0).reduce((a, b) => a + Math.abs(b.amount), 0)), icon: ArrowUpRight, color: "text-orange-400", bg: "bg-orange-500/10" },
-                ].map((stat) => (
-                  <Card key={stat.label} className="border-border/50">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`rounded-lg p-2 ${stat.bg}`}>
-                          <stat.icon className={`size-4 ${stat.color}`} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-muted-foreground">{stat.label}</p>
-                          <p className="text-lg font-bold tabular-nums truncate">{stat.value}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+        {/* Send */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ArrowUpRight className="size-4 text-orange-500" /> Send
+            </CardTitle>
+            <CardDescription>Pay an invoice or Lightning address</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="send-address">Invoice or address</Label>
+              <Input
+                id="send-address"
+                placeholder="lnbc... or user@domain.com"
+                value={sendAddress}
+                onChange={(e) => setSendAddress(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="send-amount">Amount (sats)</Label>
+              <Input
+                id="send-amount"
+                type="number"
+                placeholder="1000"
+                value={sendAmount}
+                onChange={(e) => setSendAmount(e.target.value)}
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex-col gap-3">
+            <Button
+              onClick={handleSend}
+              disabled={!sendAddress || !sendAmount || sendLoading}
+              className="w-full gap-2"
+            >
+              {sendLoading ? <Loader2 className="size-4 animate-spin" /> : <ArrowUpRight className="size-4" />}
+              Send Payment
+            </Button>
+            {sendResult && (
+              <div className="w-full flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 text-sm text-emerald-500">
+                <Check className="size-4" /> {sendResult}
               </div>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
 
-              {/* Node Info */}
-              <Card className="border-border/50">
-                <CardHeader className="pb-0">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Server className="size-4" /> Lightning Node
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  {nodeInfo ? (
-                    <div className="rounded-lg border border-border/50 overflow-hidden">
-                      <div className="divide-y divide-border/30">
-                        {[
-                          { label: "Alias", value: nodeInfo.alias || "—" },
-                          { label: "Block Height", value: nodeInfo.block_height?.toLocaleString() || "—" },
-                          { label: "Network", value: nodeInfo.network || "—" },
-                          ...(nodeInfo.pubkey ? [{ label: "Pubkey", value: nodeInfo.pubkey }] : []),
-                        ].map((row) => (
-                          <div key={row.label} className="flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors">
-                            <span className="text-sm text-muted-foreground">{row.label}</span>
-                            <span className="text-sm font-mono truncate max-w-[200px]">{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
+      {/* Recent Transactions */}
+      {payments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent Transactions</CardTitle>
+            <CardDescription>{payments.length} payment{payments.length !== 1 ? "s" : ""}</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {payments.slice(0, 10).map((payment, i) => (
+                <div
+                  key={payment.id || i}
+                  className="flex items-center gap-3 px-6 py-3 hover:bg-muted/50 transition-colors"
+                >
+                  {payment.amount > 0 ? (
+                    <div className="flex size-8 items-center justify-center rounded-full bg-emerald-500/10">
+                      <ArrowDownLeft className="size-4 text-emerald-500" />
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center py-8 text-center">
-                      <div className="size-10 rounded-lg bg-muted flex items-center justify-center mb-3">
-                        <Server className="size-5 text-muted-foreground/50" />
-                      </div>
-                      <p className="text-sm font-medium">Node not available</p>
-                      <p className="text-xs text-muted-foreground mt-1">Lightning node info could not be retrieved.</p>
+                    <div className="flex size-8 items-center justify-center rounded-full bg-orange-500/10">
+                      <ArrowUpRight className="size-4 text-orange-500" />
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {tab === "receive" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold">Receive</h2>
-                <p className="text-sm text-muted-foreground">Create a Lightning invoice to receive sats.</p>
-              </div>
-              <Card className="border-border/50 max-w-lg">
-                <CardContent className="p-6 space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="invoice-amount" className="text-xs font-medium text-muted-foreground">Amount (sats)</Label>
-                    <Input
-                      id="invoice-amount"
-                      type="number"
-                      placeholder="21000"
-                      value={invoiceAmount}
-                      onChange={(e) => setInvoiceAmount(e.target.value)}
-                    />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {payment.memo || (payment.amount > 0 ? "Received" : "Sent")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{formatDate(payment.created)}</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="invoice-memo" className="text-xs font-medium text-muted-foreground">Memo (optional)</Label>
-                    <Input
-                      id="invoice-memo"
-                      placeholder="What's this for?"
-                      value={invoiceMemo}
-                      onChange={(e) => setInvoiceMemo(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    onClick={handleCreateInvoice}
-                    disabled={!invoiceAmount || invoiceLoading}
-                    className="w-full gap-2"
-                  >
-                    {invoiceLoading ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
-                    Create Invoice
-                  </Button>
-                  {createdInvoice && (
-                    <div className="space-y-3 pt-2">
-                      <Separator />
-                      <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
-                        <p className="mb-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Lightning Invoice</p>
-                        <p className="break-all font-mono text-xs leading-relaxed">{createdInvoice}</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyToClipboard(createdInvoice)}
-                        className="w-full gap-2"
-                      >
-                        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                        {copied ? "Copied!" : "Copy Invoice"}
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {tab === "send" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold">Send</h2>
-                <p className="text-sm text-muted-foreground">Pay a Lightning invoice or send to an address.</p>
-              </div>
-              <Card className="border-border/50 max-w-lg">
-                <CardContent className="p-6 space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="send-address" className="text-xs font-medium text-muted-foreground">Invoice or Lightning Address</Label>
-                    <Input
-                      id="send-address"
-                      placeholder="lnbc... or user@domain.com"
-                      value={sendAddress}
-                      onChange={(e) => setSendAddress(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="send-amount" className="text-xs font-medium text-muted-foreground">Amount (sats)</Label>
-                    <Input
-                      id="send-amount"
-                      type="number"
-                      placeholder="1000"
-                      value={sendAmount}
-                      onChange={(e) => setSendAmount(e.target.value)}
-                    />
-                  </div>
-                  <Button
-                    onClick={handleSend}
-                    disabled={!sendAddress || !sendAmount || sendLoading}
-                    className="w-full gap-2"
-                  >
-                    {sendLoading ? <Loader2 className="size-4 animate-spin" /> : <ArrowUpRight className="size-4" />}
-                    Send Payment
-                  </Button>
-                  {sendResult && (
-                    <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
-                      <Check className="size-4" />
-                      {sendResult}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {tab === "history" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold">Payment History</h2>
-                <p className="text-sm text-muted-foreground">Your recent Lightning transactions.</p>
-              </div>
-              {payments.length > 0 ? (
-                <div className="rounded-lg border border-border/50 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border/50 bg-muted/30">
-                          <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Type</th>
-                          <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Memo</th>
-                          <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">Amount</th>
-                          <th className="text-right px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {payments.slice(0, 50).map((payment, i) => (
-                          <tr key={payment.id || i} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                {payment.amount > 0 ? (
-                                  <div className="flex size-7 items-center justify-center rounded-full bg-emerald-500/10">
-                                    <ArrowDownLeft className="size-3.5 text-emerald-400" />
-                                  </div>
-                                ) : (
-                                  <div className="flex size-7 items-center justify-center rounded-full bg-orange-500/10">
-                                    <ArrowUpRight className="size-3.5 text-orange-400" />
-                                  </div>
-                                )}
-                                <span className="text-xs">{payment.type}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="text-sm truncate max-w-[200px] block">
-                                {payment.memo || (payment.amount > 0 ? "Received" : "Sent")}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <span className={`font-mono font-medium ${payment.amount > 0 ? "text-emerald-400" : "text-orange-400"}`}>
-                                {payment.amount > 0 ? "+" : "-"}{formatSats(payment.amount)}
-                              </span>
-                              {payment.fee ? (
-                                <p className="text-[10px] text-muted-foreground">fee: {payment.fee}</p>
-                              ) : null}
-                            </td>
-                            <td className="px-4 py-3 text-right hidden sm:table-cell">
-                              <span className="text-xs text-muted-foreground">{formatDate(payment.created)}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <p className={`text-sm font-mono font-medium ${payment.amount > 0 ? "text-emerald-500" : "text-orange-500"}`}>
+                    {payment.amount > 0 ? "+" : "-"}{formatSats(payment.amount)}
+                  </p>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center py-16 text-center">
-                  <div className="size-10 rounded-lg bg-muted flex items-center justify-center mb-3">
-                    <RefreshCw className="size-5 text-muted-foreground/50" />
-                  </div>
-                  <p className="text-sm font-medium">No transactions yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Your payment history will appear here.</p>
-                </div>
-              )}
+              ))}
             </div>
-          )}
-        </main>
-      </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
