@@ -36,22 +36,37 @@ export default function Directory() {
     );
   }, [data?.relays, search]);
 
+  const totalRelays = data?.relays?.length || 0;
+  const liveRelays = data?.relays?.filter(r => r.status === "running").length || 0;
+  const authRelays = data?.relays?.filter(r => r.auth_required).length || 0;
+
   return (
-    <div className="space-y-6 animate-in">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="animate-in">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Relay Directory</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {data?.relays?.length || 0} public relay{(data?.relays?.length || 0) !== 1 ? "s" : ""}
-          </p>
+          <div className="flex items-center gap-3 mt-2">
+            <Badge variant="secondary" className="gap-1.5 text-xs">
+              <Globe className="size-3" /> {totalRelays} total
+            </Badge>
+            <Badge variant="secondary" className="gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+              <span className="size-1.5 rounded-full bg-emerald-400" /> {liveRelays} live
+            </Badge>
+            {authRelays > 0 && (
+              <Badge variant="secondary" className="gap-1.5 text-xs">
+                <Shield className="size-3" /> {authRelays} private
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
           <Input
             placeholder="Search relays..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
+            className="pl-9 h-9"
           />
         </div>
       </div>
@@ -62,7 +77,9 @@ export default function Directory() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center py-20 text-center">
-          <Globe className="size-10 text-muted-foreground/30 mb-4" />
+          <div className="size-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+            <Globe className="size-6 text-muted-foreground/50" />
+          </div>
           {search ? (
             <>
               <h3 className="font-semibold">No results for "{search}"</h3>
@@ -130,3 +147,4 @@ export default function Directory() {
     </div>
   );
 }
+
