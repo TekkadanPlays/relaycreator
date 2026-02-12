@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from "react-router";
 import { useAuth } from "../stores/auth";
-import { Radio, LogOut, Menu, Zap, Globe, User, Loader2, X, HelpCircle, Github, Wallet } from "lucide-react";
+import { Radio, LogOut, Menu, Zap, Globe, User, Loader2, X, HelpCircle, Github, Wallet, Shield } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -109,6 +109,16 @@ export default function Layout() {
                       <Wallet className="size-4" /> Wallet
                     </Link>
                   </DropdownMenuItem>
+                  {user.admin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin" className="cursor-pointer gap-2">
+                          <Shield className="size-4" /> Admin Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={logout} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                     <LogOut className="size-4" /> Sign Out

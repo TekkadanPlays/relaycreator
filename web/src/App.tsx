@@ -13,6 +13,7 @@ const Invoices = lazy(() => import("./pages/Invoices"));
 const Directory = lazy(() => import("./pages/Directory"));
 const FAQ = lazy(() => import("./pages/FAQ"));
 const Wallet = lazy(() => import("./pages/Wallet"));
+const Admin = lazy(() => import("./pages/Admin"));
 
 function PageLoader() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="directory" element={<Directory />} />
           <Route path="faq" element={<FAQ />} />
           <Route path="wallet" element={<Wallet />} />
+          <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>
     </Suspense>

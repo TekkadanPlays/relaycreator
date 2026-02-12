@@ -12,6 +12,7 @@ import sconfigRoutes from "./routes/sconfig.js";
 import nip86Routes from "./routes/nip86.js";
 import { startPaymentChecker } from "./lib/paymentChecker.js";
 import coinosRoutes from "./routes/coinos.js";
+import adminRoutes from "./routes/admin.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +58,9 @@ app.use("/sconfig", sconfigRoutes);
 // Mount sconfig relay sub-routes at /api/relay for cookiecutter daemon compatibility
 // cookiecutter calls: PUT /api/relay/:id/status, GET /api/relay/:id/strfry, GET /api/relay/:id/nostrjson
 app.use("/api", sconfigRoutes);
+
+// Admin panel API
+app.use("/api/admin", adminRoutes);
 
 // CoinOS wallet proxy (optional)
 app.use("/api/coinos", coinosRoutes);
