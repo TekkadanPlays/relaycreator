@@ -84,10 +84,10 @@ export default function Directory() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((relay) => (
             <Link key={relay.id} to={`/relays/${relay.name}`}>
-              <Card className="h-full border-border/50 transition-colors hover:border-border">
+              <Card className="group h-full border-border/50 transition-all duration-300 hover:border-border hover:shadow-lg hover:shadow-primary/5">
                 <CardContent className="p-5">
                   <div className="flex items-center gap-3 mb-3">
-                    <Avatar className="size-10">
+                    <Avatar className="size-10 ring-2 ring-border/50 group-hover:ring-primary/30 transition-all">
                       {relay.profile_image ? (
                         <AvatarImage src={relay.profile_image} alt={relay.name} />
                       ) : null}
@@ -96,12 +96,12 @@ export default function Directory() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
-                      <h2 className="font-semibold truncate">{relay.name}</h2>
+                      <h2 className="font-semibold truncate group-hover:text-primary transition-colors">{relay.name}</h2>
                       <p className="font-mono text-xs text-muted-foreground truncate">
                         wss://{relay.name}.{relay.domain}
                       </p>
                     </div>
-                    <ArrowRight className="size-4 text-muted-foreground/30 shrink-0" />
+                    <ArrowRight className="size-4 text-muted-foreground/20 group-hover:text-primary/60 group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
 
                   {relay.details && (
@@ -116,7 +116,7 @@ export default function Directory() {
                     )}
                     {relay.status === "running" && (
                       <Badge variant="secondary" className="gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                        <span className="size-1.5 rounded-full bg-emerald-400" />
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
                         Live
                       </Badge>
                     )}

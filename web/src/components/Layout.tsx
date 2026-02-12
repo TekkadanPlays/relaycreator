@@ -45,10 +45,12 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b border-border/30 bg-background/80 backdrop-blur-xl backdrop-saturate-150">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2">
-            <Radio className="size-5 text-primary" />
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="flex items-center justify-center size-8 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors">
+              <Radio className="size-4 text-primary" />
+            </div>
             <span className="text-lg font-bold tracking-tight">relay.tools</span>
           </Link>
 
@@ -189,18 +191,26 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <footer className="border-t border-border/50 mt-auto">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Radio className="size-3.5" />
-              <span>relay.tools</span>
-              <span className="text-border">·</span>
-              <span className="text-xs">Powered by strfry</span>
+      <footer className="border-t border-border/30 mt-auto">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between text-sm text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center size-7 rounded-lg bg-primary/10">
+                <Radio className="size-3.5 text-primary" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground/80">relay.tools</span>
+                <span className="text-border">·</span>
+                <span className="text-xs">Powered by strfry</span>
+              </div>
             </div>
-            <a href="https://github.com/relaytools" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
-              <Github className="size-4" />
-            </a>
+            <div className="flex items-center gap-4">
+              <Link to="/faq" className="text-xs hover:text-foreground transition-colors">FAQ</Link>
+              <Link to="/directory" className="text-xs hover:text-foreground transition-colors">Directory</Link>
+              <a href="https://github.com/relaytools" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                <Github className="size-4" />
+              </a>
+            </div>
           </div>
         </div>
       </footer>

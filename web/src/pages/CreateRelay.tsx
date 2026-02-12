@@ -108,35 +108,40 @@ export default function CreateRelay() {
           <Card
             key={plan.id}
             className={cn(
-              "relative cursor-pointer transition-colors",
+              "group relative cursor-pointer transition-all duration-300 overflow-hidden",
               selectedPlan === plan.id
-                ? "border-primary ring-1 ring-primary/20"
-                : "border-border/50 hover:border-border"
+                ? "border-primary ring-1 ring-primary/20 shadow-lg shadow-primary/5"
+                : "border-border/50 hover:border-border hover:shadow-md"
             )}
             onClick={() => setSelectedPlan(plan.id)}
           >
-            {plan.recommended && (
-              <Badge className="absolute -top-2.5 right-4">Recommended</Badge>
+            {selectedPlan === plan.id && (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
             )}
-            <CardContent className="p-6">
+            {plan.recommended && (
+              <Badge className="absolute -top-2.5 right-4 glow-primary">Recommended</Badge>
+            )}
+            <CardContent className="relative p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold">{plan.name}</h2>
                 <div className={cn(
-                  "size-5 rounded-full border-2 flex items-center justify-center",
-                  selectedPlan === plan.id ? "border-primary bg-primary" : "border-muted-foreground/20"
+                  "size-5 rounded-full border-2 flex items-center justify-center transition-all",
+                  selectedPlan === plan.id ? "border-primary bg-primary scale-110" : "border-muted-foreground/20"
                 )}>
                   {selectedPlan === plan.id && <Check className="size-3 text-primary-foreground" />}
                 </div>
               </div>
               <div className="mb-1">
-                <span className="text-4xl font-extrabold">{plan.price}</span>
+                <span className="text-4xl font-extrabold tabular-nums">{plan.price}</span>
                 <span className="ml-1.5 text-sm text-muted-foreground">sats</span>
               </div>
               <p className="text-sm text-muted-foreground mb-5">{plan.description}</p>
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm">
-                    <Check className="size-3.5 text-emerald-400 shrink-0" />
+                  <li key={f} className="flex items-center gap-2.5 text-sm">
+                    <div className="flex items-center justify-center size-5 rounded-full bg-emerald-500/10">
+                      <Check className="size-3 text-emerald-400 shrink-0" />
+                    </div>
                     <span className="text-muted-foreground">{f}</span>
                   </li>
                 ))}
