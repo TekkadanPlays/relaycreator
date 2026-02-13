@@ -19,6 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import EcashSection from "./wallet/EcashSection";
+import NwcAppsSection from "./wallet/NwcAppsSection";
+import InvoicesSection from "./wallet/InvoicesSection";
+import FundsSection from "./wallet/FundsSection";
+import SettingsSection from "./wallet/SettingsSection";
+import ContactRow from "./wallet/ContactRow";
 import {
   Wallet as WalletIcon,
   Zap,
@@ -42,7 +48,15 @@ import {
   Plus,
   Trash2,
   Pin,
+  PinOff,
+  ShieldCheck,
+  ShieldOff,
   User,
+  Coins,
+  Radio,
+  FileText,
+  Vault,
+  Settings,
 } from "lucide-react";
 
 declare global {
@@ -58,7 +72,7 @@ interface AppConfig {
   coinos_enabled: boolean;
 }
 
-type Section = "overview" | "receive" | "send" | "history" | "accounts" | "contacts";
+type Section = "overview" | "receive" | "send" | "history" | "accounts" | "contacts" | "ecash" | "nwc" | "invoices" | "funds" | "settings";
 
 export default function Wallet() {
   const { user } = useAuth();
@@ -322,6 +336,22 @@ export default function Wallet() {
   const totalPages = Math.ceil(totalPayments / pageSize);
   const lnAddress = coinosUser ? `${coinosUser.username}@${window.location.hostname}` : "";
 
+  async function handlePinContact(id: string, pinned: boolean) {
+    try {
+      if (pinned) await coinos.unpinContact(id);
+      else await coinos.pinContact(id);
+      setContacts((prev) => prev.map((c) => c.id === id ? { ...c, pinned: !pinned } : c));
+    } catch (err: any) { setError(err.message); }
+  }
+
+  async function handleTrustContact(id: string, trusted: boolean) {
+    try {
+      if (trusted) await coinos.untrustContact(id);
+      else await coinos.trustContact(id);
+      setContacts((prev) => prev.map((c) => c.id === id ? { ...c, trusted: !trusted } : c));
+    } catch (err: any) { setError(err.message); }
+  }
+
   // ── Nav items ──
   const navItems: { id: Section; label: string; icon: typeof Zap }[] = [
     { id: "overview", label: "Overview", icon: WalletIcon },
@@ -330,6 +360,11 @@ export default function Wallet() {
     { id: "history", label: "History", icon: Clock },
     { id: "accounts", label: "Accounts", icon: Layers },
     { id: "contacts", label: "Contacts", icon: Users },
+    { id: "invoices", label: "Invoices", icon: FileText },
+    { id: "ecash", label: "Ecash", icon: Coins },
+    { id: "nwc", label: "NWC Apps", icon: Radio },
+    { id: "funds", label: "Funds", icon: Vault },
+    { id: "settings", label: "Settings", icon: Settings },
   ];
 
   // ── Loading ──
@@ -348,9 +383,9 @@ export default function Wallet() {
         <div className="size-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
           <WalletIcon className="size-8 text-muted-foreground/40" />
         </div>
-        <h2 className="text-xl font-bold">Sign in to access your bank</h2>
+        <h2 className="text-xl font-bold">Sign in to access your wallet</h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-xs">
-          Connect your Nostr extension to access CoinOS banking.
+          Connect your Nostr extension to access CoinOS.
         </p>
       </div>
     );
@@ -363,9 +398,9 @@ export default function Wallet() {
         <div className="size-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
           <Bitcoin className="size-8 text-muted-foreground/40" />
         </div>
-        <h2 className="text-xl font-bold">Banking Not Available</h2>
+        <h2 className="text-xl font-bold">Wallet Not Available</h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-xs">
-          CoinOS banking is not enabled on this server.
+          CoinOS is not enabled on this server.
         </p>
       </div>
     );
@@ -378,7 +413,7 @@ export default function Wallet() {
         <div className="size-16 rounded-2xl bg-destructive/10 flex items-center justify-center mb-5">
           <AlertCircle className="size-8 text-destructive/60" />
         </div>
-        <h2 className="text-xl font-bold">Banking Service Unavailable</h2>
+        <h2 className="text-xl font-bold">Wallet Service Unavailable</h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-xs">
           The CoinOS server is not responding.
         </p>
@@ -398,10 +433,10 @@ export default function Wallet() {
             <Zap className="size-8 text-primary" />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight">
-            CoinOS <span className="text-gradient">Bank</span>
+            <span className="text-gradient">Wallet</span>
           </h1>
           <p className="mt-2 text-muted-foreground max-w-sm mx-auto">
-            Your self-sovereign bank. Lightning payments, internal transfers, sub-accounts, contacts, and more — powered by CoinOS.
+            Lightning payments, ecash, internal transfers, sub-accounts, NWC apps, shared funds, and more — powered by CoinOS.
           </p>
         </div>
 
@@ -416,11 +451,14 @@ export default function Wallet() {
           {connecting ? "Connecting..." : "Connect with Nostr"}
         </Button>
 
-        <div className="mt-8 grid grid-cols-3 gap-4 text-center">
+        <div className="mt-8 grid grid-cols-3 sm:grid-cols-6 gap-3 text-center">
           {[
             { icon: Zap, label: "Lightning", desc: "Instant payments" },
             { icon: Users, label: "Contacts", desc: "Send by username" },
             { icon: Layers, label: "Accounts", desc: "Sub-wallets" },
+            { icon: Coins, label: "Ecash", desc: "Cashu tokens" },
+            { icon: Radio, label: "NWC", desc: "App connections" },
+            { icon: Vault, label: "Funds", desc: "Shared wallets" },
           ].map(({ icon: Icon, label, desc }) => (
             <div key={label} className="rounded-lg border border-border/30 p-3">
               <Icon className="size-5 text-primary mx-auto mb-1.5" />
@@ -441,7 +479,7 @@ export default function Wallet() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-              CoinOS <span className="text-gradient">Bank</span>
+              <span className="text-gradient">Wallet</span>
             </h1>
             <div className="flex items-center gap-2 mt-1">
               <p className="text-sm text-muted-foreground">@{coinosUser.username}</p>
@@ -871,33 +909,19 @@ export default function Wallet() {
         <div className="space-y-5">
           <div>
             <h2 className="text-lg font-bold">Contacts</h2>
-            <p className="text-sm text-muted-foreground">People you've transacted with. Tap to send them sats instantly.</p>
+            <p className="text-sm text-muted-foreground">People you've transacted with. Pin favorites and mark trusted contacts.</p>
           </div>
 
           {contacts.length > 0 ? (
             <div className="space-y-1">
               {contacts.map((c) => (
-                <button
+                <ContactRow
                   key={c.id}
-                  onClick={() => { setSendAddress(c.username); setSection("send"); }}
-                  className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-accent/30 transition-colors text-left"
-                >
-                  <Avatar className="size-9 shrink-0">
-                    {c.picture && <AvatarImage src={c.picture} alt={c.username} />}
-                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-                      {c.username[0]?.toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate">{c.username}</p>
-                      {c.pinned && <Pin className="size-3 text-primary" />}
-                      {c.trusted && <Check className="size-3 text-emerald-500" />}
-                    </div>
-                    {c.npub && <p className="text-xs text-muted-foreground truncate">{c.npub.slice(0, 20)}...</p>}
-                  </div>
-                  <Send className="size-4 text-muted-foreground/30 shrink-0" />
-                </button>
+                  contact={c}
+                  onSend={(username) => { setSendAddress(username); setSection("send"); }}
+                  onPin={handlePinContact}
+                  onTrust={handleTrustContact}
+                />
               ))}
             </div>
           ) : (
@@ -910,6 +934,31 @@ export default function Wallet() {
             </div>
           )}
         </div>
+      )}
+
+      {/* ═══════════ INVOICES ═══════════ */}
+      {section === "invoices" && (
+        <InvoicesSection onError={setError} formatSats={formatSats} satsToUsd={satsToUsd} />
+      )}
+
+      {/* ═══════════ ECASH ═══════════ */}
+      {section === "ecash" && (
+        <EcashSection onError={setError} />
+      )}
+
+      {/* ═══════════ NWC APPS ═══════════ */}
+      {section === "nwc" && (
+        <NwcAppsSection onError={setError} />
+      )}
+
+      {/* ═══════════ FUNDS ═══════════ */}
+      {section === "funds" && (
+        <FundsSection onError={setError} formatSats={formatSats} satsToUsd={satsToUsd} />
+      )}
+
+      {/* ═══════════ SETTINGS ═══════════ */}
+      {section === "settings" && (
+        <SettingsSection coinosUser={coinosUser} onUserUpdate={setCoinosUser} onError={setError} />
       )}
     </div>
   );
