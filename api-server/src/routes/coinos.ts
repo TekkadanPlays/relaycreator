@@ -186,6 +186,12 @@ router.post("/nostrAuth", coinosEnabled, async (req: Request, res: Response) => 
     console.log("[nostrAuth] headers:", JSON.stringify(outHeaders));
     console.log("[nostrAuth] body keys:", Object.keys(req.body || {}));
     console.log("[nostrAuth] body length:", outBody.length);
+    console.log("[nostrAuth] challenge:", req.body?.challenge);
+    console.log("[nostrAuth] event.kind:", req.body?.event?.kind);
+    console.log("[nostrAuth] event.pubkey:", req.body?.event?.pubkey?.substring(0, 16) + "...");
+    console.log("[nostrAuth] event.tags:", JSON.stringify(req.body?.event?.tags));
+    console.log("[nostrAuth] event.id:", req.body?.event?.id?.substring(0, 16) + "...");
+    console.log("[nostrAuth] event has sig:", !!req.body?.event?.sig);
     const response = await fetch(`${env.COINOS_ENDPOINT}/nostrAuth`, {
       method: "POST",
       headers: outHeaders,
