@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { api } from "../lib/api";
+import { clearWalletSession } from "../lib/coinos";
 
 interface User {
   id: string;
@@ -48,6 +49,7 @@ export const useAuth = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem("token");
+    clearWalletSession();
     set({ user: null, token: null, loading: false });
   },
 

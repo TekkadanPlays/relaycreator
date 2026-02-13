@@ -180,33 +180,14 @@ router.get("/challenge", coinosEnabled, async (_req: Request, res: Response) => 
 router.post("/nostrAuth", coinosEnabled, async (req: Request, res: Response) => {
   const env = getEnv();
   try {
-    const outHeaders = coinosHeaders();
-    const outBody = JSON.stringify(req.body);
-    console.log("[nostrAuth] -> CoinOS", env.COINOS_ENDPOINT + "/nostrAuth");
-    console.log("[nostrAuth] headers:", JSON.stringify(outHeaders));
-    console.log("[nostrAuth] body keys:", Object.keys(req.body || {}));
-    console.log("[nostrAuth] body length:", outBody.length);
-    console.log("[nostrAuth] challenge:", req.body?.challenge);
-    console.log("[nostrAuth] event.kind:", req.body?.event?.kind);
-    console.log("[nostrAuth] event.pubkey:", req.body?.event?.pubkey?.substring(0, 16) + "...");
-    console.log("[nostrAuth] event.tags:", JSON.stringify(req.body?.event?.tags));
-    console.log("[nostrAuth] event.id:", req.body?.event?.id?.substring(0, 16) + "...");
-    console.log("[nostrAuth] event has sig:", !!req.body?.event?.sig);
     const response = await fetch(`${env.COINOS_ENDPOINT}/nostrAuth`, {
       method: "POST",
-      headers: outHeaders,
-      body: outBody,
+      headers: coinosHeaders(),
+      body: JSON.stringify(req.body),
     });
-    const text = await response.text();
-    console.log("[nostrAuth] <- CoinOS status:", response.status, "body:", text.substring(0, 500));
-    try {
-      const data = JSON.parse(text);
-      res.status(response.status).json(data);
-    } catch {
-      res.status(response.status).send(text);
-    }
+    const data = await response.json();
+    res.status(response.status).json(data);
   } catch (err: any) {
-    console.error("[nostrAuth] proxy error:", err.message);
     res.status(502).json({ error: "Failed to connect to CoinOS server" });
   }
 });

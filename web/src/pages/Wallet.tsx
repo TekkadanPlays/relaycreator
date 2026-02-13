@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../stores/auth";
 import {
   coinos,
+  getCoinosToken,
+  setCoinosToken,
+  clearWalletSession,
+  getActivePubkey,
   type CoinosStatus,
   type CoinosUser,
   type CoinosPayment,
@@ -101,10 +105,11 @@ export default function Wallet() {
       };
 
       const signedEvent = await window.nostr.signEvent(event);
+      const pubkey = signedEvent.pubkey || (await window.nostr.getPublicKey());
       const result = await coinos.nostrAuth({ challenge, event: signedEvent });
 
       if (result.token) {
-        localStorage.setItem("coinos_token", result.token);
+        setCoinosToken(pubkey, result.token);
         return true;
       }
       setError("Authentication failed — no token received");
@@ -137,7 +142,16 @@ export default function Wallet() {
       setStatus(s);
 
       if (s.healthy) {
-        if (localStorage.getItem("coinos_token")) {
+        // Verify the active NIP-07 pubkey matches the stored wallet session
+        const activePk = await getActivePubkey();
+        const storedPk = localStorage.getItem("coinos_pubkey");
+
+        if (storedPk && activePk && storedPk !== activePk) {
+          // Identity changed — clear stale wallet session
+          clearWalletSession();
+        }
+
+        if (getCoinosToken()) {
           await loadWalletData();
         } else if (window.nostr) {
           const ok = await connectWithNostr();
@@ -156,7 +170,7 @@ export default function Wallet() {
       setCoinosUser(me);
       await loadPayments(0);
     } catch {
-      localStorage.removeItem("coinos_token");
+      clearWalletSession();
       setCoinosUser(null);
     }
   }
@@ -188,7 +202,7 @@ export default function Wallet() {
   }
 
   function handleLogout() {
-    coinos.logout();
+    clearWalletSession();
     setCoinosUser(null);
     setPayments([]);
     setTotalPayments(0);

@@ -49,14 +49,40 @@ export interface NodeInfo {
   network?: string;
 }
 
-const coinosHeaders = () => {
-  const coinosToken = localStorage.getItem("coinos_token");
-  return coinosToken ? { "x-coinos-token": coinosToken } : {};
-};
+/** Get the CoinOS JWT for the given pubkey (or the stored active pubkey). */
+export function getCoinosToken(pubkey?: string): string | null {
+  const pk = pubkey || localStorage.getItem("coinos_pubkey");
+  if (!pk) return null;
+  return localStorage.getItem(`coinos_token:${pk}`);
+}
+
+/** Store a CoinOS JWT keyed to a specific pubkey. */
+export function setCoinosToken(pubkey: string, token: string) {
+  localStorage.setItem(`coinos_token:${pubkey}`, token);
+  localStorage.setItem("coinos_pubkey", pubkey);
+}
+
+/** Clear the CoinOS wallet session for the active pubkey. */
+export function clearWalletSession() {
+  const pk = localStorage.getItem("coinos_pubkey");
+  if (pk) localStorage.removeItem(`coinos_token:${pk}`);
+  localStorage.removeItem("coinos_pubkey");
+  // Also clean up legacy key if present
+  localStorage.removeItem("coinos_token");
+}
+
+/** Get the currently active NIP-07 pubkey, or null. */
+export async function getActivePubkey(): Promise<string | null> {
+  try {
+    return (window as any).nostr?.getPublicKey() ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function coinosRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem("token");
-  const coinosToken = localStorage.getItem("coinos_token");
+  const coinosToken = getCoinosToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -104,7 +130,7 @@ export const coinos = {
   paymentsLegacy: () => coinosRequest<CoinosPayment[]>("/payments"),
 
   logout: () => {
-    localStorage.removeItem("coinos_token");
+    clearWalletSession();
   },
 
   createInvoice: (body: { amount: number; memo?: string; type?: string }) =>
