@@ -1,12 +1,13 @@
 import { Outlet, Link, useLocation } from "react-router";
 import { useAuth } from "../stores/auth";
+import { useNostrProfile } from "../hooks/useNostrProfile";
 import {
   Radio, LogOut, Menu, Zap, Globe, User, Loader2, X,
-  HelpCircle, Github, Wallet, Shield, Plus,
+  HelpCircle, Github, Wallet, Shield,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
@@ -39,6 +40,7 @@ const authLinks = [
 
 export default function Layout() {
   const { user, login, logout, loading } = useAuth();
+  const { profile, displayName } = useNostrProfile(user?.pubkey);
   const [loginError, setLoginError] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
@@ -95,26 +97,27 @@ export default function Layout() {
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             ) : user ? (
               <>
-                {/* Quick-create button — always visible for operators */}
-                <Button size="sm" className="gap-1.5 hidden sm:inline-flex" asChild>
-                  <Link to="/signup">
-                    <Plus className="size-3.5" /> New Relay
-                  </Link>
-                </Button>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="rounded-full">
                       <Avatar className="size-8">
+                        {profile?.picture && (
+                          <AvatarImage src={profile.picture} alt={displayName || ""} />
+                        )}
                         <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                          {user.pubkey.slice(0, 2).toUpperCase()}
+                          {(displayName || user.pubkey.slice(0, 2)).slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-52">
-                    <DropdownMenuLabel className="font-mono text-xs text-muted-foreground truncate">
-                      {user.pubkey.slice(0, 20)}...
+                    <DropdownMenuLabel className="space-y-0.5">
+                      {displayName && (
+                        <p className="text-sm font-medium truncate">{displayName}</p>
+                      )}
+                      <p className="font-mono text-xs text-muted-foreground truncate">
+                        {user.pubkey.slice(0, 20)}...
+                      </p>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
@@ -125,11 +128,6 @@ export default function Layout() {
                     <DropdownMenuItem asChild>
                       <Link to="/wallet" className="cursor-pointer gap-2">
                         <Wallet className="size-4" /> Wallet
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/signup" className="cursor-pointer gap-2">
-                        <Plus className="size-4" /> New Relay
                       </Link>
                     </DropdownMenuItem>
                     {user.admin && (
@@ -184,17 +182,6 @@ export default function Layout() {
                       </Link>
                     </Button>
                   ))}
-
-                  {user && (
-                    <>
-                      <Separator className="my-2" />
-                      <Button size="sm" className="justify-start gap-2" asChild onClick={() => setMobileOpen(false)}>
-                        <Link to="/signup">
-                          <Plus className="size-4" /> New Relay
-                        </Link>
-                      </Button>
-                    </>
-                  )}
 
                   <Separator className="my-2" />
                   {user ? (
