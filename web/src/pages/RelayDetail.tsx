@@ -66,9 +66,9 @@ export default function RelayDetail() {
   return (
     <div className="space-y-6 animate-in">
       {/* Header */}
-      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Avatar className="size-16 border-2 border-border">
+          <Avatar className="size-14 border-2 border-border">
             {relay.profile_image ? (
               <AvatarImage src={relay.profile_image} alt={relay.name} />
             ) : null}
@@ -88,13 +88,15 @@ export default function RelayDetail() {
                 <Badge variant="secondary">{relay.status}</Badge>
               )}
             </div>
-            <p className="font-mono text-sm text-muted-foreground mt-0.5">{relayUrl}</p>
+            {relay.details && (
+              <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1 max-w-lg">{relay.details}</p>
+            )}
           </div>
         </div>
         {isOwner && (
           <Button variant="outline" className="gap-1.5 shrink-0" asChild>
             <Link to={`/relays/${slug}/settings`}>
-              <Settings className="size-4" /> Manage
+              <Settings className="size-4" /> Manage Relay
             </Link>
           </Button>
         )}
@@ -102,116 +104,102 @@ export default function RelayDetail() {
 
       {/* Banner */}
       {relay.banner_image && (
-        <div className="h-48 overflow-hidden rounded-lg border border-border/50">
+        <div className="h-44 overflow-hidden rounded-lg border border-border/50">
           <img src={relay.banner_image} alt="" className="size-full object-cover" />
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { icon: relay.auth_required ? Lock : Unlock, label: relay.auth_required ? "Private" : "Public", sub: relay.auth_required ? "NIP-42 Auth" : "Open access" },
-          { icon: Shield, label: relay.default_message_policy ? "Allow All" : "Restricted", sub: relay.default_message_policy ? "Open policy" : "Allowlist mode" },
-          { icon: Users, label: `${1 + relay.moderators.length}`, sub: "Team members" },
-          { icon: Calendar, label: relay.created_at ? new Date(relay.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "—", sub: "Created" },
-        ].map((stat, i) => (
-          <Card key={i} className="border-border/50">
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className="rounded-lg bg-muted p-2">
-                <stat.icon className="size-4 text-muted-foreground" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-sm truncate">{stat.label}</p>
-                <p className="text-xs text-muted-foreground">{stat.sub}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          {/* About */}
-          <Card>
-            <CardHeader><CardTitle className="text-base">About</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground leading-relaxed">
-                {relay.details || "A Nostr relay powered by relay.tools."}
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Team */}
-          <Card>
-            <CardHeader><CardTitle className="text-base">Team</CardTitle></CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex items-center gap-3 rounded-lg border border-border/50 p-3">
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
-                    {relay.owner.pubkey.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-mono text-sm truncate">{relay.owner.pubkey.slice(0, 20)}...</p>
-                </div>
-                <Badge variant="secondary">Owner</Badge>
-              </div>
-              {relay.moderators.map((mod) => (
-                <div key={mod.id} className="flex items-center gap-3 rounded-lg border border-border/50 p-3">
-                  <Avatar className="size-8">
-                    <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
-                      {mod.user.pubkey.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-sm truncate">{mod.user.pubkey.slice(0, 20)}...</p>
-                  </div>
-                  <Badge variant="outline">Mod</Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+      {/* Connection + Config bar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border border-border/50 bg-card px-4 py-3">
+        <div
+          className="flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors group"
+          onClick={copyUrl}
+        >
+          <code className="font-mono text-sm text-muted-foreground group-hover:text-foreground transition-colors">{relayUrl}</code>
+          {copied ? (
+            <Check className="size-3.5 text-emerald-400 shrink-0" />
+          ) : (
+            <Copy className="size-3.5 text-muted-foreground shrink-0" />
+          )}
         </div>
-
-        {/* Sidebar */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Connect</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div
-                className="flex items-center gap-2 rounded-lg border border-border/50 p-3 cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={copyUrl}
-              >
-                <span className="flex-1 break-all font-mono text-xs text-muted-foreground">{relayUrl}</span>
-                {copied ? (
-                  <Check className="size-4 text-emerald-400 shrink-0" />
-                ) : (
-                  <Copy className="size-4 text-muted-foreground shrink-0" />
-                )}
-              </div>
-              {copied && <p className="text-xs text-emerald-400 text-center">Copied!</p>}
-            </CardContent>
-          </Card>
-
-          {isOwner && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Actions</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start gap-2" asChild>
-                  <Link to={`/relays/${slug}/settings`}>
-                    <Settings className="size-4" /> Relay Settings
-                  </Link>
-                </Button>
-                <Button variant="outline" className="w-full justify-start gap-2" asChild>
-                  <Link to={`/relays/${slug}/settings`}>
-                    <Shield className="size-4" /> Access Control
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            {relay.auth_required ? <Lock className="size-3" /> : <Unlock className="size-3" />}
+            {relay.auth_required ? "NIP-42 Auth" : "Public"}
+          </span>
+          <span className="text-border">·</span>
+          <span className="flex items-center gap-1.5">
+            <Shield className="size-3" />
+            {relay.default_message_policy ? "Allow all" : "Allowlist"}
+          </span>
+          <span className="text-border">·</span>
+          <span className="flex items-center gap-1.5">
+            <Users className="size-3" />
+            {1 + relay.moderators.length} member{1 + relay.moderators.length !== 1 ? "s" : ""}
+          </span>
+          {relay.created_at && (
+            <>
+              <span className="text-border">·</span>
+              <span className="flex items-center gap-1.5">
+                <Calendar className="size-3" />
+                {new Date(relay.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+              </span>
+            </>
           )}
         </div>
       </div>
+
+      {/* Team */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Team</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+              <Avatar className="size-6">
+                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-medium">
+                  {relay.owner.pubkey.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-mono text-xs truncate max-w-[140px]">{relay.owner.pubkey.slice(0, 16)}...</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Owner</Badge>
+            </div>
+            {relay.moderators.map((mod) => (
+              <div key={mod.id} className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
+                <Avatar className="size-6">
+                  <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-medium">
+                    {mod.user.pubkey.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-mono text-xs truncate max-w-[140px]">{mod.user.pubkey.slice(0, 16)}...</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">Mod</Badge>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Owner actions */}
+      {isOwner && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" asChild>
+            <Link to={`/relays/${slug}/settings`}>
+              <Settings className="size-3.5" /> General Settings
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" asChild>
+            <Link to={`/relays/${slug}/settings`} onClick={() => {}}>
+              <Shield className="size-3.5" /> Access Control
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" asChild>
+            <Link to={`/relays/${slug}/settings`}>
+              <Users className="size-3.5" /> Manage Team
+            </Link>
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

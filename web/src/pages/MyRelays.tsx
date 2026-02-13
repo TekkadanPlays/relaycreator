@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import { useAuth } from "../stores/auth";
-import { Radio, Settings, Globe, Loader2, Plus, Lock, Zap, ExternalLink, Shield } from "lucide-react";
+import {
+  Radio, Settings, Globe, Loader2, Plus, Lock, Zap,
+  ExternalLink, Shield, Copy, Check,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 interface Relay {
@@ -17,34 +20,21 @@ interface Relay {
   created_at: string | null;
 }
 
-function StatusBadge({ status }: { status: string | null }) {
-  if (status === "running") {
-    return (
-      <Badge variant="secondary" className="gap-1.5 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-        <span className="size-1.5 rounded-full bg-emerald-400" />
-        Running
-      </Badge>
-    );
-  }
-  if (status === "provision") {
-    return (
-      <Badge variant="secondary" className="gap-1.5 bg-amber-500/10 text-amber-400 border-amber-500/20">
-        <Loader2 className="size-3 animate-spin" />
-        Provisioning
-      </Badge>
-    );
-  }
-  return <Badge variant="secondary">{status}</Badge>;
-}
-
 export default function MyRelays() {
   const { user } = useAuth();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["myRelays"],
     queryFn: () => api.get<{ myRelays: Relay[]; moderatedRelays: any[] }>("/relays/mine"),
     enabled: !!user,
   });
+
+  function copyWss(relay: Relay) {
+    navigator.clipboard.writeText(`wss://${relay.name}.${relay.domain}`);
+    setCopiedId(relay.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
 
   if (!user) {
     return (
@@ -73,6 +63,7 @@ export default function MyRelays() {
   }
 
   const relays = data?.myRelays || [];
+  const running = relays.filter((r) => r.status === "running").length;
 
   return (
     <div className="space-y-6 animate-in">
@@ -80,7 +71,7 @@ export default function MyRelays() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Relays</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {relays.length} relay{relays.length !== 1 ? "s" : ""}
+            {relays.length} relay{relays.length !== 1 ? "s" : ""}{relays.length > 0 && ` · ${running} running`}
           </p>
         </div>
         <Button size="sm" className="gap-1.5" asChild>
@@ -102,46 +93,63 @@ export default function MyRelays() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-lg border border-border/50 divide-y divide-border/30">
           {relays.map((relay) => (
-            <Card key={relay.id} className="border-border/50 transition-colors hover:border-border">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="min-w-0">
-                    <h2 className="font-semibold truncate">{relay.name}</h2>
-                    <p className="font-mono text-xs text-muted-foreground mt-0.5">
-                      wss://{relay.name}.{relay.domain}
-                    </p>
+            <div key={relay.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center hover:bg-muted/20 transition-colors">
+              {/* Left: identity + status */}
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <span className={`size-2.5 rounded-full shrink-0 ${
+                  relay.status === "running" ? "bg-emerald-400" :
+                  relay.status === "provision" ? "bg-amber-400 animate-pulse" :
+                  "bg-muted-foreground/30"
+                }`} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-semibold text-sm truncate">{relay.name}</h2>
+                    <div className="flex items-center gap-1.5">
+                      {relay.auth_required && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 shrink-0">
+                          <Lock className="size-2.5" /> Auth
+                        </Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 shrink-0">
+                        {relay.default_message_policy ? "Open" : "Allowlist"}
+                      </Badge>
+                    </div>
                   </div>
-                  <StatusBadge status={relay.status} />
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <code className="font-mono text-xs text-muted-foreground truncate">
+                      wss://{relay.name}.{relay.domain}
+                    </code>
+                    <button
+                      onClick={() => copyWss(relay)}
+                      className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                      title="Copy connection string"
+                    >
+                      {copiedId === relay.id ? (
+                        <Check className="size-3 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
+              </div>
 
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {relay.auth_required && (
-                    <Badge variant="outline" className="gap-1 text-xs font-normal">
-                      <Shield className="size-3" /> Auth
-                    </Badge>
-                  )}
-                  <Badge variant="outline" className="gap-1 text-xs font-normal">
-                    <Zap className="size-3" /> {relay.default_message_policy ? "Open" : "Private"}
-                  </Badge>
-                </div>
-
-                <div className="flex items-center gap-2 pt-3 border-t border-border/50">
-                  <Button size="sm" variant="ghost" className="flex-1 gap-1.5 text-xs" asChild>
-                    <Link to={`/relays/${relay.name}`}>
-                      <ExternalLink className="size-3.5" /> View
-                    </Link>
-                  </Button>
-                  <div className="w-px h-4 bg-border" />
-                  <Button size="sm" variant="ghost" className="flex-1 gap-1.5 text-xs" asChild>
-                    <Link to={`/relays/${relay.name}/settings`}>
-                      <Settings className="size-3.5" /> Settings
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Right: actions */}
+              <div className="flex items-center gap-1.5 shrink-0 sm:ml-auto">
+                <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs" asChild>
+                  <Link to={`/relays/${relay.name}`}>
+                    <ExternalLink className="size-3.5" /> View
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" asChild>
+                  <Link to={`/relays/${relay.name}/settings`}>
+                    <Settings className="size-3.5" /> Settings
+                  </Link>
+                </Button>
+              </div>
+            </div>
           ))}
         </div>
       )}
