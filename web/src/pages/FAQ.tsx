@@ -73,6 +73,14 @@ const faqs = [
     q: "What does 'Allow Tagged Events' mean?",
     a: "When enabled, users outside your relay can send events that tag (mention) your relay's members. This lets non-members reply to or DM your members. Useful for keeping conversations flowing across the wider Nostr network.",
   },
+  {
+    q: "What is NIP-11 relay information?",
+    a: "NIP-11 defines a standard way for relays to describe themselves. Your relay's profile — name, description, contact, supported NIPs — is served as a JSON document at your relay's URL. You can edit all of this from the General settings tab.",
+  },
+  {
+    q: "Can I request payment from connecting clients?",
+    a: "Yes. The Billing settings tab lets you enable 'Request Payment', which suggests a Lightning payment to any client that connects. You can also require payment for access, where users must pay before their pubkey is added to the allow list. Both amounts are configurable in sats.",
+  },
 ];
 
 export default function FAQ() {
@@ -132,11 +140,18 @@ export default function FAQ() {
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
           Pick a plan, choose a name, and be live in under a minute.
         </p>
-        <Button className="gap-2" asChild>
-          <Link to="/signup">
-            Get Started <ArrowRight className="size-4" />
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Button className="gap-2" asChild>
+            <Link to="/signup">
+              Get Started <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+          <Button variant="outline" className="gap-2" asChild>
+            <Link to="/directory">
+              <Globe className="size-4" /> Browse Directory
+            </Link>
+          </Button>
+        </div>
       </section>
     </div>
   );
