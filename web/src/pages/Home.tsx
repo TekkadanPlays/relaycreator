@@ -136,7 +136,7 @@ export default function Home() {
               <CardContent className="p-6 space-y-3">
                 <h3 className="font-bold">Free. Open Source. Forever.</h3>
                 <p className="text-sm text-muted-foreground">
-                  MIT licensed. Run it yourself or use our hosted infrastructure.
+                  GPLv3 licensed. Run it yourself or use our hosted infrastructure.
                   The protocol is Nostr. The engine is strfry. The management layer is relay.tools.
                 </p>
                 <Button variant="outline" size="sm" className="gap-1.5" asChild>

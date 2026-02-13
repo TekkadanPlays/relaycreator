@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import { useAuth } from "../stores/auth";
+import { useRelayDomain } from "../hooks/useRelayDomain";
 import {
   Radio, Settings, Globe, Loader2, Plus, Lock, Zap,
   ExternalLink, Shield, Copy, Check,
@@ -30,8 +31,10 @@ export default function MyRelays() {
     enabled: !!user,
   });
 
+  const fallbackDomain = useRelayDomain();
+
   function copyWss(relay: Relay) {
-    navigator.clipboard.writeText(`wss://${relay.name}.${relay.domain}`);
+    navigator.clipboard.writeText(`wss://${relay.name}.${relay.domain || fallbackDomain}`);
     setCopiedId(relay.id);
     setTimeout(() => setCopiedId(null), 2000);
   }
@@ -119,7 +122,7 @@ export default function MyRelays() {
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <code className="font-mono text-xs text-muted-foreground truncate">
-                      wss://{relay.name}.{relay.domain}
+                      wss://{relay.name}.{relay.domain || fallbackDomain}
                     </code>
                     <button
                       onClick={() => copyWss(relay)}

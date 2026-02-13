@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useRelayDomain } from "../hooks/useRelayDomain";
 
 interface Relay {
   id: string;
@@ -27,11 +28,12 @@ export default function Directory() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const fallbackDomain = useRelayDomain();
 
   function copyWss(e: React.MouseEvent, relay: Relay) {
     e.preventDefault();
     e.stopPropagation();
-    navigator.clipboard.writeText(`wss://${relay.name}.${relay.domain}`);
+    navigator.clipboard.writeText(`wss://${relay.name}.${relay.domain || fallbackDomain}`);
     setCopiedId(relay.id);
     setTimeout(() => setCopiedId(null), 2000);
   }
@@ -201,7 +203,7 @@ export default function Directory() {
       ) : (
         <div className="space-y-2">
           {filtered.map((relay) => {
-            const wss = `wss://${relay.name}.${relay.domain}`;
+            const wss = `wss://${relay.name}.${relay.domain || fallbackDomain}`;
             const isLive = relay.status === "running";
 
             return (

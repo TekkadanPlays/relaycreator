@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useRelayDomain } from "../hooks/useRelayDomain";
 
 type Tab = "overview" | "relays" | "users" | "orders" | "config";
 
@@ -209,6 +210,7 @@ function OverviewTab() {
 function RelaysTab() {
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
+  const fallbackDomain = useRelayDomain();
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "relays"],
@@ -283,7 +285,7 @@ function RelaysTab() {
                       <div>
                         <p className="font-medium">{relay.name}</p>
                         <p className="text-xs text-muted-foreground font-mono">
-                          {relay.name}.{relay.domain}
+                          {relay.name}.{relay.domain || fallbackDomain}
                         </p>
                       </div>
                     </td>

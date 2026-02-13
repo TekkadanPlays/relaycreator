@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuth } from "../stores/auth";
+import { useRelayDomain } from "../hooks/useRelayDomain";
 import { Globe, Shield, Calendar, Copy, Check, Loader2, Settings, Users, Lock, Unlock } from "lucide-react";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +55,9 @@ export default function RelayDetail() {
   }
 
   const relay = data.relay;
-  const relayUrl = `wss://${relay.name}.${relay.domain}`;
+  const fallbackDomain = useRelayDomain();
+  const relayDomain = relay.domain || fallbackDomain;
+  const relayUrl = `wss://${relay.name}.${relayDomain}`;
   const isOwner = user && (user.pubkey === relay.owner.pubkey || user.admin);
 
   const copyUrl = () => {

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { useRelayDomain } from "../hooks/useRelayDomain";
 import { Check, Clock, Loader2, FileX, Copy, ExternalLink, Radio, Zap, Settings } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +30,7 @@ export default function Invoices() {
   const [params] = useSearchParams();
   const orderId = params.get("order_id");
   const [copied, setCopied] = useState(false);
+  const fallbackDomain = useRelayDomain();
 
   const { data, isLoading } = useQuery({
     queryKey: ["invoice", orderId],
@@ -120,7 +122,7 @@ export default function Invoices() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Your relay{" "}
                 <span className="font-semibold text-foreground font-mono">
-                  {order.relay.name}.{order.relay.domain}
+                  {order.relay.name}.{order.relay.domain || fallbackDomain}
                 </span>{" "}
                 {order.relay.status === "running" ? "is live." : "is being provisioned."}
               </p>
@@ -161,7 +163,7 @@ export default function Invoices() {
               <h2 className="text-xl font-bold">Awaiting Payment</h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 Pay <span className="font-semibold text-foreground">{order.amount.toLocaleString()} sats</span> to deploy{" "}
-                <span className="font-semibold text-foreground font-mono">{order.relay.name}.{order.relay.domain}</span>
+                <span className="font-semibold text-foreground font-mono">{order.relay.name}.{order.relay.domain || fallbackDomain}</span>
               </p>
 
               {order.lnurl && order.lnurl !== "0000" && (

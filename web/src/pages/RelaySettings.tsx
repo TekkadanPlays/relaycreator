@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useRelayDomain } from "../hooks/useRelayDomain";
 
 interface RelayFull {
   id: string;
@@ -113,7 +114,8 @@ export default function RelaySettings() {
   }
 
   const relay = data.relay;
-  const relayUrl = `wss://${relay.name}.${relay.domain}`;
+  const fallbackDomain = useRelayDomain();
+  const relayUrl = `wss://${relay.name}.${relay.domain || fallbackDomain}`;
 
   const copyUrl = () => {
     navigator.clipboard.writeText(relayUrl);
