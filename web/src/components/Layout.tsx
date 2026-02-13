@@ -72,22 +72,17 @@ export default function Layout() {
           {/* Center nav */}
           <nav className="hidden items-center justify-center gap-1 md:flex">
             {navLinks.map((link) => (
-              <Button
+              <Link
                 key={link.to}
-                variant="ghost"
-                size="sm"
-                className={`gap-1.5 text-sm ${
+                to={link.to}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   isActive(link.to)
                     ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 }`}
-                asChild
               >
-                <Link to={link.to}>
-                  <link.icon className="size-3.5" />
-                  {link.label}
-                </Link>
-              </Button>
+                {link.label}
+              </Link>
             ))}
           </nav>
 
@@ -128,6 +123,11 @@ export default function Layout() {
                     <DropdownMenuItem asChild>
                       <Link to="/wallet" className="cursor-pointer gap-2">
                         <Wallet className="size-4" /> Wallet
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/signup" className="cursor-pointer gap-2">
+                        <Radio className="size-4" /> Create Relay
                       </Link>
                     </DropdownMenuItem>
                     {user.admin && (
