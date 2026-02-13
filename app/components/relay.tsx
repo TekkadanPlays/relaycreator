@@ -93,7 +93,7 @@ export default function Relay(
             {/* Copy Button */}
             {props.showCopy && (
                 <button
-                    className="btn btn-ghost btn-xs w-full mt-2 text-xs"
+                    className="w-full mt-2 py-1.5 text-xs text-base-content/50 hover:text-base-content transition-colors"
                     onClick={(e) => copyToClipboard(e, useRelayWSS)}
                 >
                     Copy WSS URL
@@ -103,7 +103,7 @@ export default function Relay(
             {/* Edit Button */}
             {props.showEdit && (
                 <button
-                    className="btn btn-ghost btn-xs w-full mt-2 text-xs"
+                    className="w-full mt-2 py-1.5 text-xs text-base-content/50 hover:text-base-content transition-colors"
                     onClick={() => setEditing(true)}
                 >
                     Edit Details
@@ -117,7 +117,7 @@ export default function Relay(
                         <label className="block text-xs font-medium mb-1">Description</label>
                         <textarea
                             id={props.relay.id + "textareaedit"}
-                            className="textarea textarea-bordered w-full h-20 text-sm"
+                            className="w-full h-20 rounded-md border border-base-300/50 bg-base-200/30 px-3 py-2 text-sm placeholder:text-base-content/30 focus:outline-none focus:border-base-300 transition-colors resize-none"
                             placeholder="Relay description..."
                             value={profileDetail || ""}
                             onChange={(e) => setProfileDetails(e.target.value)}
@@ -129,21 +129,21 @@ export default function Relay(
                             id={props.relay.id + "urlid"}
                             type="text"
                             placeholder="https://..."
-                            className="input input-bordered input-sm w-full"
+                            className="w-full rounded-md border border-base-300/50 bg-base-200/30 px-3 py-1.5 text-sm placeholder:text-base-content/30 focus:outline-none focus:border-base-300 transition-colors"
                             onChange={(e) => setProfileBanner(e.target.value)}
                             value={profileBanner || ""}
                         />
                     </div>
                     <div className="flex justify-end gap-2">
-                        <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
-                        <button className="btn btn-primary btn-sm" onClick={(e) => handleSubmitEdit(e)}>Save</button>
+                        <button className="px-3 py-1.5 text-sm text-base-content/60 hover:text-base-content transition-colors" onClick={() => setEditing(false)}>Cancel</button>
+                        <button className="px-3 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-content hover:bg-primary/90 transition-colors" onClick={(e) => handleSubmitEdit(e)}>Save</button>
                     </div>
                 </div>
             )}
 
             {/* Explorer Link */}
             {props.showExplorer && (
-                <a href={useRelayHttps} className="btn btn-ghost btn-xs w-full mt-2 text-xs">
+                <a href={useRelayHttps} className="block w-full mt-2 py-1.5 text-center text-xs text-base-content/50 hover:text-base-content transition-colors">
                     Open in Explorer
                 </a>
             )}

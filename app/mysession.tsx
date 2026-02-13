@@ -1,9 +1,8 @@
 "use client";
 import { useSession } from "next-auth/react";
 import { signIn, signOut } from "next-auth/react";
-import Image from "next/image";
 import { useState, useEffect } from "react";
-import { IoRadio, IoLogOutOutline, IoMenuOutline, IoCloseOutline, IoFlashOutline, IoKeyOutline, IoReceiptOutline, IoGridOutline, IoAddCircleOutline, IoHelpCircleOutline, IoChatbubblesOutline } from "react-icons/io5";
+import { IoRadio, IoLogOutOutline, IoMenuOutline, IoCloseOutline, IoFlashOutline, IoKeyOutline, IoReceiptOutline, IoAddCircleOutline, IoChatbubblesOutline, IoChevronDownOutline } from "react-icons/io5";
 
 export default function ShowSession(
     props: React.PropsWithChildren<{
@@ -45,6 +44,7 @@ export default function ShowSession(
     const { data: session, status } = useSession();
     const [showLoginHelp, setShowLoginHelp] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
     const [curTheme, setCurTheme] = useState(props.theme);
 
     useEffect(() => {
@@ -78,6 +78,14 @@ export default function ShowSession(
         };
     }, []);
 
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleClick = () => setDropdownOpen(false);
+        document.addEventListener("click", handleClick);
+        return () => document.removeEventListener("click", handleClick);
+    }, [dropdownOpen]);
+
     const rootDomain =
         process.env.NEXT_PUBLIC_ROOT_DOMAIN || "http://localhost:3000";
     const supportURL = process.env.NEXT_PUBLIC_SUPPORT_URL || "#";
@@ -103,160 +111,175 @@ export default function ShowSession(
         <>
             {/* NIP-07 Help Modal */}
             {showLoginHelp && (
-                <dialog className="modal modal-bottom modal-open sm:modal-middle">
-                    <div className="modal-box border border-base-300">
-                        <h3 className="font-bold text-lg mb-4">Sign in with Nostr</h3>
-                        <p className="text-sm opacity-70 mb-4">You need a NIP-07 browser extension to sign in.</p>
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
-                                <div>
-                                    <p className="font-medium text-sm">iOS</p>
-                                    <p className="text-xs opacity-60">Nostore</p>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLoginHelp(false)} />
+                    <div className="relative w-full max-w-md mx-4 bg-base-100 border border-base-300 rounded-lg shadow-2xl p-6">
+                        <h3 className="font-semibold text-lg mb-2">Sign in with Nostr</h3>
+                        <p className="text-sm text-base-content/60 mb-5">You need a NIP-07 browser extension to sign in.</p>
+                        <div className="space-y-2">
+                            {[
+                                { platform: "iOS", app: "Nostore", href: "https://apps.apple.com/us/app/nostore/id1666553677" },
+                                { platform: "Android", app: "Kiwi Browser + nos2x", href: "https://play.google.com/store/apps/details?id=com.kiwibrowser.browser&pli=1" },
+                            ].map((item) => (
+                                <div key={item.platform} className="flex items-center justify-between p-3 rounded-md bg-base-200/50">
+                                    <div>
+                                        <p className="text-sm font-medium">{item.platform}</p>
+                                        <p className="text-xs text-base-content/50">{item.app}</p>
+                                    </div>
+                                    <a href={item.href} className="text-xs font-medium text-primary hover:underline">Install</a>
                                 </div>
-                                <a className="btn btn-sm btn-primary" href="https://apps.apple.com/us/app/nostore/id1666553677">Install</a>
-                            </div>
-                            <div className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                            ))}
+                            <div className="flex items-center justify-between p-3 rounded-md bg-base-200/50">
                                 <div>
-                                    <p className="font-medium text-sm">Android</p>
-                                    <p className="text-xs opacity-60">Kiwi Browser + nos2x</p>
+                                    <p className="text-sm font-medium">Desktop</p>
+                                    <p className="text-xs text-base-content/50">nos2x or Alby extension</p>
                                 </div>
-                                <a className="btn btn-sm btn-primary" href="https://play.google.com/store/apps/details?id=com.kiwibrowser.browser&pli=1">Install</a>
-                            </div>
-                            <div className="flex items-center justify-between p-3 bg-base-200 rounded-lg">
-                                <div>
-                                    <p className="font-medium text-sm">Desktop</p>
-                                    <p className="text-xs opacity-60">nos2x or Alby extension</p>
-                                </div>
-                                <div className="flex gap-2">
-                                    <a className="btn btn-sm btn-ghost" href="https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp">nos2x</a>
-                                    <a className="btn btn-sm btn-ghost" href="https://chrome.google.com/webstore/detail/alby-bitcoin-lightning-wa/iokeahhehimjnekafflcihljlcjccdbe">Alby</a>
+                                <div className="flex gap-3">
+                                    <a href="https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp" className="text-xs font-medium text-primary hover:underline">nos2x</a>
+                                    <a href="https://chrome.google.com/webstore/detail/alby-bitcoin-lightning-wa/iokeahhehimjnekafflcihljlcjccdbe" className="text-xs font-medium text-primary hover:underline">Alby</a>
                                 </div>
                             </div>
                         </div>
-                        <div className="modal-action">
-                            <button className="btn btn-ghost" onClick={() => setShowLoginHelp(false)}>Close</button>
+                        <div className="mt-5 flex justify-end">
+                            <button
+                                onClick={() => setShowLoginHelp(false)}
+                                className="text-sm text-base-content/60 hover:text-base-content transition-colors"
+                            >
+                                Close
+                            </button>
                         </div>
                     </div>
-                    <form method="dialog" className="modal-backdrop">
-                        <button onClick={() => setShowLoginHelp(false)}>close</button>
-                    </form>
-                </dialog>
+                </div>
             )}
 
-            {/* Main Navbar */}
-            <nav className="sticky top-0 z-50 border-b border-base-300/50 bg-base-100/80 backdrop-blur-lg">
-                {/* Center Nav Links - absolutely centered in full viewport */}
-                <div className="hidden lg:flex absolute inset-0 items-center justify-center pointer-events-none z-0">
-                    <div className="flex items-center gap-1 pointer-events-auto">
-                        {navLinks.map((link) => (
-                            <a
-                                key={link.label}
-                                href={link.href}
-                                className="px-3.5 py-1.5 text-sm font-medium text-base-content/60 hover:text-base-content rounded-md hover:bg-base-200/50 transition-colors"
-                            >
-                                {link.label}
+            {/* ── Navbar ── */}
+            <nav className="sticky top-0 z-50 border-b border-base-300/40 bg-base-100/90 backdrop-blur-md">
+                <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
+                    {/* 3-column grid: logo | center nav | right actions */}
+                    <div className="grid h-14 items-center" style={{ gridTemplateColumns: "1fr auto 1fr" }}>
+
+                        {/* Left: Logo */}
+                        <div className="flex items-center">
+                            <a href={rootDomain + "/"} className="flex items-center gap-2 group">
+                                <IoRadio className="w-[18px] h-[18px] text-primary" />
+                                <span className="font-semibold text-sm tracking-tight">{siteName}</span>
                             </a>
-                        ))}
-                    </div>
-                </div>
+                        </div>
 
-                <div className="relative z-10 mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-                    {/* Logo */}
-                    <a href={rootDomain + "/"} className="flex items-center gap-2.5 shrink-0">
-                        <IoRadio className="w-5 h-5 text-primary" />
-                        <span className="font-bold text-base tracking-tight">{siteName}</span>
-                    </a>
+                        {/* Center: Nav links (desktop) */}
+                        <div className="hidden lg:flex items-center gap-1">
+                            {navLinks.map((link) => (
+                                <a
+                                    key={link.label}
+                                    href={link.href}
+                                    className="px-3 py-1.5 text-[13px] text-base-content/50 hover:text-base-content transition-colors"
+                                >
+                                    {link.label}
+                                </a>
+                            ))}
+                        </div>
 
-                    {/* Right Side */}
-                    <div className="flex items-center gap-2">
-                        {!session ? (
-                            <>
-                                <button
-                                    onClick={doNip07Login}
-                                    className="hidden lg:inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-content hover:bg-primary/90 transition-colors"
-                                >
-                                    Sign In
-                                </button>
-                                <button
-                                    onClick={() => setMobileOpen(!mobileOpen)}
-                                    className="inline-flex items-center justify-center rounded-lg p-2 text-base-content/60 hover:bg-base-200/60 hover:text-base-content transition-colors lg:hidden"
-                                >
-                                    {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                {/* User dropdown - Desktop */}
-                                <div className="dropdown dropdown-end hidden lg:block">
-                                    <label tabIndex={0} className="flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-base-200/60 transition-colors">
-                                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <span className="text-xs font-bold text-primary">
-                                                {session.user?.name?.substring(0, 2)?.toUpperCase()}
+                        {/* Right: Actions */}
+                        <div className="flex items-center justify-end gap-2">
+                            {!session ? (
+                                <>
+                                    <button
+                                        onClick={doNip07Login}
+                                        className="hidden lg:inline-flex text-[13px] font-medium text-primary hover:text-primary/80 transition-colors"
+                                    >
+                                        Sign In
+                                    </button>
+                                    <button
+                                        onClick={() => setMobileOpen(!mobileOpen)}
+                                        className="lg:hidden p-1.5 rounded-md text-base-content/50 hover:text-base-content hover:bg-base-200/50 transition-colors"
+                                    >
+                                        {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    {/* User dropdown - Desktop */}
+                                    <div className="relative hidden lg:block">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setDropdownOpen(!dropdownOpen); }}
+                                            className="flex items-center gap-1.5 py-1 text-base-content/60 hover:text-base-content transition-colors"
+                                        >
+                                            <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <span className="text-[10px] font-semibold text-primary">
+                                                    {session.user?.name?.substring(0, 2)?.toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <span className="text-xs font-mono">
+                                                {session.user?.name?.substring(0, 8)}
                                             </span>
-                                        </div>
-                                        <span className="text-sm font-mono text-base-content/50">
-                                            {session.user?.name?.substring(0, 8)}...
-                                        </span>
-                                    </label>
-                                    <ul tabIndex={0} className="dropdown-content mt-2 p-1 shadow-xl bg-base-100 border border-base-300 rounded-lg w-56 z-50">
-                                        {userLinks.map((link) => (
-                                            <li key={link.label}>
-                                                <a href={link.href} className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-base-200 rounded-md transition-colors">
-                                                    <span className="opacity-50">{link.icon}</span>
-                                                    {link.label}
-                                                </a>
-                                            </li>
-                                        ))}
-                                        <li className="border-t border-base-200 mt-1 pt-1">
-                                            <a
-                                                onClick={() => signOut({ callbackUrl: "/" })}
-                                                className="flex items-center gap-3 px-3 py-2.5 text-sm text-error hover:bg-error/10 rounded-md cursor-pointer transition-colors"
-                                            >
-                                                <IoLogOutOutline className="w-4 h-4" />
-                                                Sign Out
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <button
-                                    onClick={() => setMobileOpen(!mobileOpen)}
-                                    className="inline-flex items-center justify-center rounded-lg p-2 text-base-content/60 hover:bg-base-200/60 hover:text-base-content transition-colors lg:hidden"
-                                >
-                                    {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
-                                </button>
-                            </>
-                        )}
+                                            <IoChevronDownOutline className="w-3 h-3 opacity-40" />
+                                        </button>
+
+                                        {dropdownOpen && (
+                                            <div className="absolute right-0 top-full mt-2 w-52 bg-base-100 border border-base-300/60 rounded-lg shadow-lg py-1 z-50">
+                                                {userLinks.map((link) => (
+                                                    <a
+                                                        key={link.label}
+                                                        href={link.href}
+                                                        className="flex items-center gap-2.5 px-3 py-2 text-[13px] text-base-content/70 hover:text-base-content hover:bg-base-200/50 transition-colors"
+                                                    >
+                                                        <span className="text-base-content/40">{link.icon}</span>
+                                                        {link.label}
+                                                    </a>
+                                                ))}
+                                                <div className="border-t border-base-300/40 my-1" />
+                                                <button
+                                                    onClick={() => signOut({ callbackUrl: "/" })}
+                                                    className="flex items-center gap-2.5 px-3 py-2 w-full text-[13px] text-error/70 hover:text-error hover:bg-error/5 transition-colors"
+                                                >
+                                                    <IoLogOutOutline className="w-4 h-4" />
+                                                    Sign Out
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Mobile menu button */}
+                                    <button
+                                        onClick={() => setMobileOpen(!mobileOpen)}
+                                        className="lg:hidden p-1.5 rounded-md text-base-content/50 hover:text-base-content hover:bg-base-200/50 transition-colors"
+                                    >
+                                        {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Mobile Menu */}
+                {/* ── Mobile Menu ── */}
                 {mobileOpen && (
-                    <div className="lg:hidden border-t border-base-300/50 bg-base-100 pb-4">
-                        <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 space-y-1">
+                    <div className="lg:hidden border-t border-base-300/40 bg-base-100">
+                        <div className="mx-auto max-w-6xl px-5 sm:px-6 py-3 space-y-0.5">
                             {session ? (
                                 <>
-                                    <div className="px-3 py-2 mb-2">
-                                        <p className="text-xs font-mono opacity-50">{session.user?.name?.substring(0, 16)}...</p>
+                                    <div className="px-3 py-2 mb-1">
+                                        <p className="text-xs font-mono text-base-content/40">{session.user?.name?.substring(0, 20)}...</p>
                                     </div>
                                     {userLinks.map((link) => (
                                         <a
                                             key={link.label}
                                             href={link.href}
-                                            className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-base-200 rounded-lg transition-colors"
+                                            className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-base-content/70 hover:text-base-content hover:bg-base-200/40 rounded-md transition-colors"
                                             onClick={() => setMobileOpen(false)}
                                         >
-                                            <span className="opacity-50">{link.icon}</span>
+                                            <span className="text-base-content/40">{link.icon}</span>
                                             {link.label}
                                         </a>
                                     ))}
-                                    <div className="border-t border-base-200 mt-2 pt-2">
-                                        <a
+                                    <div className="border-t border-base-300/40 mt-2 pt-2">
+                                        <button
                                             onClick={() => { signOut({ callbackUrl: "/" }); setMobileOpen(false); }}
-                                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-error hover:bg-error/10 rounded-lg cursor-pointer transition-colors"
+                                            className="flex items-center gap-2.5 px-3 py-2.5 w-full text-sm text-error/70 hover:text-error rounded-md transition-colors"
                                         >
                                             <IoLogOutOutline className="w-4 h-4" />
                                             Sign Out
-                                        </a>
+                                        </button>
                                     </div>
                                 </>
                             ) : (
@@ -265,16 +288,16 @@ export default function ShowSession(
                                         <a
                                             key={link.label}
                                             href={link.href}
-                                            className="block px-3 py-2.5 text-sm hover:bg-base-200 rounded-lg transition-colors"
+                                            className="block px-3 py-2.5 text-sm text-base-content/70 hover:text-base-content hover:bg-base-200/40 rounded-md transition-colors"
                                             onClick={() => setMobileOpen(false)}
                                         >
                                             {link.label}
                                         </a>
                                     ))}
-                                    <div className="border-t border-base-200 mt-2 pt-2">
+                                    <div className="border-t border-base-300/40 mt-2 pt-3">
                                         <button
                                             onClick={() => { doNip07Login(); setMobileOpen(false); }}
-                                            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-content hover:bg-primary/90 transition-colors"
+                                            className="w-full text-center py-2.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                                         >
                                             Sign In with Nostr
                                         </button>

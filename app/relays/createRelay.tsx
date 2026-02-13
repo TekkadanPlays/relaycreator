@@ -136,14 +136,14 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
     ];
 
     return (
-        <div className="px-4 py-8">
-            <div className="max-w-5xl mx-auto">
+        <div>
+            <div className="max-w-4xl mx-auto">
                 {/* Header */}
-                <div className="text-center mb-10">
-                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2">
+                <div className="text-center mb-8">
+                    <h1 className="text-xl sm:text-2xl font-semibold tracking-tight mb-1">
                         Deploy Your Relay
                     </h1>
-                    <p className="text-base-content/60">
+                    <p className="text-sm text-base-content/50">
                         Choose a plan, configure, and launch in under a minute.
                     </p>
                 </div>
@@ -248,7 +248,7 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
                             <input
                                 type="text"
                                 name="pubkey"
-                                className="input input-bordered w-full"
+                                className="w-full rounded-md border border-base-300/50 bg-base-200/30 px-3 py-2 text-sm placeholder:text-base-content/30 focus:outline-none focus:border-base-300 transition-colors"
                                 placeholder="sign-in or paste pubkey"
                                 autoComplete="off"
                                 value={pubkey}
@@ -267,7 +267,7 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
                             <div className="flex gap-2">
                                 <input
                                     type="text"
-                                    className="input input-bordered flex-1 min-w-0"
+                                    className="flex-1 min-w-0 rounded-md border border-base-300/50 bg-base-200/30 px-3 py-2 text-sm placeholder:text-base-content/30 focus:outline-none focus:border-base-300 transition-colors"
                                     placeholder="yourname"
                                     autoComplete="off"
                                     value={name}
@@ -291,7 +291,7 @@ export default function CreateRelay(props: React.PropsWithChildren<{}>) {
                     {/* Deploy Button */}
                     <div className="flex justify-center mt-8">
                         <button
-                            className="btn btn-primary gap-2 px-8"
+                            className="inline-flex items-center gap-2 rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-content hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             onClick={handleSubmit}
                             disabled={!isValidForm()}
                         >

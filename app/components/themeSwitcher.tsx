@@ -44,13 +44,14 @@ export default function ThemeSwitcher({
     return (
         <button
             onClick={toggleTheme}
-            className=""
+            className="p-2.5 rounded-full bg-base-200/80 border border-base-300/50 text-base-content/60 hover:text-base-content hover:bg-base-200 shadow-sm backdrop-blur-sm transition-colors"
             disabled={isLoading}
+            aria-label="Toggle theme"
         >
             {isLoading ? (
-                <span className="loading loading-spinner text-primary w-4 h-4" />
+                <span className="block w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             ) : (
-                currentTheme == "dark" ? (<FiMoon />) : (<FiSun />)
+                currentTheme == "dark" ? (<FiMoon className="w-4 h-4" />) : (<FiSun className="w-4 h-4" />)
             )}
         </button>
     )

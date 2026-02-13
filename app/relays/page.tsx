@@ -11,16 +11,12 @@ export default async function Relays() {
 
     if (!session || !(session as any).user.name) {
         return (
-            <div className="py-12">
-                <div className="max-w-6xl mx-auto">
-                    <HelpfulInfo />
+            <div>
+                <HelpfulInfo />
 
-                    <div className="mt-12">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold tracking-tight">Public Relays</h2>
-                        </div>
-                        <PublicRelays />
-                    </div>
+                <div className="mt-10">
+                    <h2 className="text-lg font-semibold tracking-tight mb-4">Public Relays</h2>
+                    <PublicRelays />
                 </div>
             </div>
         );

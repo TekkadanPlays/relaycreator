@@ -6,68 +6,52 @@ import ThemeProvider from "./components/themeProvider";
 import { cookies } from 'next/headers'
 import Themes from '../lib/themes'
 import { headers } from 'next/headers'
-import { Roboto, Roboto_Mono, Roboto_Condensed, Open_Sans } from 'next/font/google'
-import { useSelectedLayoutSegments } from 'next/navigation'
-
+import { Roboto, Roboto_Mono } from 'next/font/google'
 
 const roboto = Roboto({
-    weight: '400',
+    weight: ['400', '500', '600', '700'],
     subsets: ['latin'],
     display: 'swap',
     variable: '--font-roboto',
 })
 
-const robotoCondensed = Roboto_Condensed({
-    weight: '400',
-    subsets: ['latin'],
-    display: 'swap',
-    variable: '--font-roboto-condensed',
-})
-
 const robotoMono = Roboto_Mono({
-    weight: '400',
+    weight: ['400', '500'],
     subsets: ['latin'],
     display: 'swap',
     variable: '--font-roboto-mono',
 })
 
-//export default function RootLayout({ children, }: { children: React.ReactNode; }) {
 export default async function RootLayout({ children, }: React.PropsWithChildren) {
 
-  // Get theme based on the cookie "theme".
   const themeCookieStore = await cookies()
   const themeCookie = themeCookieStore.get('theme')
-
-  // If the cookie "theme" does not exist, set theme to the first index of Themes.
   const currentTheme = themeCookie ? themeCookie.value : Themes[0]
 
   const headersList = await headers()
   const rewritten = headersList.get('middleware-rewritten')
   const path = headersList.get('next-url')
 
+  const showChrome = rewritten == null && !path?.includes('/posts')
+
   return (
-    <html data-theme={currentTheme} className={`${robotoMono.variable} ${robotoCondensed.variable} ${roboto.variable} font-roboto leading-normal ${currentTheme === 'dark' ? 'dark' : ''}`}>
+    <html data-theme={currentTheme} className={`${roboto.variable} ${robotoMono.variable} ${currentTheme === 'dark' ? 'dark' : ''}`}>
       <head></head>
-      <body className="bg-base-100 min-h-screen">
+      <body className="bg-base-100 min-h-screen font-sans text-base-content">
           <AuthContext>
+            {showChrome && <ShowSession theme={currentTheme} />}
 
-            {rewritten == null && !path?.includes('/posts') &&
-            <div className="font-roboto">
-                <ShowSession theme={currentTheme}/>
-            </div>
-            }
-
-            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 font-roboto">
+            <main className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8 py-8">
               {children}
             </main>
 
-            {rewritten == null && !path?.includes('/posts') &&
-            <div className="fixed bottom-4 right-4 z-40">
+            {showChrome && (
+              <div className="fixed bottom-4 right-4 z-40">
                 <ThemeProvider />
-            </div>
-            }
+              </div>
+            )}
           </AuthContext>
       </body>
-    </html >
+    </html>
   );
 }
