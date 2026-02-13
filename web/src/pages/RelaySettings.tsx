@@ -76,6 +76,7 @@ export default function RelaySettings() {
   const queryClient = useQueryClient();
   const [section, setSection] = useState<Section>("general");
   const [copied, setCopied] = useState(false);
+  const fallbackDomain = useRelayDomain();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["relaySettings", slug],
@@ -114,7 +115,6 @@ export default function RelaySettings() {
   }
 
   const relay = data.relay;
-  const fallbackDomain = useRelayDomain();
   const relayUrl = `wss://${relay.name}.${relay.domain || fallbackDomain}`;
 
   const copyUrl = () => {

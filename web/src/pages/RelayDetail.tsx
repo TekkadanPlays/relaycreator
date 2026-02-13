@@ -29,6 +29,7 @@ export default function RelayDetail() {
   const { slug } = useParams();
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
+  const fallbackDomain = useRelayDomain();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["relay", slug],
@@ -55,7 +56,6 @@ export default function RelayDetail() {
   }
 
   const relay = data.relay;
-  const fallbackDomain = useRelayDomain();
   const relayDomain = relay.domain || fallbackDomain;
   const relayUrl = `wss://${relay.name}.${relayDomain}`;
   const isOwner = user && (user.pubkey === relay.owner.pubkey || user.admin);
