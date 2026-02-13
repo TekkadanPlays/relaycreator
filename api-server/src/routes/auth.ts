@@ -9,8 +9,38 @@ import { validateBody } from "../middleware/validate.js";
 const router = Router();
 
 /**
+ * GET /auth/logintoken
+ * NextAuth-compatible stub for cookiecutter daemon.
+ * Cookiecutter calls this to get a token before signing a Nostr event.
+ */
+router.get("/logintoken", async (_req: Request, res: Response) => {
+  const token = crypto.randomBytes(32).toString("hex");
+  await prisma.loginToken.create({ data: { token, created_at: new Date() } });
+  res.json({ token });
+});
+
+/**
+ * GET /auth/csrf
+ * NextAuth-compatible stub for cookiecutter daemon.
+ * Returns a dummy CSRF token since we don't use CSRF protection on API routes.
+ */
+router.get("/csrf", (_req: Request, res: Response) => {
+  res.json({ csrfToken: crypto.randomBytes(16).toString("hex") });
+});
+
+/**
+ * POST /auth/callback/credentials
+ * NextAuth-compatible stub for cookiecutter daemon.
+ * Cookiecutter POSTs a signed Nostr event here to "log in".
+ * Since sconfig routes have auth disabled, we just return success.
+ */
+router.post("/callback/credentials", (_req: Request, res: Response) => {
+  res.json({ url: "/" });
+});
+
+/**
  * GET /auth/login-token
- * Generate a random login token for NIP-07 signing.
+ * Generate a random login token for NIP-07 signing (frontend SPA).
  */
 router.get("/login-token", async (_req: Request, res: Response) => {
   const token = crypto.randomBytes(32).toString("hex");
