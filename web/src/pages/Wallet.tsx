@@ -124,7 +124,7 @@ export default function Wallet() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user?.pubkey]);
 
   async function loadData() {
     setLoading(true);
@@ -147,8 +147,13 @@ export default function Wallet() {
         const storedPk = localStorage.getItem("coinos_pubkey");
 
         if (storedPk && activePk && storedPk !== activePk) {
-          // Identity changed — clear stale wallet session
+          // Identity changed — clear stale wallet session and UI state
           clearWalletSession();
+          setCoinosUser(null);
+          setPayments([]);
+          setTotalPayments(0);
+          setIncoming(0);
+          setOutgoing(0);
         }
 
         if (getCoinosToken()) {
