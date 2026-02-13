@@ -3,11 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import {
-  Globe, Shield, Loader2, Search, Radio, Copy, Check, Lock, Unlock,
+  Globe, Loader2, Search, Radio, Copy, Check, Lock, Unlock,
+  ArrowRight, Signal, Users, ShieldCheck,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,10 +48,8 @@ export default function Directory() {
 
   const filtered = useMemo(() => {
     let result = allRelays;
-
     if (filter === "public") result = result.filter((r) => !r.auth_required);
     if (filter === "private") result = result.filter((r) => r.auth_required);
-
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -62,63 +59,102 @@ export default function Directory() {
           `${r.name}.${r.domain}`.toLowerCase().includes(q)
       );
     }
-
     return result;
   }, [allRelays, search, filter]);
 
   const filters: { id: Filter; label: string; count: number }[] = [
-    { id: "all", label: "All Relays", count: allRelays.length },
+    { id: "all", label: "All", count: allRelays.length },
     { id: "public", label: "Public", count: publicCount },
     { id: "private", label: "Private", count: privateCount },
   ];
 
   return (
-    <div className="animate-in space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Relay Directory</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Discover Nostr relays. Connect directly, or explore what each one offers.
+    <div className="animate-in">
+      {/* Hero header */}
+      <section className="pt-6 pb-8 sm:pt-10 sm:pb-10">
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+          Relay <span className="text-gradient">Directory</span>
+        </h1>
+        <p className="mt-2 text-muted-foreground max-w-lg">
+          Discover Nostr relays running on this platform. Connect directly, explore configurations, or find the right community.
         </p>
-      </div>
 
-      {/* Toolbar: filters + search + live count */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
+        {/* Stats */}
+        {!isLoading && allRelays.length > 0 && (
+          <div className="mt-6 flex flex-wrap gap-6">
+            <div className="flex items-center gap-2">
+              <div className="rounded-md bg-primary/10 p-1.5">
+                <Signal className="size-3.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-lg font-bold tabular-nums leading-none">{allRelays.length}</p>
+                <p className="text-[11px] text-muted-foreground">Total Relays</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="rounded-md bg-emerald-500/10 p-1.5">
+                <span className="flex size-3.5 items-center justify-center">
+                  <span className="size-2 rounded-full bg-emerald-400" />
+                </span>
+              </div>
+              <div>
+                <p className="text-lg font-bold tabular-nums leading-none">{liveCount}</p>
+                <p className="text-[11px] text-muted-foreground">Live Now</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="rounded-md bg-blue-500/10 p-1.5">
+                <Users className="size-3.5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-lg font-bold tabular-nums leading-none">{publicCount}</p>
+                <p className="text-[11px] text-muted-foreground">Public</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="rounded-md bg-amber-500/10 p-1.5">
+                <ShieldCheck className="size-3.5 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-lg font-bold tabular-nums leading-none">{privateCount}</p>
+                <p className="text-[11px] text-muted-foreground">Private</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border/30 mb-6">
+        <div className="flex items-center gap-1">
           {filters.map((f) => (
             <button
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 filter === f.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {f.label}
               <span className={cn(
-                "rounded-full px-1.5 py-0.5 text-[10px] tabular-nums",
-                filter === f.id ? "bg-primary/20" : "bg-muted"
+                "ml-1.5 text-xs tabular-nums",
+                filter === f.id ? "text-background/70" : "text-muted-foreground/60"
               )}>
                 {f.count}
               </span>
             </button>
           ))}
-          {liveCount > 0 && (
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-muted-foreground ml-2">
-              <span className="size-1.5 rounded-full bg-emerald-400" />
-              {liveCount} live
-            </span>
-          )}
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search by name or description..."
+            placeholder="Search relays..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 text-sm"
+            className="pl-10 h-10"
           />
         </div>
       </div>
@@ -130,14 +166,14 @@ export default function Directory() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center py-20 text-center">
-          <div className="size-12 rounded-xl bg-muted flex items-center justify-center mb-4">
-            <Globe className="size-6 text-muted-foreground/50" />
+          <div className="size-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
+            <Globe className="size-7 text-muted-foreground/40" />
           </div>
           {search || filter !== "all" ? (
             <>
-              <h3 className="font-semibold">No relays match your filters</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Try a different search term or filter
+              <h3 className="text-lg font-semibold">No relays match</h3>
+              <p className="mt-1 text-sm text-muted-foreground max-w-xs">
+                Try a different search term or filter.
               </p>
               <Button
                 variant="outline"
@@ -150,87 +186,89 @@ export default function Directory() {
             </>
           ) : (
             <>
-              <h3 className="font-semibold">No public relays yet</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Be the first to list your relay in the directory</p>
+              <h3 className="text-lg font-semibold">No relays listed yet</h3>
+              <p className="mt-1 text-sm text-muted-foreground max-w-xs">
+                Be the first to launch a relay on this platform.
+              </p>
               <Button className="mt-6 gap-2" asChild>
                 <Link to="/signup">
-                  <Radio className="size-4" /> Create a Relay
+                  Create a Relay <ArrowRight className="size-4" />
                 </Link>
               </Button>
             </>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((relay) => (
-            <Link key={relay.id} to={`/relays/${relay.name}`}>
-              <Card className="group h-full border-border/50 transition-all hover:border-border hover:shadow-sm">
-                <CardContent className="p-5">
-                  {/* Identity row */}
-                  <div className="flex items-start gap-3 mb-3">
-                    <Avatar className="size-10 shrink-0 ring-1 ring-border/50">
-                      {relay.profile_image ? (
-                        <AvatarImage src={relay.profile_image} alt={relay.name} />
-                      ) : null}
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                        {relay.name[0]?.toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h2 className="font-semibold truncate">{relay.name}</h2>
-                        {relay.status === "running" && (
-                          <span className="size-2 rounded-full bg-emerald-400 shrink-0" title="Live" />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground font-mono truncate mt-0.5">
-                        {relay.name}.{relay.domain}
-                      </p>
-                    </div>
-                  </div>
+        <div className="space-y-2">
+          {filtered.map((relay) => {
+            const wss = `wss://${relay.name}.${relay.domain}`;
+            const isLive = relay.status === "running";
 
-                  {/* Description */}
-                  {relay.details ? (
-                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-3">
-                      {relay.details}
-                    </p>
-                  ) : (
-                    <div className="mb-3" />
+            return (
+              <Link
+                key={relay.id}
+                to={`/relays/${relay.name}`}
+                className="group flex items-center gap-4 rounded-lg border border-border/30 px-4 py-3.5 transition-all hover:border-border/60 hover:bg-accent/30"
+              >
+                {/* Avatar */}
+                <Avatar className="size-10 shrink-0">
+                  {relay.profile_image && (
+                    <AvatarImage src={relay.profile_image} alt={relay.name} />
                   )}
+                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                    {relay.name[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
 
-                  {/* Footer: badges + connection string */}
-                  <div className="flex items-center gap-2 mb-3">
+                {/* Info */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                      {relay.name}
+                    </h2>
+                    {isLive && (
+                      <span className="size-1.5 rounded-full bg-emerald-400 shrink-0" title="Live" />
+                    )}
                     {relay.auth_required ? (
-                      <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400">
                         <Lock className="size-2.5" /> NIP-42
-                      </Badge>
+                      </span>
                     ) : (
-                      <Badge variant="outline" className="gap-1 text-[10px] px-1.5 py-0">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400">
                         <Unlock className="size-2.5" /> Public
-                      </Badge>
+                      </span>
                     )}
                   </div>
+                  {relay.details && (
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                      {relay.details}
+                    </p>
+                  )}
+                </div>
 
-                  <div className="flex items-center gap-1.5 rounded-md bg-muted/60 px-2.5 py-2">
-                    <code className="flex-1 truncate text-[11px] font-mono text-muted-foreground">
-                      wss://{relay.name}.{relay.domain}
-                    </code>
-                    <button
-                      onClick={(e) => copyWss(e, relay)}
-                      className="shrink-0 rounded-sm p-1 text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
-                      title="Copy connection string"
-                    >
-                      {copiedId === relay.id ? (
-                        <Check className="size-3.5 text-emerald-500" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+                {/* Connection string + copy */}
+                <div className="hidden sm:flex items-center gap-2 shrink-0">
+                  <code className="text-xs font-mono text-muted-foreground/70 max-w-[220px] truncate">
+                    {wss}
+                  </code>
+                  <button
+                    onClick={(e) => copyWss(e, relay)}
+                    className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    title="Copy connection string"
+                  >
+                    {copiedId === relay.id ? (
+                      <Check className="size-3.5 text-emerald-500" />
+                    ) : (
+                      <Copy className="size-3.5" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Arrow */}
+                <ArrowRight className="size-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors shrink-0" />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

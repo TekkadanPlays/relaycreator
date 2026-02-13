@@ -24,17 +24,19 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-/* Nav adapts to auth state — operators see their workspace tools */
-const anonLinks = [
+const mobileLinks = [
+  { to: "/", label: "Home", icon: Radio },
   { to: "/directory", label: "Directory", icon: Globe },
   { to: "/signup", label: "Create Relay", icon: Radio },
   { to: "/faq", label: "FAQ", icon: HelpCircle },
 ];
 
-const authLinks = [
+const mobileAuthLinks = [
+  { to: "/", label: "Home", icon: Radio },
   { to: "/relays/myrelays", label: "My Relays", icon: Zap },
   { to: "/directory", label: "Directory", icon: Globe },
   { to: "/wallet", label: "Wallet", icon: Wallet },
+  { to: "/signup", label: "Create Relay", icon: Radio },
   { to: "/faq", label: "FAQ", icon: HelpCircle },
 ];
 
@@ -55,12 +57,12 @@ export default function Layout() {
   };
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
-  const navLinks = user ? authLinks : anonLinks;
+  const sheetLinks = user ? mobileAuthLinks : mobileLinks;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="sticky top-0 z-50 border-b border-border/30 bg-background/80 backdrop-blur-xl backdrop-saturate-150">
-        <div className="mx-auto grid h-14 max-w-7xl grid-cols-[auto_1fr_auto] items-center gap-6 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group shrink-0">
             <div className="flex items-center justify-center size-8 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors">
@@ -69,25 +71,8 @@ export default function Layout() {
             <span className="text-lg font-bold tracking-tight">relay.tools</span>
           </Link>
 
-          {/* Center nav */}
-          <nav className="hidden items-center justify-center gap-1 md:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                  isActive(link.to)
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
           {/* Right side */}
-          <div className="flex items-center gap-2 justify-end shrink-0">
+          <div className="flex items-center gap-2">
             {loading ? (
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             ) : user ? (
@@ -130,6 +115,17 @@ export default function Layout() {
                         <Radio className="size-4" /> Create Relay
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/directory" className="cursor-pointer gap-2">
+                        <Globe className="size-4" /> Directory
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/faq" className="cursor-pointer gap-2">
+                        <HelpCircle className="size-4" /> FAQ
+                      </Link>
+                    </DropdownMenuItem>
                     {user.admin && (
                       <>
                         <DropdownMenuSeparator />
@@ -167,7 +163,7 @@ export default function Layout() {
                 </SheetTitle>
                 <Separator className="my-4" />
                 <nav className="flex flex-col gap-1">
-                  {[{ to: "/", label: "Home", icon: Radio }, ...navLinks].map((link) => (
+                  {sheetLinks.map((link) => (
                     <Button
                       key={link.to}
                       variant="ghost"
