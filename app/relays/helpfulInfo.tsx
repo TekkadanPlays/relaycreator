@@ -31,9 +31,9 @@ export default function HelpfulInfo(props: React.PropsWithChildren<{}>) {
     ];
 
     return (
-        <div className="py-4">
+        <div className="pt-8 pb-4">
             {/* Hero */}
-            <div className="text-center mb-12">
+            <div className="text-center mb-16">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium mb-6">
                     <IoFlashOutline className="w-3.5 h-3.5" />
                     Powered by strfry &middot; Lightning-native

@@ -145,25 +145,27 @@ export default function ShowSession(
 
             {/* Main Navbar */}
             <nav className="sticky top-0 z-50 border-b border-base-300/50 bg-base-100/80 backdrop-blur-lg">
-                <div className="flex items-center justify-between h-16 px-4">
-                    {/* Logo */}
-                    <a href={rootDomain + "/"} className="flex items-center gap-2 shrink-0">
-                        <IoRadio className="w-6 h-6 text-primary" />
-                        <span className="font-bold text-lg tracking-tight">{siteName}</span>
-                    </a>
-
-                    {/* Center Nav Links - Desktop */}
-                    <div className="hidden lg:flex items-center gap-1">
+                {/* Center Nav Links - absolutely centered in full viewport */}
+                <div className="hidden lg:flex absolute inset-0 items-center justify-center pointer-events-none z-0">
+                    <div className="flex items-center gap-1 pointer-events-auto">
                         {navLinks.map((link) => (
                             <a
                                 key={link.label}
                                 href={link.href}
-                                className="px-3 py-2 text-sm font-medium text-base-content/70 hover:text-base-content hover:bg-base-200/60 rounded-lg transition-colors"
+                                className="px-3.5 py-1.5 text-sm font-medium text-base-content/60 hover:text-base-content rounded-md hover:bg-base-200/50 transition-colors"
                             >
                                 {link.label}
                             </a>
                         ))}
                     </div>
+                </div>
+
+                <div className="relative z-10 mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+                    {/* Logo */}
+                    <a href={rootDomain + "/"} className="flex items-center gap-2.5 shrink-0">
+                        <IoRadio className="w-5 h-5 text-primary" />
+                        <span className="font-bold text-base tracking-tight">{siteName}</span>
+                    </a>
 
                     {/* Right Side */}
                     <div className="flex items-center gap-2">
@@ -171,14 +173,13 @@ export default function ShowSession(
                             <>
                                 <button
                                     onClick={doNip07Login}
-                                    className="btn btn-primary btn-sm hidden lg:inline-flex"
+                                    className="hidden lg:inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-content hover:bg-primary/90 transition-colors"
                                 >
                                     Sign In
                                 </button>
-                                {/* Mobile menu button */}
                                 <button
                                     onClick={() => setMobileOpen(!mobileOpen)}
-                                    className="btn btn-ghost btn-sm btn-square lg:hidden"
+                                    className="inline-flex items-center justify-center rounded-lg p-2 text-base-content/60 hover:bg-base-200/60 hover:text-base-content transition-colors lg:hidden"
                                 >
                                     {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
                                 </button>
@@ -187,13 +188,13 @@ export default function ShowSession(
                             <>
                                 {/* User dropdown - Desktop */}
                                 <div className="dropdown dropdown-end hidden lg:block">
-                                    <label tabIndex={0} className="btn btn-ghost btn-sm gap-2 cursor-pointer">
-                                        <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center">
+                                    <label tabIndex={0} className="flex items-center gap-2 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-base-200/60 transition-colors">
+                                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                                             <span className="text-xs font-bold text-primary">
                                                 {session.user?.name?.substring(0, 2)?.toUpperCase()}
                                             </span>
                                         </div>
-                                        <span className="text-sm font-mono opacity-60">
+                                        <span className="text-sm font-mono text-base-content/50">
                                             {session.user?.name?.substring(0, 8)}...
                                         </span>
                                     </label>
@@ -201,7 +202,7 @@ export default function ShowSession(
                                         {userLinks.map((link) => (
                                             <li key={link.label}>
                                                 <a href={link.href} className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-base-200 rounded-md transition-colors">
-                                                    <span className="opacity-60">{link.icon}</span>
+                                                    <span className="opacity-50">{link.icon}</span>
                                                     {link.label}
                                                 </a>
                                             </li>
@@ -217,10 +218,9 @@ export default function ShowSession(
                                         </li>
                                     </ul>
                                 </div>
-                                {/* Mobile menu button */}
                                 <button
                                     onClick={() => setMobileOpen(!mobileOpen)}
-                                    className="btn btn-ghost btn-sm btn-square lg:hidden"
+                                    className="inline-flex items-center justify-center rounded-lg p-2 text-base-content/60 hover:bg-base-200/60 hover:text-base-content transition-colors lg:hidden"
                                 >
                                     {mobileOpen ? <IoCloseOutline className="w-5 h-5" /> : <IoMenuOutline className="w-5 h-5" />}
                                 </button>
@@ -232,7 +232,7 @@ export default function ShowSession(
                 {/* Mobile Menu */}
                 {mobileOpen && (
                     <div className="lg:hidden border-t border-base-300/50 bg-base-100 pb-4">
-                        <div className="px-4 pt-3 space-y-1">
+                        <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 space-y-1">
                             {session ? (
                                 <>
                                     <div className="px-3 py-2 mb-2">
@@ -245,7 +245,7 @@ export default function ShowSession(
                                             className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-base-200 rounded-lg transition-colors"
                                             onClick={() => setMobileOpen(false)}
                                         >
-                                            <span className="opacity-60">{link.icon}</span>
+                                            <span className="opacity-50">{link.icon}</span>
                                             {link.label}
                                         </a>
                                     ))}
@@ -274,7 +274,7 @@ export default function ShowSession(
                                     <div className="border-t border-base-200 mt-2 pt-2">
                                         <button
                                             onClick={() => { doNip07Login(); setMobileOpen(false); }}
-                                            className="btn btn-primary btn-sm w-full"
+                                            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-content hover:bg-primary/90 transition-colors"
                                         >
                                             Sign In with Nostr
                                         </button>

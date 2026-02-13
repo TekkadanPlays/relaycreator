@@ -57,7 +57,7 @@ export default async function RootLayout({ children, }: React.PropsWithChildren)
             </div>
             }
 
-            <main className="mx-auto max-w-7xl font-roboto">
+            <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 font-roboto">
               {children}
             </main>
 

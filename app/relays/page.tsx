@@ -11,7 +11,7 @@ export default async function Relays() {
 
     if (!session || !(session as any).user.name) {
         return (
-            <div className="px-4 py-8">
+            <div className="py-12">
                 <div className="max-w-6xl mx-auto">
                     <HelpfulInfo />
 
