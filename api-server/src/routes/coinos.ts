@@ -6,8 +6,12 @@ const router = Router();
 
 /**
  * Proxy requests to the CoinOS server.
- * All routes require authentication and COINOS_ENABLED=true.
  * The frontend calls /api/coinos/* and we forward to the coinos-server.
+ *
+ * CoinOS is the banking layer of the stack — it supports:
+ *   Lightning, Bitcoin on-chain, Liquid, Ecash (Cashu),
+ *   internal transfers, accounts (sub-wallets), contacts,
+ *   NWC apps, LNURL, Lightning addresses, and more.
  */
 
 function coinosEnabled(_req: Request, res: Response, next: Function) {
@@ -33,7 +37,50 @@ function coinosHeaders(req?: Request): Record<string, string> {
   return h;
 }
 
-// GET /api/coinos/status — check if coinos is enabled and reachable
+/** Generic proxy: GET with auth */
+function proxyGet(path: string, auth = true) {
+  const mw = auth ? [coinosEnabled, requireAuth] : [coinosEnabled];
+  router.get(path, ...mw, async (req: Request, res: Response) => {
+    const env = getEnv();
+    try {
+      const qs = new URLSearchParams();
+      for (const [k, v] of Object.entries(req.query)) {
+        if (v !== undefined && v !== null) qs.set(k, String(v));
+      }
+      const qsStr = qs.toString();
+      const url = `${env.COINOS_ENDPOINT}${path.replace(/:(\w+)/g, (_, p) => req.params[p])}${qsStr ? `?${qsStr}` : ""}`;
+      const response = await fetch(url, {
+        headers: auth ? coinosHeaders(req) : { "x-api-key": env.COINOS_API_KEY, "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch {
+      res.status(502).json({ error: "Failed to connect to CoinOS server" });
+    }
+  });
+}
+
+/** Generic proxy: POST with auth */
+function proxyPost(path: string, auth = true) {
+  const mw = auth ? [coinosEnabled, requireAuth] : [coinosEnabled];
+  router.post(path, ...mw, async (req: Request, res: Response) => {
+    const env = getEnv();
+    try {
+      const url = `${env.COINOS_ENDPOINT}${path.replace(/:(\w+)/g, (_, p) => req.params[p])}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: auth ? coinosHeaders(req) : coinosHeaders(),
+        body: JSON.stringify(req.body),
+      });
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } catch {
+      res.status(502).json({ error: "Failed to connect to CoinOS server" });
+    }
+  });
+}
+
+// ─── Health & Rates ─────────────────────────────────────────────────────────
 router.get("/status", coinosEnabled, async (_req: Request, res: Response) => {
   const env = getEnv();
   try {
@@ -51,159 +98,72 @@ router.get("/status", coinosEnabled, async (_req: Request, res: Response) => {
   }
 });
 
-// POST /api/coinos/register — create a CoinOS account
-router.post("/register", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/register`, {
-      method: "POST",
-      headers: coinosHeaders(req),
-      body: JSON.stringify(req.body),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+proxyGet("/rates", false);
 
-// POST /api/coinos/login — login to CoinOS
-router.post("/login", coinosEnabled, async (req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/login`, {
-      method: "POST",
-      headers: coinosHeaders(req),
-      body: JSON.stringify(req.body),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── Auth ───────────────────────────────────────────────────────────────────
+proxyGet("/challenge", false);
+proxyPost("/nostrAuth", false);
+proxyPost("/register", true);
+proxyPost("/login", false);
 
-// GET /api/coinos/me — get current CoinOS user info
-router.get("/me", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/me`, {
-      headers: coinosHeaders(req),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── User ───────────────────────────────────────────────────────────────────
+proxyGet("/me");
+proxyPost("/user");                    // update user settings
+proxyGet("/credits");                  // fee credits per network
+proxyGet("/users/:key", false);        // lookup user by username/npub
 
-// GET /api/coinos/payments — list payments (supports limit, offset, start, end, aid)
-router.get("/payments", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
-  const env = getEnv();
-  const qs = new URLSearchParams();
-  for (const key of ["limit", "offset", "start", "end", "aid"]) {
-    if (req.query[key]) qs.set(key, String(req.query[key]));
-  }
-  const qsStr = qs.toString();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/payments${qsStr ? `?${qsStr}` : ""}`, {
-      headers: coinosHeaders(req),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── Payments ───────────────────────────────────────────────────────────────
+proxyGet("/payments");                 // list (supports limit, offset, start, end, aid)
+proxyPost("/payments");                // send payment (Lightning invoice or internal hash)
+proxyGet("/payments/:hash");           // get single payment detail
+proxyPost("/parse");                   // decode a Lightning invoice
+proxyPost("/send");                    // internal transfer by username
+proxyPost("/send/:lnaddress/:amount"); // pay a Lightning address
 
-// POST /api/coinos/invoice — create a Lightning invoice via CoinOS
-router.post("/invoice", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/invoice`, {
-      method: "POST",
-      headers: coinosHeaders(req),
-      body: JSON.stringify(req.body),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── Invoices ───────────────────────────────────────────────────────────────
+proxyPost("/invoice");                 // create invoice
+proxyGet("/invoice/:id", false);       // get invoice (public)
+proxyGet("/invoices");                 // list user's invoices
 
-// POST /api/coinos/payments — send a payment via CoinOS
-router.post("/payments", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/payments`, {
-      method: "POST",
-      headers: coinosHeaders(req),
-      body: JSON.stringify(req.body),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── Accounts (sub-wallets) ─────────────────────────────────────────────────
+proxyGet("/accounts");                 // list accounts
+proxyPost("/accounts");                // create account
+proxyGet("/account/:id");              // get single account
+proxyPost("/account/:id");             // update account
+proxyPost("/account/delete");          // delete account
 
-// GET /api/coinos/info — get node info
-router.get("/info", coinosEnabled, requireAuth, async (req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/info`, {
-      headers: coinosHeaders(req),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── Contacts ───────────────────────────────────────────────────────────────
+proxyGet("/contacts");                 // list contacts (recent payment counterparties)
+proxyGet("/contacts/:limit");          // list contacts with limit
 
-// GET /api/coinos/challenge — get a challenge for Nostr auth
-router.get("/challenge", coinosEnabled, async (_req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/challenge`, {
-      headers: { "x-api-key": env.COINOS_API_KEY },
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── Pins & Trust ───────────────────────────────────────────────────────────
+proxyPost("/pins");                    // pin a contact
+proxyPost("/pins/delete");             // unpin a contact
+proxyGet("/trust");                    // list trusted contacts
+proxyPost("/trust");                   // trust a contact
+proxyPost("/trust/delete");            // untrust a contact
 
-// POST /api/coinos/nostrAuth — authenticate with a signed Nostr event
-router.post("/nostrAuth", coinosEnabled, async (req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/nostrAuth`, {
-      method: "POST",
-      headers: coinosHeaders(),
-      body: JSON.stringify(req.body),
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── NWC Apps ───────────────────────────────────────────────────────────────
+proxyGet("/apps");                     // list NWC apps
+proxyGet("/app/:pubkey");              // get single app
+proxyPost("/app");                     // create/update app
+proxyPost("/apps/delete");             // delete app
 
-// GET /api/coinos/rates — get exchange rates
-router.get("/rates", coinosEnabled, async (_req: Request, res: Response) => {
-  const env = getEnv();
-  try {
-    const response = await fetch(`${env.COINOS_ENDPOINT}/rates`, {
-      headers: { "x-api-key": env.COINOS_API_KEY },
-    });
-    const data = await response.json();
-    res.status(response.status).json(data);
-  } catch (err: any) {
-    res.status(502).json({ error: "Failed to connect to CoinOS server" });
-  }
-});
+// ─── Ecash (Cashu) ─────────────────────────────────────────────────────────
+proxyPost("/claim");                   // claim ecash token
+proxyPost("/mint");                    // mint ecash
+proxyPost("/cash");                    // save ecash token
+proxyGet("/cash/:id/:version", false); // get ecash token
+
+// ─── Node Info ──────────────────────────────────────────────────────────────
+proxyGet("/info");                     // Lightning node info
+
+// ─── Funds (shared wallets) ─────────────────────────────────────────────────
+proxyGet("/fund/:id", false);          // get fund info
+proxyGet("/fund/:name/managers", false); // list fund managers
+proxyPost("/fund/managers");           // add fund manager
+proxyPost("/fund/:name/managers/delete"); // remove fund manager
+proxyPost("/authorize");               // authorize fund withdrawal
+proxyPost("/take");                    // withdraw from fund
 
 export default router;
