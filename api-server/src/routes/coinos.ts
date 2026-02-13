@@ -180,14 +180,27 @@ router.get("/challenge", coinosEnabled, async (_req: Request, res: Response) => 
 router.post("/nostrAuth", coinosEnabled, async (req: Request, res: Response) => {
   const env = getEnv();
   try {
+    const outHeaders = coinosHeaders();
+    const outBody = JSON.stringify(req.body);
+    console.log("[nostrAuth] -> CoinOS", env.COINOS_ENDPOINT + "/nostrAuth");
+    console.log("[nostrAuth] headers:", JSON.stringify(outHeaders));
+    console.log("[nostrAuth] body keys:", Object.keys(req.body || {}));
+    console.log("[nostrAuth] body length:", outBody.length);
     const response = await fetch(`${env.COINOS_ENDPOINT}/nostrAuth`, {
       method: "POST",
-      headers: coinosHeaders(),
-      body: JSON.stringify(req.body),
+      headers: outHeaders,
+      body: outBody,
     });
-    const data = await response.json();
-    res.status(response.status).json(data);
+    const text = await response.text();
+    console.log("[nostrAuth] <- CoinOS status:", response.status, "body:", text.substring(0, 500));
+    try {
+      const data = JSON.parse(text);
+      res.status(response.status).json(data);
+    } catch {
+      res.status(response.status).send(text);
+    }
   } catch (err: any) {
+    console.error("[nostrAuth] proxy error:", err.message);
     res.status(502).json({ error: "Failed to connect to CoinOS server" });
   }
 });
