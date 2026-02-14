@@ -19,13 +19,14 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useRelayDomain } from "../hooks/useRelayDomain";
 import { useHasPermission, useHasPermissionGranted } from "../hooks/usePermissions";
+import { NostrIdentity } from "../components/NostrIdentity";
 
 type Tab = "myrelays" | "overview" | "relays" | "users" | "orders" | "config" | "demo" | "coinos" | "permissions" | "request_access";
 type PanelTier = "admin" | "operator" | "demo";
 
 const ADMIN_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
-  { id: "myrelays", label: "My Relays", icon: Zap },
   { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "myrelays", label: "My Relays", icon: Zap },
   { id: "relays", label: "All Relays", icon: Radio },
   { id: "users", label: "Users", icon: Users },
   { id: "orders", label: "Orders", icon: DollarSign },
@@ -120,7 +121,7 @@ interface AdminConfig {
 
 export default function Admin() {
   const tier = usePanelTier();
-  const defaultTab: Tab = tier === "admin" ? "myrelays" : tier === "operator" ? "myrelays" : "demo";
+  const defaultTab: Tab = tier === "admin" ? "overview" : tier === "operator" ? "myrelays" : "demo";
   const [tab, setTab] = useState<Tab>(defaultTab);
 
   const tabs = tier === "admin" ? ADMIN_TABS : tier === "operator" ? OPERATOR_TABS : DEMO_TABS;
@@ -189,13 +190,68 @@ export default function Admin() {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // OVERVIEW TAB
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface CoinosStatusOverview {
+  enabled: boolean;
+  healthy: boolean;
+  bitcoin_implementation?: string;
+  bitcoin_pruned?: boolean;
+  [key: string]: unknown;
+}
+
+interface NodeInfoOverview {
+  alias?: string;
+  version?: string;
+  block_height?: number;
+  num_active_channels?: number;
+  num_peers?: number;
+  synced_to_chain?: boolean;
+  [key: string]: unknown;
+}
+
 function OverviewTab() {
-  const { data, isLoading } = useQuery({
+  const hasCoinosPermission = useHasPermission("coinos_admin");
+  const queryClient = useQueryClient();
+
+  const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["admin", "stats"],
     queryFn: () => api.get<Stats>("/admin/stats"),
   });
 
-  if (isLoading) {
+  const { data: relaysData } = useQuery({
+    queryKey: ["admin", "relays"],
+    queryFn: () => api.get<{ relays: AdminRelay[] }>("/admin/relays"),
+    staleTime: 60_000,
+  });
+
+  const { data: usersData } = useQuery({
+    queryKey: ["admin", "users"],
+    queryFn: () => api.get<{ users: AdminUser[] }>("/admin/users"),
+    staleTime: 60_000,
+  });
+
+  const { data: coinosStatus } = useQuery({
+    queryKey: ["coinos", "status"],
+    queryFn: () => api.get<CoinosStatusOverview>("/coinos/status"),
+    enabled: hasCoinosPermission,
+    staleTime: 30_000,
+  });
+
+  const { data: coinosInfo } = useQuery({
+    queryKey: ["coinos", "info"],
+    queryFn: () => api.get<NodeInfoOverview>("/coinos/info"),
+    enabled: hasCoinosPermission,
+    staleTime: 60_000,
+  });
+
+  const { data: coinosRates } = useQuery({
+    queryKey: ["coinos", "rates"],
+    queryFn: () => api.get<Record<string, number>>("/coinos/rates"),
+    enabled: hasCoinosPermission,
+    staleTime: 30_000,
+  });
+
+  if (statsLoading) {
     return (
       <div className="flex justify-center py-24">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -203,10 +259,17 @@ function OverviewTab() {
     );
   }
 
-  const stats = data;
+  const stats = statsData;
   if (!stats) return null;
 
-  const cards = [
+  const recentRelays = (relaysData?.relays || [])
+    .filter((r) => r.created_at)
+    .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+    .slice(0, 5);
+
+  const recentUsers = (usersData?.users || []).slice(0, 5);
+
+  const platformCards = [
     { label: "Total Relays", value: stats.totalRelays, icon: Radio, color: "text-blue-400", bg: "bg-blue-500/10" },
     { label: "Running", value: stats.runningRelays, icon: Activity, color: "text-emerald-400", bg: "bg-emerald-500/10" },
     { label: "Provisioning", value: stats.provisioningRelays, icon: Loader2, color: "text-amber-400", bg: "bg-amber-500/10" },
@@ -217,15 +280,31 @@ function OverviewTab() {
     { label: "Total Revenue", value: `${stats.totalRevenue.toLocaleString()} sats`, icon: DollarSign, color: "text-amber-400", bg: "bg-amber-500/10" },
   ];
 
+  const btcImpl = coinosStatus?.bitcoin_implementation || "";
+  const isKnots = btcImpl.toLowerCase().includes("knots");
+  const isPruned = coinosStatus?.bitcoin_pruned ?? false;
+  const btcUsd = coinosRates?.USD;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold">Overview</h2>
-        <p className="text-sm text-muted-foreground">Server statistics at a glance.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Overview</h2>
+          <p className="text-sm text-muted-foreground">Platform health &amp; activity at a glance</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ["admin"] })}
+        >
+          <RefreshCw className="size-3.5" />
+        </Button>
       </div>
 
+      {/* Platform Stats */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {cards.map((card) => (
+        {platformCards.map((card) => (
           <Card key={card.label} className="border-border/50">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -240,6 +319,146 @@ function OverviewTab() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* CoinOS Summary (for admins with coinos_admin permission) */}
+      {hasCoinosPermission && coinosStatus && (
+        <Card className={cn("border-border/50", coinosStatus.healthy ? "bg-emerald-500/[0.02]" : "bg-destructive/5")}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Bitcoin className="size-4 text-amber-400" />
+                <CardTitle className="text-sm">CoinOS Infrastructure</CardTitle>
+              </div>
+              <Badge
+                variant={coinosStatus.healthy ? "default" : "destructive"}
+                className={cn(
+                  "text-[10px] gap-1",
+                  coinosStatus.healthy && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                )}
+              >
+                <span className={cn("size-1.5 rounded-full", coinosStatus.healthy ? "bg-emerald-400 animate-pulse" : "bg-destructive")} />
+                {coinosStatus.healthy ? "Healthy" : "Unhealthy"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* BTC/USD Rate */}
+              <div className="rounded-lg bg-amber-500/5 border border-amber-500/10 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">BTC/USD</p>
+                <p className="text-base font-bold font-mono text-amber-400">
+                  {btcUsd ? `$${btcUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—"}
+                </p>
+              </div>
+
+              {/* Node */}
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Lightning</p>
+                <p className="text-sm font-bold truncate">{coinosInfo?.alias || "—"}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {coinosInfo?.num_active_channels ?? 0} ch · {coinosInfo?.num_peers ?? 0} peers
+                </p>
+              </div>
+
+              {/* Block Height */}
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Block</p>
+                <p className="text-sm font-bold font-mono">{coinosInfo?.block_height?.toLocaleString() ?? "—"}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {coinosInfo?.synced_to_chain !== false ? "Synced" : "Syncing..."}
+                </p>
+              </div>
+
+              {/* Bitcoin Implementation */}
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Backend</p>
+                <p className={cn("text-sm font-bold truncate", isKnots && "text-orange-400")}>{btcImpl || "—"}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {isPruned ? "Pruned" : "Full node"} · {coinosInfo?.version || "—"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Activity */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Recent Relays */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Radio className="size-4 text-blue-400" />
+                <CardTitle className="text-sm">Recent Relays</CardTitle>
+              </div>
+              <Badge variant="secondary" className="text-[10px]">{stats.totalRelays}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentRelays.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No relays yet</p>
+            ) : (
+              <div className="space-y-1">
+                {recentRelays.map((relay) => (
+                  <div key={relay.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-muted/20 transition-colors">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span className={cn(
+                        "size-2 rounded-full shrink-0",
+                        relay.status === "running" ? "bg-emerald-400" : relay.status === "provision" ? "bg-amber-400 animate-pulse" : "bg-muted-foreground/30"
+                      )} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{relay.name}</p>
+                        <NostrIdentity pubkey={relay.owner.pubkey} fallbackName={relay.owner.name} size="xs" />
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <StatusBadge status={relay.status} />
+                      {relay.created_at && (
+                        <p className="text-[9px] text-muted-foreground mt-0.5">
+                          {new Date(relay.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Users */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="size-4 text-violet-400" />
+                <CardTitle className="text-sm">Users</CardTitle>
+              </div>
+              <Badge variant="secondary" className="text-[10px]">{stats.totalUsers}</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentUsers.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No users yet</p>
+            ) : (
+              <div className="space-y-1">
+                {recentUsers.map((u) => (
+                  <div key={u.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-muted/20 transition-colors">
+                    <NostrIdentity pubkey={u.pubkey} fallbackName={u.name} size="sm" />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-muted-foreground">{u._count.relays} relays</span>
+                      {u.admin && (
+                        <Badge className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">Admin</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -334,9 +553,7 @@ function RelaysTab() {
                       <StatusBadge status={relay.status} />
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <p className="font-mono text-xs text-muted-foreground truncate max-w-[120px]">
-                        {relay.owner.pubkey.slice(0, 16)}...
-                      </p>
+                      <NostrIdentity pubkey={relay.owner.pubkey} fallbackName={relay.owner.name} size="xs" />
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <span className="font-mono text-xs">{relay.port || "—"}</span>
@@ -440,7 +657,7 @@ function UsersTab() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search by pubkey..."
+            placeholder="Search by name or pubkey..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 h-8 w-56 text-sm"
@@ -458,7 +675,7 @@ function UsersTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Pubkey</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">User</th>
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Relays</th>
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Orders</th>
                   <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Role</th>
@@ -469,10 +686,7 @@ function UsersTab() {
                 {filtered.map((u) => (
                   <tr key={u.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
-                      <div>
-                        <p className="font-mono text-xs truncate max-w-[200px]">{u.pubkey}</p>
-                        {u.name && <p className="text-xs text-muted-foreground">{u.name}</p>}
-                      </div>
+                      <NostrIdentity pubkey={u.pubkey} fallbackName={u.name} size="sm" showPubkey />
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
                       <span className="text-xs tabular-nums">{u._count.relays}</span>
@@ -577,9 +791,7 @@ function OrdersTab() {
                       )}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <p className="font-mono text-xs text-muted-foreground truncate max-w-[100px]">
-                        {order.user.pubkey.slice(0, 12)}...
-                      </p>
+                      <NostrIdentity pubkey={order.user.pubkey} fallbackName={order.user.name} size="xs" />
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <span className="text-xs text-muted-foreground">
