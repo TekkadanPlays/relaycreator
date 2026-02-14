@@ -21,7 +21,7 @@ import { useRelayDomain } from "../hooks/useRelayDomain";
 import { useHasPermission, useHasPermissionGranted } from "../hooks/usePermissions";
 import { NostrIdentity } from "../components/NostrIdentity";
 
-type Tab = "myrelays" | "overview" | "relays" | "users" | "orders" | "config" | "demo" | "coinos" | "permissions" | "request_access";
+type Tab = "myrelays" | "overview" | "relays" | "users" | "orders" | "demo" | "coinos" | "permissions" | "request_access";
 type PanelTier = "admin" | "operator" | "demo";
 
 const ADMIN_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
@@ -32,7 +32,6 @@ const ADMIN_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
   { id: "orders", label: "Orders", icon: DollarSign },
   { id: "permissions", label: "Permissions", icon: KeyRound },
   { id: "coinos", label: "CoinOS", icon: Wallet },
-  { id: "config", label: "Config", icon: Settings },
 ];
 
 const OPERATOR_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
@@ -178,7 +177,6 @@ export default function Admin() {
           {tab === "orders" && <OrdersTab />}
           {tab === "permissions" && <PermissionsTab />}
           {tab === "coinos" && <CoinosAdminTab />}
-          {tab === "config" && <ConfigTab />}
           {tab === "demo" && <DemoTab />}
           {tab === "request_access" && <RequestAccessTab />}
         </main>
@@ -249,6 +247,12 @@ function OverviewTab() {
     queryFn: () => api.get<Record<string, number>>("/coinos/rates"),
     enabled: hasCoinosPermission,
     staleTime: 30_000,
+  });
+
+  const { data: configData } = useQuery({
+    queryKey: ["admin", "config"],
+    queryFn: () => api.get<AdminConfig>("/admin/config"),
+    staleTime: 120_000,
   });
 
   if (statsLoading) {
@@ -460,6 +464,66 @@ function OverviewTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Server Configuration */}
+      {configData && (
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <Settings className="size-4 text-muted-foreground" />
+              <CardTitle className="text-sm">Server Configuration</CardTitle>
+              <span className="text-[10px] text-muted-foreground ml-auto">read-only · edit via .env</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Domain</p>
+                <p className="text-sm font-bold font-mono truncate">{configData.domain}</p>
+              </div>
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Payments</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={cn("size-1.5 rounded-full", configData.payments_enabled ? "bg-emerald-400" : "bg-muted-foreground/30")} />
+                  <p className="text-sm font-medium">{configData.payments_enabled ? "Enabled" : "Disabled"}</p>
+                </div>
+              </div>
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Standard</p>
+                <p className="text-sm font-bold font-mono">{configData.invoice_amount.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">sats</span></p>
+              </div>
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Premium</p>
+                <p className="text-sm font-bold font-mono">{configData.invoice_premium_amount.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">sats</span></p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">CoinOS</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={cn("size-1.5 rounded-full", configData.coinos_enabled ? "bg-emerald-400" : "bg-muted-foreground/30")} />
+                  <p className="text-sm font-medium">{configData.coinos_enabled ? "Enabled" : "Disabled"}</p>
+                </div>
+              </div>
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">LNBits</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={cn("size-1.5 rounded-full", configData.lnbits_configured ? "bg-emerald-400" : "bg-muted-foreground/30")} />
+                  <p className="text-sm font-medium">{configData.lnbits_configured ? "Configured" : "Not set"}</p>
+                </div>
+              </div>
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">CORS</p>
+                <p className="text-sm font-mono truncate">{configData.cors_origin}</p>
+              </div>
+              <div className="rounded-lg bg-muted/20 p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">API Port</p>
+                <p className="text-sm font-bold font-mono">{configData.port}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -810,65 +874,6 @@ function OrdersTab() {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CONFIG TAB
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function ConfigTab() {
-  const { data, isLoading } = useQuery({
-    queryKey: ["admin", "config"],
-    queryFn: () => api.get<AdminConfig>("/admin/config"),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-16">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const config = data;
-  if (!config) return null;
-
-  const items = [
-    { label: "Domain", value: config.domain, icon: Globe },
-    { label: "Payments Enabled", value: config.payments_enabled ? "Yes" : "No", icon: Zap },
-    { label: "CoinOS Enabled", value: config.coinos_enabled ? "Yes" : "No", icon: DollarSign },
-    { label: "LNBits Configured", value: config.lnbits_configured ? "Yes" : "No", icon: Server },
-    { label: "Standard Price", value: `${config.invoice_amount.toLocaleString()} sats`, icon: Zap },
-    { label: "Premium Price", value: `${config.invoice_premium_amount.toLocaleString()} sats`, icon: Zap },
-    { label: "CORS Origin", value: config.cors_origin, icon: Shield },
-    { label: "API Port", value: String(config.port), icon: Server },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Server Configuration</h2>
-        <p className="text-sm text-muted-foreground">Current server settings (read-only, edit via .env file).</p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardContent className="p-0">
-          <div className="divide-y divide-border/30">
-            {items.map((item) => (
-              <div key={item.label} className="flex items-center justify-between px-4 py-3.5 hover:bg-muted/20 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-md bg-muted p-1.5">
-                    <item.icon className="size-3.5 text-muted-foreground" />
-                  </div>
-                  <span className="text-sm font-medium">{item.label}</span>
-                </div>
-                <span className="text-sm font-mono text-muted-foreground">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
