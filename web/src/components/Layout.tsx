@@ -1,9 +1,11 @@
 import { Outlet, Link, useLocation } from "react-router";
 import { useAuth } from "../stores/auth";
 import { useNostrProfile } from "../hooks/useNostrProfile";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
 import {
   Radio, LogOut, Menu, Zap, Globe, User, Loader2, X,
-  HelpCircle, Github, Wallet, Shield,
+  HelpCircle, Github, Wallet, Shield, Play,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -33,12 +35,28 @@ const mobileLinks = [
 
 const mobileAuthLinks = [
   { to: "/", label: "Home", icon: Radio },
-  { to: "/relays/myrelays", label: "My Relays", icon: Zap },
   { to: "/directory", label: "Directory", icon: Globe },
   { to: "/wallet", label: "Wallet", icon: Wallet },
   { to: "/signup", label: "Create Relay", icon: Radio },
   { to: "/faq", label: "FAQ", icon: HelpCircle },
 ];
+
+type PanelTier = "admin" | "operator" | "demo";
+
+function usePanelTier(): { tier: PanelTier; label: string; icon: typeof Shield } {
+  const { user } = useAuth();
+  const { data } = useQuery({
+    queryKey: ["myRelays"],
+    queryFn: () => api.get<{ myRelays: any[]; moderatedRelays: any[] }>("/relays/mine"),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  if (user?.admin) return { tier: "admin", label: "Admin Panel", icon: Shield };
+  const hasRelays = (data?.myRelays?.length ?? 0) > 0 || (data?.moderatedRelays?.length ?? 0) > 0;
+  if (user && hasRelays) return { tier: "operator", label: "My Relays", icon: Zap };
+  return { tier: "demo", label: "Live Demo", icon: Play };
+}
 
 export default function Layout() {
   const { user, login, logout, loading } = useAuth();
@@ -46,6 +64,7 @@ export default function Layout() {
   const [loginError, setLoginError] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { tier, label: panelLabel, icon: PanelIcon } = usePanelTier();
 
   const handleLogin = async () => {
     try {
@@ -73,6 +92,18 @@ export default function Layout() {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+            {/* 3-tier panel button — always visible */}
+            <Button
+              variant={tier === "admin" ? "default" : "outline"}
+              size="sm"
+              className="gap-1.5 hidden sm:inline-flex"
+              asChild
+            >
+              <Link to="/admin">
+                <PanelIcon className="size-4" /> {panelLabel}
+              </Link>
+            </Button>
+
             {loading ? (
               <Loader2 className="size-4 animate-spin text-muted-foreground" />
             ) : user ? (
@@ -101,8 +132,8 @@ export default function Layout() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to="/relays/myrelays" className="cursor-pointer gap-2">
-                        <Zap className="size-4" /> My Relays
+                      <Link to="/directory" className="cursor-pointer gap-2">
+                        <Globe className="size-4" /> Directory
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -110,6 +141,7 @@ export default function Layout() {
                         <Wallet className="size-4" /> Wallet
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
                       <Link to="/signup" className="cursor-pointer gap-2">
                         <Radio className="size-4" /> Create Relay
@@ -117,25 +149,10 @@ export default function Layout() {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>
-                      <Link to="/directory" className="cursor-pointer gap-2">
-                        <Globe className="size-4" /> Directory
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
                       <Link to="/faq" className="cursor-pointer gap-2">
                         <HelpCircle className="size-4" /> FAQ
                       </Link>
                     </DropdownMenuItem>
-                    {user.admin && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem asChild>
-                          <Link to="/admin" className="cursor-pointer gap-2">
-                            <Shield className="size-4" /> Admin Panel
-                          </Link>
-                        </DropdownMenuItem>
-                      </>
-                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
                       <LogOut className="size-4" /> Sign Out
@@ -163,6 +180,18 @@ export default function Layout() {
                 </SheetTitle>
                 <Separator className="my-4" />
                 <nav className="flex flex-col gap-1">
+                  {/* Panel button in mobile */}
+                  <Button
+                    variant={tier === "admin" ? "default" : "outline"}
+                    className="justify-start gap-2 mb-2"
+                    asChild
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    <Link to="/admin">
+                      <PanelIcon className="size-4" /> {panelLabel}
+                    </Link>
+                  </Button>
+
                   {sheetLinks.map((link) => (
                     <Button
                       key={link.to}
@@ -218,7 +247,7 @@ export default function Layout() {
               <Radio className="size-3.5 text-primary" />
               <span className="font-medium text-foreground/80">relay.tools</span>
               <span className="text-border">·</span>
-              <span className="text-xs">MIT Licensed</span>
+              <span className="text-xs">GPLv3 Licensed</span>
               <span className="text-border">·</span>
               <span className="text-xs">Powered by strfry</span>
             </div>
