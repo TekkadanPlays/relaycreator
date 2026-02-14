@@ -135,7 +135,7 @@ router.post("/bitcoin/send", walletEnabled, requireAuth, async (req: Request, re
       body: JSON.stringify(bitcoinRpc),
     });
     
-    const data = await response.json();
+    const data = await response.json() as any;
     
     if (data.error) {
       res.status(400).json({ error: data.error.message });
@@ -166,7 +166,7 @@ router.get("/bitcoin/address", walletEnabled, requireAuth, async (_req: Request,
       body: JSON.stringify(bitcoinRpc),
     });
     
-    const data = await response.json();
+    const data = await response.json() as any;
     
     if (data.error) {
       res.status(400).json({ error: data.error.message });
@@ -197,7 +197,7 @@ router.get("/bitcoin/balance", walletEnabled, requireAuth, async (_req: Request,
       body: JSON.stringify(bitcoinRpc),
     });
     
-    const data = await response.json();
+    const data = await response.json() as any;
     
     if (data.error) {
       res.status(400).json({ error: data.error.message });
