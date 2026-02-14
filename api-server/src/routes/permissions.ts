@@ -135,13 +135,29 @@ router.post("/accept-disclaimer", requireAuth, async (req: Request, res: Respons
     return;
   }
 
-  const permission = await prisma.permission.findUnique({
+  let permission = await prisma.permission.findUnique({
     where: { userId_type: { userId, type } },
   });
 
+  // Auto-create permission row for admins who have implicit access
   if (!permission || permission.revoked_at) {
-    res.status(404).json({ error: "Permission not found or revoked" });
-    return;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user?.admin) {
+      permission = await prisma.permission.upsert({
+        where: { userId_type: { userId, type } },
+        create: {
+          userId,
+          type,
+          granted_by: userId,
+        },
+        update: {
+          revoked_at: null,
+        },
+      });
+    } else {
+      res.status(404).json({ error: "Permission not found or revoked" });
+      return;
+    }
   }
 
   if (permission.disclaimer_accepted) {
