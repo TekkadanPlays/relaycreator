@@ -273,158 +273,105 @@ function OverviewTab() {
 
   const recentUsers = (usersData?.users || []).slice(0, 5);
 
-  const platformCards = [
-    { label: "Total Relays", value: stats.totalRelays, icon: Radio, color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "Running", value: stats.runningRelays, icon: Activity, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "Provisioning", value: stats.provisioningRelays, icon: Loader2, color: "text-amber-400", bg: "bg-amber-500/10" },
-    { label: "Total Users", value: stats.totalUsers, icon: Users, color: "text-violet-400", bg: "bg-violet-500/10" },
-    { label: "Total Orders", value: stats.totalOrders, icon: Zap, color: "text-orange-400", bg: "bg-orange-500/10" },
-    { label: "Paid Orders", value: stats.paidOrders, icon: Check, color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "Last 30 Days", value: stats.recentOrders, icon: BarChart3, color: "text-cyan-400", bg: "bg-cyan-500/10" },
-    { label: "Total Revenue", value: `${stats.totalRevenue.toLocaleString()} sats`, icon: DollarSign, color: "text-amber-400", bg: "bg-amber-500/10" },
-  ];
-
   const btcImpl = coinosStatus?.bitcoin_implementation || "";
   const isKnots = btcImpl.toLowerCase().includes("knots");
   const isPruned = coinosStatus?.bitcoin_pruned ?? false;
   const btcUsd = coinosRates?.USD;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Overview</h2>
-          <p className="text-sm text-muted-foreground">Platform health &amp; activity at a glance</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ["admin"] })}
-        >
+        <h2 className="text-lg font-semibold">Overview</h2>
+        <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => {
+          queryClient.invalidateQueries({ queryKey: ["admin"] });
+          queryClient.invalidateQueries({ queryKey: ["coinos"] });
+        }}>
           <RefreshCw className="size-3.5" />
         </Button>
       </div>
 
-      {/* Platform Stats */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {platformCards.map((card) => (
-          <Card key={card.label} className="border-border/50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className={cn("rounded-lg p-2", card.bg)}>
-                  <card.icon className={cn("size-4", card.color)} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">{card.label}</p>
-                  <p className="text-lg font-bold tabular-nums truncate">{card.value}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* CoinOS Summary (for admins with coinos_admin permission) */}
-      {hasCoinosPermission && coinosStatus && (
-        <Card className={cn("border-border/50", coinosStatus.healthy ? "bg-emerald-500/[0.02]" : "bg-destructive/5")}>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bitcoin className="size-4 text-amber-400" />
-                <CardTitle className="text-sm">CoinOS Infrastructure</CardTitle>
-              </div>
-              <Badge
-                variant={coinosStatus.healthy ? "default" : "destructive"}
-                className={cn(
-                  "text-[10px] gap-1",
-                  coinosStatus.healthy && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                )}
-              >
-                <span className={cn("size-1.5 rounded-full", coinosStatus.healthy ? "bg-emerald-400 animate-pulse" : "bg-destructive")} />
-                {coinosStatus.healthy ? "Healthy" : "Unhealthy"}
-              </Badge>
+      {/* Hero row: 2 featured cards + 2 secondary */}
+      <div className="grid grid-cols-4 gap-3">
+        <Card className="col-span-2 border-border/50 bg-blue-500/[0.03]">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="size-11 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+              <Radio className="size-5 text-blue-400" />
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {/* BTC/USD Rate */}
-              <div className="rounded-lg bg-amber-500/5 border border-amber-500/10 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">BTC/USD</p>
-                <p className="text-base font-bold font-mono text-amber-400">
-                  {btcUsd ? `$${btcUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : "—"}
-                </p>
-              </div>
-
-              {/* Node */}
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Lightning</p>
-                <p className="text-sm font-bold truncate">{coinosInfo?.alias || "—"}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {coinosInfo?.num_active_channels ?? 0} ch · {coinosInfo?.num_peers ?? 0} peers
-                </p>
-              </div>
-
-              {/* Block Height */}
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Block</p>
-                <p className="text-sm font-bold font-mono">{coinosInfo?.block_height?.toLocaleString() ?? "—"}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {coinosInfo?.synced_to_chain !== false ? "Synced" : "Syncing..."}
-                </p>
-              </div>
-
-              {/* Bitcoin Implementation */}
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Backend</p>
-                <p className={cn("text-sm font-bold truncate", isKnots && "text-orange-400")}>{btcImpl || "—"}</p>
-                <p className="text-[10px] text-muted-foreground">
-                  {isPruned ? "Pruned" : "Full node"} · {coinosInfo?.version || "—"}
-                </p>
-              </div>
+            <div>
+              <p className="text-2xl font-bold tabular-nums">{stats.runningRelays}<span className="text-sm font-normal text-muted-foreground">/{stats.totalRelays}</span></p>
+              <p className="text-xs text-muted-foreground">relays running{stats.provisioningRelays > 0 && <span className="text-amber-400"> · {stats.provisioningRelays} provisioning</span>}</p>
             </div>
           </CardContent>
         </Card>
+        <Card className="border-border/50">
+          <CardContent className="p-4">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Users</p>
+            <p className="text-xl font-bold tabular-nums mt-1">{stats.totalUsers}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50">
+          <CardContent className="p-4">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Revenue</p>
+            <p className="text-xl font-bold tabular-nums mt-1">{stats.totalRevenue >= 1000 ? `${(stats.totalRevenue / 1000).toFixed(1)}k` : stats.totalRevenue}<span className="text-xs font-normal text-muted-foreground ml-1">sats</span></p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Orders strip */}
+      <div className="flex items-center gap-4 rounded-lg border border-border/50 px-4 py-2.5 text-xs">
+        <span className="text-muted-foreground">Orders</span>
+        <span className="font-semibold tabular-nums">{stats.totalOrders} total</span>
+        <span className="text-emerald-400 tabular-nums">{stats.paidOrders} paid</span>
+        <span className="text-cyan-400 tabular-nums">{stats.recentOrders} last 30d</span>
+        {configData && (
+          <>
+            <span className="text-muted-foreground/30">|</span>
+            <span className="text-muted-foreground">{configData.invoice_amount} / {configData.invoice_premium_amount} sats</span>
+          </>
+        )}
+      </div>
+
+      {/* CoinOS status bar */}
+      {hasCoinosPermission && coinosStatus && (
+        <div className={cn(
+          "flex items-center gap-3 rounded-lg border px-4 py-2.5 text-xs",
+          coinosStatus.healthy ? "border-emerald-500/20 bg-emerald-500/[0.03]" : "border-destructive/30 bg-destructive/5"
+        )}>
+          <Bitcoin className="size-3.5 text-amber-400 shrink-0" />
+          <span className={cn("size-1.5 rounded-full shrink-0", coinosStatus.healthy ? "bg-emerald-400 animate-pulse" : "bg-destructive")} />
+          <span className="font-medium">{coinosInfo?.alias || "CoinOS"}</span>
+          <span className="text-muted-foreground/30">|</span>
+          {btcUsd && <span className="font-mono text-amber-400">${btcUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>}
+          {coinosInfo?.block_height && <span className="font-mono">{coinosInfo.block_height.toLocaleString()}</span>}
+          <span className="text-muted-foreground">{coinosInfo?.num_active_channels ?? 0}ch · {coinosInfo?.num_peers ?? 0}p</span>
+          {btcImpl && (
+            <>
+              <span className="text-muted-foreground/30">|</span>
+              <span className={cn(isKnots && "text-orange-400")}>{btcImpl}</span>
+              {isPruned && <Badge variant="outline" className="text-[9px] px-1 py-0 border-purple-500/30 text-purple-400">pruned</Badge>}
+            </>
+          )}
+        </div>
       )}
 
-      {/* Recent Activity */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Recent Relays */}
+      {/* Recent activity */}
+      <div className="grid gap-3 lg:grid-cols-2">
         <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Radio className="size-4 text-blue-400" />
-                <CardTitle className="text-sm">Recent Relays</CardTitle>
-              </div>
-              <Badge variant="secondary" className="text-[10px]">{stats.totalRelays}</Badge>
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <span className="text-xs font-semibold flex items-center gap-1.5"><Radio className="size-3 text-blue-400" /> Recent Relays</span>
+              <span className="text-[10px] text-muted-foreground tabular-nums">{stats.totalRelays}</span>
             </div>
-          </CardHeader>
-          <CardContent>
             {recentRelays.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">No relays yet</p>
             ) : (
-              <div className="space-y-1">
+              <div className="px-2 pb-2">
                 {recentRelays.map((relay) => (
-                  <div key={relay.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-muted/20 transition-colors">
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <span className={cn(
-                        "size-2 rounded-full shrink-0",
-                        relay.status === "running" ? "bg-emerald-400" : relay.status === "provision" ? "bg-amber-400 animate-pulse" : "bg-muted-foreground/30"
-                      )} />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{relay.name}</p>
-                        <NostrIdentity pubkey={relay.owner.pubkey} fallbackName={relay.owner.name} size="xs" />
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <StatusBadge status={relay.status} />
-                      {relay.created_at && (
-                        <p className="text-[9px] text-muted-foreground mt-0.5">
-                          {new Date(relay.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </p>
-                      )}
-                    </div>
+                  <div key={relay.id} className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/20 transition-colors">
+                    <span className={cn("size-1.5 rounded-full shrink-0", relay.status === "running" ? "bg-emerald-400" : relay.status === "provision" ? "bg-amber-400 animate-pulse" : "bg-muted-foreground/30")} />
+                    <span className="text-sm font-medium truncate flex-1">{relay.name}</span>
+                    <NostrIdentity pubkey={relay.owner.pubkey} fallbackName={relay.owner.name} size="xs" className="max-w-[100px]" />
                   </div>
                 ))}
               </div>
@@ -432,31 +379,21 @@ function OverviewTab() {
           </CardContent>
         </Card>
 
-        {/* Recent Users */}
         <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Users className="size-4 text-violet-400" />
-                <CardTitle className="text-sm">Users</CardTitle>
-              </div>
-              <Badge variant="secondary" className="text-[10px]">{stats.totalUsers}</Badge>
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <span className="text-xs font-semibold flex items-center gap-1.5"><Users className="size-3 text-violet-400" /> Users</span>
+              <span className="text-[10px] text-muted-foreground tabular-nums">{stats.totalUsers}</span>
             </div>
-          </CardHeader>
-          <CardContent>
             {recentUsers.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-6">No users yet</p>
             ) : (
-              <div className="space-y-1">
+              <div className="px-2 pb-2">
                 {recentUsers.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 hover:bg-muted/20 transition-colors">
-                    <NostrIdentity pubkey={u.pubkey} fallbackName={u.name} size="sm" />
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] text-muted-foreground">{u._count.relays} relays</span>
-                      {u.admin && (
-                        <Badge className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">Admin</Badge>
-                      )}
-                    </div>
+                  <div key={u.id} className="flex items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-muted/20 transition-colors">
+                    <NostrIdentity pubkey={u.pubkey} fallbackName={u.name} size="sm" className="flex-1 min-w-0" />
+                    <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{u._count.relays}r · {u._count.orders}o</span>
+                    {u.admin && <span className="size-1.5 rounded-full bg-primary shrink-0" title="Admin" />}
                   </div>
                 ))}
               </div>
@@ -465,64 +402,25 @@ function OverviewTab() {
         </Card>
       </div>
 
-      {/* Server Configuration */}
+      {/* Server config strip */}
       {configData && (
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <Settings className="size-4 text-muted-foreground" />
-              <CardTitle className="text-sm">Server Configuration</CardTitle>
-              <span className="text-[10px] text-muted-foreground ml-auto">read-only · edit via .env</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Domain</p>
-                <p className="text-sm font-bold font-mono truncate">{configData.domain}</p>
-              </div>
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Payments</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={cn("size-1.5 rounded-full", configData.payments_enabled ? "bg-emerald-400" : "bg-muted-foreground/30")} />
-                  <p className="text-sm font-medium">{configData.payments_enabled ? "Enabled" : "Disabled"}</p>
-                </div>
-              </div>
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Standard</p>
-                <p className="text-sm font-bold font-mono">{configData.invoice_amount.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">sats</span></p>
-              </div>
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Premium</p>
-                <p className="text-sm font-bold font-mono">{configData.invoice_premium_amount.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">sats</span></p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">CoinOS</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={cn("size-1.5 rounded-full", configData.coinos_enabled ? "bg-emerald-400" : "bg-muted-foreground/30")} />
-                  <p className="text-sm font-medium">{configData.coinos_enabled ? "Enabled" : "Disabled"}</p>
-                </div>
-              </div>
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">LNBits</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={cn("size-1.5 rounded-full", configData.lnbits_configured ? "bg-emerald-400" : "bg-muted-foreground/30")} />
-                  <p className="text-sm font-medium">{configData.lnbits_configured ? "Configured" : "Not set"}</p>
-                </div>
-              </div>
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">CORS</p>
-                <p className="text-sm font-mono truncate">{configData.cors_origin}</p>
-              </div>
-              <div className="rounded-lg bg-muted/20 p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">API Port</p>
-                <p className="text-sm font-bold font-mono">{configData.port}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border/50 px-4 py-2.5 text-xs">
+          <span className="text-muted-foreground flex items-center gap-1"><Settings className="size-3" /> Config</span>
+          <span className="font-mono font-medium">{configData.domain}</span>
+          <span className="flex items-center gap-1">
+            <span className={cn("size-1.5 rounded-full", configData.payments_enabled ? "bg-emerald-400" : "bg-muted-foreground/30")} />
+            Payments {configData.payments_enabled ? "on" : "off"}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className={cn("size-1.5 rounded-full", configData.coinos_enabled ? "bg-emerald-400" : "bg-muted-foreground/30")} />
+            CoinOS {configData.coinos_enabled ? "on" : "off"}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className={cn("size-1.5 rounded-full", configData.lnbits_configured ? "bg-emerald-400" : "bg-muted-foreground/30")} />
+            LNBits {configData.lnbits_configured ? "on" : "off"}
+          </span>
+          <span className="text-muted-foreground">port {configData.port}</span>
+        </div>
       )}
     </div>
   );
@@ -1791,20 +1689,20 @@ function CoinosAdminDashboard() {
     refetchInterval: 15_000,
   });
 
-  const { data: infoData, isLoading: infoLoading } = useQuery({
+  const { data: infoData } = useQuery({
     queryKey: ["coinos", "info"],
     queryFn: () => api.get<NodeInfoData>("/coinos/info"),
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
 
-  const { data: ratesData, isLoading: ratesLoading } = useQuery({
+  const { data: ratesData } = useQuery({
     queryKey: ["coinos", "rates"],
     queryFn: () => api.get<Record<string, number>>("/coinos/rates"),
     refetchInterval: 30_000,
   });
 
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+  const { data: paymentsData } = useQuery({
     queryKey: ["coinos", "payments"],
     queryFn: () => api.get<CoinosPaymentsResponse>("/coinos/payments?limit=20&offset=0"),
     staleTime: 30_000,
@@ -1827,8 +1725,6 @@ function CoinosAdminDashboard() {
   const payments = paymentsData?.payments || [];
   const totalPayments = paymentsData?.count ?? 0;
 
-  const uptimeMs = statusData?.lastSuccessTime ? Date.now() - (statusData.lastSuccessTime as number) : null;
-
   const handleCopyPubkey = () => {
     if (nodePubkey) {
       navigator.clipboard.writeText(nodePubkey);
@@ -1837,193 +1733,53 @@ function CoinosAdminDashboard() {
     }
   };
 
-  const handleRefreshAll = () => {
-    queryClient.invalidateQueries({ queryKey: ["coinos"] });
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-4">
+      {/* Header + status */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Bitcoin className="size-5 text-amber-400" />
-            CoinOS Backend
-          </h2>
-          <p className="text-sm text-muted-foreground">Lightning node &amp; payment infrastructure</p>
-        </div>
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Bitcoin className="size-5 text-amber-400" />
+          CoinOS Backend
+        </h2>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={handleRefreshAll}>
+          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => queryClient.invalidateQueries({ queryKey: ["coinos"] })}>
             <RefreshCw className="size-3.5" />
           </Button>
           <Badge
             variant={isHealthy ? "default" : "destructive"}
-            className={cn(
-              "text-xs gap-1",
-              isHealthy && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-            )}
+            className={cn("text-xs gap-1", isHealthy && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20")}
           >
             <span className={cn("size-1.5 rounded-full", isHealthy ? "bg-emerald-400 animate-pulse" : "bg-destructive")} />
-            {statusLoading ? "Checking..." : isHealthy ? "Healthy" : "Unhealthy"}
+            {statusLoading ? "..." : isHealthy ? "Healthy" : "Down"}
           </Badge>
         </div>
       </div>
 
-      {/* ─── Top Stats Row ─────────────────────────────────────────────── */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        {/* Node Status */}
-        <Card className="border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <Activity className="size-3.5" />
-              <span className="text-[11px] font-medium uppercase tracking-wider">Status</span>
-            </div>
-            {statusLoading ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <p className={cn("text-xl font-bold", isHealthy ? "text-emerald-400" : "text-destructive")}>
-                  {isHealthy ? "Online" : "Offline"}
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {statusData?.consecutiveFailures === 0
-                    ? "No failures"
-                    : `${statusData?.consecutiveFailures ?? "?"} consecutive failures`}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Block Height */}
-        <Card className="border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <Boxes className="size-3.5" />
-              <span className="text-[11px] font-medium uppercase tracking-wider">Block Height</span>
-            </div>
-            {infoLoading ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <p className="text-xl font-bold font-mono">
-                  {infoData?.block_height?.toLocaleString() ?? "—"}
-                </p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  {infoData?.synced_to_chain !== false ? (
-                    <span className="text-[11px] text-emerald-400 flex items-center gap-1">
-                      <CheckCircle2 className="size-2.5" /> Synced
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-amber-400 flex items-center gap-1">
-                      <Loader2 className="size-2.5 animate-spin" /> Syncing
-                    </span>
-                  )}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Channels & Peers */}
-        <Card className="border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <Network className="size-3.5" />
-              <span className="text-[11px] font-medium uppercase tracking-wider">Network</span>
-            </div>
-            {infoLoading ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <p className="text-xl font-bold">
-                  {infoData?.num_active_channels ?? 0}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">ch</span>
-                </p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  {infoData?.num_peers ?? 0} peers
-                  {(infoData?.num_inactive_channels ?? 0) > 0 && (
-                    <span className="text-amber-400"> · {infoData?.num_inactive_channels} inactive</span>
-                  )}
-                  {(infoData?.num_pending_channels ?? 0) > 0 && (
-                    <span className="text-blue-400"> · {infoData?.num_pending_channels} pending</span>
-                  )}
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Total Payments */}
-        <Card className="border-border/50">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <Zap className="size-3.5" />
-              <span className="text-[11px] font-medium uppercase tracking-wider">Payments</span>
-            </div>
-            {paymentsLoading ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <>
-                <p className="text-xl font-bold">{totalPayments.toLocaleString()}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">total transactions</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ─── Node Identity ─────────────────────────────────────────────── */}
+      {/* Node identity bar */}
       <Card className="border-border/50">
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                  <Zap className="size-5 text-amber-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-base truncate">{infoData?.alias || "Lightning Node"}</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {btcImpl && (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] px-1.5 py-0",
-                          isKnots ? "border-orange-500/30 text-orange-400 bg-orange-500/5" : "border-border/50"
-                        )}
-                      >
-                        <Bitcoin className="size-2.5 mr-1" />
-                        {btcImpl}
-                      </Badge>
-                    )}
-                    {isPruned && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-500/30 text-purple-400 bg-purple-500/5">
-                        Pruned
-                      </Badge>
-                    )}
-                    {nodeVersion && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        <Cpu className="size-2.5 mr-1" />
-                        LND {nodeVersion}
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
-                      {nodeNetwork}
-                    </Badge>
-                  </div>
-                </div>
+        <CardContent className="p-3">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+              <Zap className="size-4 text-amber-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm">{infoData?.alias || "Lightning Node"}</span>
+                {btcImpl && (
+                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0", isKnots ? "border-orange-500/30 text-orange-400 bg-orange-500/5" : "")}>
+                    <Bitcoin className="size-2.5 mr-0.5" />{btcImpl}
+                  </Badge>
+                )}
+                {isPruned && <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-purple-500/30 text-purple-400">Pruned</Badge>}
+                {nodeVersion && <Badge variant="outline" className="text-[9px] px-1.5 py-0"><Cpu className="size-2.5 mr-0.5" />LND {nodeVersion}</Badge>}
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 capitalize">{nodeNetwork}</Badge>
               </div>
-
               {nodePubkey && (
-                <div className="flex items-center gap-2">
-                  <Fingerprint className="size-3.5 text-muted-foreground shrink-0" />
-                  <code className="text-[11px] font-mono text-muted-foreground truncate flex-1">
-                    {nodePubkey}
-                  </code>
-                  <Button variant="ghost" size="sm" className="h-6 px-1.5 shrink-0" onClick={handleCopyPubkey}>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <code className="text-[10px] font-mono text-muted-foreground truncate">{nodePubkey}</code>
+                  <button onClick={handleCopyPubkey} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
                     {copiedPubkey ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
-                  </Button>
+                  </button>
                 </div>
               )}
             </div>
@@ -2031,194 +1787,135 @@ function CoinosAdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* ─── Exchange Rates ────────────────────────────────────────────── */}
-      <Card className="border-border/50">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="size-4 text-muted-foreground" />
-              <CardTitle className="text-sm">Exchange Rates</CardTitle>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 text-[10px] px-2"
-              onClick={() => setShowAllRates(!showAllRates)}
-            >
-              {showAllRates ? "Show less" : "Show all"}
-            </Button>
+      {/* Stats strip */}
+      <div className="grid grid-cols-4 gap-px rounded-lg border border-border/50 overflow-hidden bg-border/50">
+        {[
+          { label: "Block", value: infoData?.block_height?.toLocaleString() ?? "—", sub: infoData?.synced_to_chain !== false ? "synced" : "syncing" },
+          { label: "Channels", value: String(infoData?.num_active_channels ?? 0), sub: `${infoData?.num_peers ?? 0} peers` },
+          { label: "Payments", value: totalPayments.toLocaleString(), sub: "total" },
+          { label: "Failures", value: String(statusData?.consecutiveFailures ?? 0), sub: statusData?.consecutiveFailures === 0 ? "none" : "consecutive" },
+        ].map(({ label, value, sub }) => (
+          <div key={label} className="bg-background p-3 text-center">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+            <p className="text-lg font-bold font-mono tabular-nums mt-0.5">{value}</p>
+            <p className="text-[10px] text-muted-foreground">{sub}</p>
           </div>
-        </CardHeader>
-        <CardContent>
-          {ratesLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : ratesData ? (
-            <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-              {(showAllRates ? Object.keys(ratesData).sort() : RATE_CURRENCIES.filter((c) => ratesData[c]))
-                .map((currency) => {
-                  const rate = ratesData[currency as string];
-                  if (!rate) return null;
-                  const isUSD = currency === "USD";
-                  return (
-                    <div
-                      key={currency}
-                      className={cn(
-                        "rounded-lg p-3 transition-colors",
-                        isUSD ? "bg-amber-500/5 border border-amber-500/20" : "bg-muted/20"
-                      )}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[11px] font-semibold text-muted-foreground">{currency}</span>
-                        {isUSD && <Bitcoin className="size-3 text-amber-400" />}
-                      </div>
-                      <p className={cn("text-sm font-bold font-mono", isUSD && "text-amber-400")}>
-                        {rate >= 1
-                          ? rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : rate.toFixed(8)}
-                      </p>
-                    </div>
-                  );
-                })}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground text-center py-4">Unable to fetch rates</p>
-          )}
-        </CardContent>
-      </Card>
+        ))}
+      </div>
 
-      {/* ─── Fee Credits ───────────────────────────────────────────────── */}
-      {creditsData && (
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-2">
-              <CircleDollarSign className="size-4 text-muted-foreground" />
-              <CardTitle className="text-sm">Fee Credits</CardTitle>
+      {/* Rates + Credits side by side */}
+      <div className="grid gap-3 lg:grid-cols-3">
+        {/* Exchange Rates — 2/3 width */}
+        <Card className="border-border/50 lg:col-span-2">
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <span className="text-xs font-semibold flex items-center gap-1.5"><TrendingUp className="size-3 text-muted-foreground" /> Exchange Rates</span>
+              <button className="text-[10px] text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowAllRates(!showAllRates)}>
+                {showAllRates ? "less" : "all"}
+              </button>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 grid-cols-3">
-              {[
+            {ratesData ? (
+              <div className="grid gap-px grid-cols-3 sm:grid-cols-5 bg-border/30 mx-3 mb-3 rounded-md overflow-hidden">
+                {(showAllRates ? Object.keys(ratesData).sort() : RATE_CURRENCIES.filter((c) => ratesData[c]))
+                  .map((currency) => {
+                    const rate = ratesData[currency as string];
+                    if (!rate) return null;
+                    const isUSD = currency === "USD";
+                    return (
+                      <div key={currency} className={cn("bg-background px-2.5 py-2", isUSD && "bg-amber-500/5")}>
+                        <p className="text-[10px] text-muted-foreground">{currency}</p>
+                        <p className={cn("text-xs font-bold font-mono tabular-nums", isUSD && "text-amber-400")}>
+                          {rate >= 1 ? rate.toLocaleString(undefined, { maximumFractionDigits: 0 }) : rate.toFixed(6)}
+                        </p>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4 px-3">Unable to fetch rates</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Fee Credits — 1/3 width */}
+        <Card className="border-border/50">
+          <CardContent className="p-0">
+            <div className="px-4 pt-3 pb-2">
+              <span className="text-xs font-semibold flex items-center gap-1.5"><CircleDollarSign className="size-3 text-muted-foreground" /> Fee Credits</span>
+            </div>
+            <div className="px-3 pb-3 space-y-1">
+              {creditsData ? [
                 { label: "Lightning", value: creditsData.lightning, icon: Zap, color: "text-amber-400" },
                 { label: "Bitcoin", value: creditsData.bitcoin, icon: Bitcoin, color: "text-orange-400" },
                 { label: "Liquid", value: creditsData.liquid, icon: Boxes, color: "text-blue-400" },
               ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className="rounded-lg bg-muted/20 p-3 text-center">
-                  <Icon className={cn("size-4 mx-auto mb-1", color)} />
-                  <p className="text-sm font-bold font-mono">{formatSats(value)}</p>
-                  <p className="text-[10px] text-muted-foreground">{label}</p>
+                <div key={label} className="flex items-center justify-between rounded-md bg-muted/20 px-3 py-2">
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Icon className={cn("size-3", color)} />{label}</span>
+                  <span className="text-xs font-bold font-mono">{formatSats(value)}</span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-xs text-muted-foreground text-center py-4">—</p>
+              )}
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
 
-      {/* ─── Recent Payments ───────────────────────────────────────────── */}
+      {/* Recent Payments */}
       <Card className="border-border/50">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="size-4 text-muted-foreground" />
-              <CardTitle className="text-sm">Recent Payments</CardTitle>
-              {totalPayments > 0 && (
-                <Badge variant="secondary" className="text-[10px] ml-1">{totalPayments.toLocaleString()}</Badge>
-              )}
-            </div>
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between px-4 pt-3 pb-2">
+            <span className="text-xs font-semibold flex items-center gap-1.5">
+              <Activity className="size-3 text-muted-foreground" /> Recent Payments
+            </span>
+            {totalPayments > 0 && <span className="text-[10px] text-muted-foreground tabular-nums">{totalPayments.toLocaleString()}</span>}
           </div>
-        </CardHeader>
-        <CardContent>
-          {paymentsLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : payments.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8">No payments yet</p>
+          {payments.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">No payments yet</p>
           ) : (
-            <div className="rounded-lg border border-border/30 divide-y divide-border/20">
-              {payments.slice(0, 10).map((p) => {
-                const isIncoming = p.amount > 0;
-                return (
-                  <div key={p.id || p.hash || p.created} className="px-3 py-2.5 hover:bg-muted/10 transition-colors">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className={cn(
-                          "size-7 rounded-full flex items-center justify-center shrink-0",
-                          isIncoming ? "bg-emerald-500/10" : "bg-red-500/10"
-                        )}>
-                          {isIncoming
-                            ? <ArrowDownLeft className="size-3.5 text-emerald-400" />
-                            : <ArrowUpRight className="size-3.5 text-red-400" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className={cn(
-                              "text-sm font-semibold font-mono",
-                              isIncoming ? "text-emerald-400" : "text-red-400"
-                            )}>
-                              {isIncoming ? "+" : ""}{formatSats(p.amount)}
-                            </span>
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 capitalize">
-                              {p.type}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            {p.with?.username && (
-                              <span className="text-[10px] text-muted-foreground truncate">
-                                {isIncoming ? "from" : "to"} {p.with.username}
-                              </span>
-                            )}
-                            {p.memo && (
-                              <span className="text-[10px] text-muted-foreground/60 truncate">
-                                — {p.memo}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+            <div className="px-3 pb-3">
+              <div className="rounded-md border border-border/30 divide-y divide-border/20">
+                {payments.slice(0, 8).map((p) => {
+                  const isIn = p.amount > 0;
+                  return (
+                    <div key={p.id || p.hash || p.created} className="flex items-center gap-2.5 px-3 py-2 hover:bg-muted/10 transition-colors">
+                      <div className={cn("size-6 rounded-full flex items-center justify-center shrink-0", isIn ? "bg-emerald-500/10" : "bg-red-500/10")}>
+                        {isIn ? <ArrowDownLeft className="size-3 text-emerald-400" /> : <ArrowUpRight className="size-3 text-red-400" />}
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[10px] text-muted-foreground">{timeAgo(p.created)}</p>
-                        {p.fee != null && p.fee > 0 && (
-                          <p className="text-[9px] text-muted-foreground/50">fee: {p.fee}</p>
-                        )}
-                      </div>
+                      <span className={cn("text-xs font-semibold font-mono tabular-nums w-24 shrink-0", isIn ? "text-emerald-400" : "text-red-400")}>
+                        {isIn ? "+" : ""}{formatSats(p.amount)}
+                      </span>
+                      <Badge variant="outline" className="text-[8px] px-1 py-0 capitalize shrink-0">{p.type}</Badge>
+                      <span className="text-[10px] text-muted-foreground truncate flex-1">
+                        {p.with?.username ? `${isIn ? "from" : "to"} ${p.with.username}` : p.memo || ""}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(p.created)}</span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
 
-          {/* Payment volume summary */}
-          {paymentsData?.incoming && paymentsData?.outgoing && (
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              {Object.keys(paymentsData.incoming).length > 0 && (
-                <div className="rounded-lg bg-emerald-500/5 border border-emerald-500/10 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <ArrowDownLeft className="size-3 text-emerald-400" />
-                    <span className="text-[10px] font-medium text-emerald-400">Incoming</span>
-                  </div>
-                  {Object.entries(paymentsData.incoming).map(([period, data]) => (
-                    <div key={period}>
-                      <p className="text-sm font-bold font-mono">{formatSats(data.sats)}</p>
-                      <p className="text-[10px] text-muted-foreground">{data.fiat}</p>
+              {/* Volume summary */}
+              {paymentsData?.incoming && paymentsData?.outgoing && (
+                <div className="flex gap-3 mt-2">
+                  {Object.keys(paymentsData.incoming).length > 0 && (
+                    <div className="flex items-center gap-2 rounded-md bg-emerald-500/5 border border-emerald-500/10 px-3 py-1.5 flex-1">
+                      <ArrowDownLeft className="size-3 text-emerald-400 shrink-0" />
+                      {Object.entries(paymentsData.incoming).map(([, data]) => (
+                        <span key="in" className="text-xs font-mono font-bold">{formatSats(data.sats)}</span>
+                      ))}
+                      <span className="text-[10px] text-emerald-400">in</span>
                     </div>
-                  ))}
-                </div>
-              )}
-              {Object.keys(paymentsData.outgoing).length > 0 && (
-                <div className="rounded-lg bg-red-500/5 border border-red-500/10 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <ArrowUpRight className="size-3 text-red-400" />
-                    <span className="text-[10px] font-medium text-red-400">Outgoing</span>
-                  </div>
-                  {Object.entries(paymentsData.outgoing).map(([period, data]) => (
-                    <div key={period}>
-                      <p className="text-sm font-bold font-mono">{formatSats(data.sats)}</p>
-                      <p className="text-[10px] text-muted-foreground">{data.fiat}</p>
+                  )}
+                  {Object.keys(paymentsData.outgoing).length > 0 && (
+                    <div className="flex items-center gap-2 rounded-md bg-red-500/5 border border-red-500/10 px-3 py-1.5 flex-1">
+                      <ArrowUpRight className="size-3 text-red-400 shrink-0" />
+                      {Object.entries(paymentsData.outgoing).map(([, data]) => (
+                        <span key="out" className="text-xs font-mono font-bold">{formatSats(data.sats)}</span>
+                      ))}
+                      <span className="text-[10px] text-red-400">out</span>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
@@ -2226,74 +1923,54 @@ function CoinosAdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* ─── Admin Warning ─────────────────────────────────────────────── */}
-      <Card className="border-amber-500/20 bg-amber-500/5">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="size-4 text-amber-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium">Administrative Access</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                You are viewing the CoinOS backend with admin privileges. All actions are logged.
-                Exercise caution with payment operations — transactions are irreversible.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Admin warning — compact */}
+      <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs">
+        <AlertTriangle className="size-3.5 text-amber-400 shrink-0" />
+        <span className="text-muted-foreground">Admin access · All actions logged · Transactions are irreversible</span>
+      </div>
 
-      {/* ─── System Diagnostics (collapsible) ──────────────────────────── */}
-      <Card className="border-border/50">
-        <CardHeader className="pb-0">
-          <button
-            className="flex items-center justify-between w-full"
-            onClick={() => setShowDiagnostics(!showDiagnostics)}
-          >
-            <div className="flex items-center gap-2">
-              <Settings className="size-4 text-muted-foreground" />
-              <CardTitle className="text-sm">System Diagnostics</CardTitle>
-            </div>
-            <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", showDiagnostics && "rotate-180")} />
-          </button>
-        </CardHeader>
+      {/* System Diagnostics (collapsible) */}
+      <div className="rounded-lg border border-border/50">
+        <button className="flex items-center justify-between w-full px-4 py-2.5" onClick={() => setShowDiagnostics(!showDiagnostics)}>
+          <span className="text-xs font-semibold flex items-center gap-1.5"><Settings className="size-3 text-muted-foreground" /> System Diagnostics</span>
+          <ChevronDown className={cn("size-3.5 text-muted-foreground transition-transform", showDiagnostics && "rotate-180")} />
+        </button>
         {showDiagnostics && (
-          <CardContent className="pt-3">
-            <div className="space-y-2 text-xs font-mono">
-              {[
-                { label: "CoinOS Enabled", value: statusData?.enabled ? "true" : "false" },
-                { label: "Health Status", value: isHealthy ? "healthy" : "unhealthy" },
-                { label: "Consecutive Failures", value: String(statusData?.consecutiveFailures ?? "—") },
-                { label: "Last Success", value: statusData?.lastSuccessTime ? new Date(statusData.lastSuccessTime as number).toISOString() : "—" },
-                { label: "Last Failure Reason", value: (statusData?.lastFailureReason as string) || "none" },
-                { label: "Stalled Check", value: String(statusData?.stalledCheck ?? "—") },
-                { label: "Node Alias", value: infoData?.alias || "—" },
-                { label: "Node Version", value: nodeVersion || "—" },
-                { label: "Bitcoin Implementation", value: btcImpl || "—" },
-                { label: "Pruned Node", value: isPruned ? "yes" : "no" },
-                { label: "Node Pubkey", value: nodePubkey ? nodePubkey.slice(0, 20) + "..." + nodePubkey.slice(-8) : "—" },
-                { label: "Network", value: nodeNetwork },
-                { label: "Block Height", value: infoData?.block_height?.toLocaleString() || "—" },
-                { label: "Synced to Chain", value: String(infoData?.synced_to_chain ?? "—") },
-                { label: "Synced to Graph", value: String(infoData?.synced_to_graph ?? "—") },
-                { label: "Active Channels", value: String(infoData?.num_active_channels ?? "—") },
-                { label: "Inactive Channels", value: String(infoData?.num_inactive_channels ?? "—") },
-                { label: "Pending Channels", value: String(infoData?.num_pending_channels ?? "—") },
-                { label: "Peers", value: String(infoData?.num_peers ?? "—") },
-                { label: "URIs", value: infoData?.uris?.length ? String(infoData.uris.length) : "0" },
-                { label: "Total Payments", value: totalPayments.toLocaleString() },
-                { label: "Fee Credits (LN)", value: creditsData ? formatSats(creditsData.lightning) : "—" },
-                { label: "Fee Credits (BTC)", value: creditsData ? formatSats(creditsData.bitcoin) : "—" },
-                { label: "Fee Credits (Liquid)", value: creditsData ? formatSats(creditsData.liquid) : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between items-center py-1 border-b border-border/20 last:border-0">
-                  <span className="text-muted-foreground">{label}</span>
-                  <span className="text-foreground truncate max-w-[60%] text-right">{value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
+          <div className="px-4 pb-3 space-y-0">
+            {[
+              { label: "CoinOS Enabled", value: statusData?.enabled ? "true" : "false" },
+              { label: "Health", value: isHealthy ? "healthy" : "unhealthy" },
+              { label: "Failures", value: String(statusData?.consecutiveFailures ?? "—") },
+              { label: "Last Success", value: statusData?.lastSuccessTime ? new Date(statusData.lastSuccessTime as number).toISOString() : "—" },
+              { label: "Last Failure", value: (statusData?.lastFailureReason as string) || "none" },
+              { label: "Stalled", value: String(statusData?.stalledCheck ?? "—") },
+              { label: "Alias", value: infoData?.alias || "—" },
+              { label: "LND Version", value: nodeVersion || "—" },
+              { label: "Bitcoin Impl", value: btcImpl || "—" },
+              { label: "Pruned", value: isPruned ? "yes" : "no" },
+              { label: "Pubkey", value: nodePubkey ? nodePubkey.slice(0, 20) + "…" + nodePubkey.slice(-8) : "—" },
+              { label: "Network", value: nodeNetwork },
+              { label: "Block", value: infoData?.block_height?.toLocaleString() || "—" },
+              { label: "Chain Sync", value: String(infoData?.synced_to_chain ?? "—") },
+              { label: "Graph Sync", value: String(infoData?.synced_to_graph ?? "—") },
+              { label: "Active Ch", value: String(infoData?.num_active_channels ?? "—") },
+              { label: "Inactive Ch", value: String(infoData?.num_inactive_channels ?? "—") },
+              { label: "Pending Ch", value: String(infoData?.num_pending_channels ?? "—") },
+              { label: "Peers", value: String(infoData?.num_peers ?? "—") },
+              { label: "URIs", value: infoData?.uris?.length ? String(infoData.uris.length) : "0" },
+              { label: "Payments", value: totalPayments.toLocaleString() },
+              { label: "Credits LN", value: creditsData ? formatSats(creditsData.lightning) : "—" },
+              { label: "Credits BTC", value: creditsData ? formatSats(creditsData.bitcoin) : "—" },
+              { label: "Credits Liquid", value: creditsData ? formatSats(creditsData.liquid) : "—" },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex justify-between items-center py-1 border-b border-border/10 last:border-0 text-[11px] font-mono">
+                <span className="text-muted-foreground">{label}</span>
+                <span className="truncate max-w-[60%] text-right">{value}</span>
+              </div>
+            ))}
+          </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 }
