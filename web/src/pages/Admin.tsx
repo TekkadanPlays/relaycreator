@@ -1244,9 +1244,7 @@ function PermissionsTab() {
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
                         {req.type.replace("_", " ")}
                       </Badge>
-                      <span className="font-mono text-xs text-muted-foreground truncate">
-                        {req.user.name || req.user.pubkey.slice(0, 16) + "..."}
-                      </span>
+                      <NostrIdentity pubkey={req.user.pubkey} fallbackName={req.user.name} size="xs" />
                     </div>
                     {req.reason && (
                       <p className="text-xs text-muted-foreground mt-1">&ldquo;{req.reason}&rdquo;</p>
@@ -1277,9 +1275,10 @@ function PermissionsTab() {
                     </div>
                   )}
                   {req.status !== "pending" && req.decided_by && (
-                    <span className="text-[10px] text-muted-foreground shrink-0">
-                      by {req.decided_by.name || req.decided_by.pubkey.slice(0, 8) + "..."}
-                    </span>
+                    <div className="shrink-0 flex items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground">by</span>
+                      <NostrIdentity pubkey={req.decided_by.pubkey} fallbackName={req.decided_by.name} size="xs" />
+                    </div>
                   )}
                 </div>
               </div>
@@ -1315,9 +1314,7 @@ function PermissionsTab() {
                 {permissions.map((p) => (
                   <tr key={p.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="font-mono text-xs truncate max-w-[160px]">
-                        {p.user.name || p.user.pubkey.slice(0, 16) + "..."}
-                      </p>
+                      <NostrIdentity pubkey={p.user.pubkey} fallbackName={p.user.name} size="sm" />
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant="outline" className="text-[10px] capitalize">
