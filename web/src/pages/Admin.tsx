@@ -1161,6 +1161,8 @@ interface CoinosStatus {
   lastSuccessTime?: number;
   lastFailureReason?: string;
   stalledCheck?: boolean;
+  bitcoin_implementation?: string;
+  bitcoin_pruned?: boolean;
   [key: string]: unknown;
 }
 
@@ -1604,7 +1606,9 @@ function CoinosAdminDashboard() {
   const isHealthy = statusData?.healthy ?? false;
   const nodePubkey = infoData?.identity_pubkey || infoData?.pubkey || "";
   const nodeVersion = infoData?.version || "";
-  const isKnots = nodeVersion.toLowerCase().includes("knots");
+  const btcImpl = statusData?.bitcoin_implementation || "";
+  const isKnots = btcImpl.toLowerCase().includes("knots") || nodeVersion.toLowerCase().includes("knots");
+  const isPruned = statusData?.bitcoin_pruned ?? false;
   const nodeNetwork = infoData?.chains?.[0]?.network || infoData?.network || "mainnet";
   const payments = paymentsData?.payments || [];
   const totalPayments = paymentsData?.count ?? 0;
@@ -1767,19 +1771,27 @@ function CoinosAdminDashboard() {
                 <div className="min-w-0">
                   <p className="font-bold text-base truncate">{infoData?.alias || "Lightning Node"}</p>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {nodeVersion && (
+                    {btcImpl && (
                       <Badge
                         variant="outline"
                         className={cn(
                           "text-[10px] px-1.5 py-0",
-                          isKnots ? "border-orange-500/30 text-orange-400" : "border-border/50"
+                          isKnots ? "border-orange-500/30 text-orange-400 bg-orange-500/5" : "border-border/50"
                         )}
                       >
+                        <Bitcoin className="size-2.5 mr-1" />
+                        {btcImpl}
+                      </Badge>
+                    )}
+                    {isPruned && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-purple-500/30 text-purple-400 bg-purple-500/5">
+                        Pruned
+                      </Badge>
+                    )}
+                    {nodeVersion && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         <Cpu className="size-2.5 mr-1" />
-                        {isKnots ? "Bitcoin Knots" : nodeVersion.split("/")[0] || "LND"}
-                        {nodeVersion.includes("/") && (
-                          <span className="ml-1 opacity-60">{nodeVersion.split("/")[1]?.split("-")[0]}</span>
-                        )}
+                        LND {nodeVersion}
                       </Badge>
                     )}
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
@@ -2042,6 +2054,8 @@ function CoinosAdminDashboard() {
                 { label: "Stalled Check", value: String(statusData?.stalledCheck ?? "—") },
                 { label: "Node Alias", value: infoData?.alias || "—" },
                 { label: "Node Version", value: nodeVersion || "—" },
+                { label: "Bitcoin Implementation", value: btcImpl || "—" },
+                { label: "Pruned Node", value: isPruned ? "yes" : "no" },
                 { label: "Node Pubkey", value: nodePubkey ? nodePubkey.slice(0, 20) + "..." + nodePubkey.slice(-8) : "—" },
                 { label: "Network", value: nodeNetwork },
                 { label: "Block Height", value: infoData?.block_height?.toLocaleString() || "—" },

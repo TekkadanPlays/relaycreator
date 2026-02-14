@@ -20,6 +20,8 @@ const envSchema = z.object({
   COINOS_ENABLED: z.string().default("false"),
   COINOS_ENDPOINT: z.string().default("http://127.0.0.1:3119"),
   COINOS_API_KEY: z.string().default("nStack"),
+  BITCOIN_IMPLEMENTATION: z.string().default("Bitcoin Knots"),
+  BITCOIN_PRUNED: z.string().default("true"),
 });
 
 export type Env = z.infer<typeof envSchema>;

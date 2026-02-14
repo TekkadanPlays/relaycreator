@@ -83,18 +83,22 @@ function proxyPost(path: string, auth = true) {
 // ─── Health & Rates ─────────────────────────────────────────────────────────
 router.get("/status", coinosEnabled, async (_req: Request, res: Response) => {
   const env = getEnv();
+  const bitcoinInfo = {
+    bitcoin_implementation: env.BITCOIN_IMPLEMENTATION,
+    bitcoin_pruned: env.BITCOIN_PRUNED === "true",
+  };
   try {
     const response = await fetch(`${env.COINOS_ENDPOINT}/health`, {
       headers: { "x-api-key": env.COINOS_API_KEY },
     });
     if (response.ok) {
       const data = await response.json() as Record<string, unknown>;
-      res.json({ enabled: true, healthy: true, ...data });
+      res.json({ enabled: true, healthy: true, ...data, ...bitcoinInfo });
     } else {
-      res.json({ enabled: true, healthy: false, status: response.status });
+      res.json({ enabled: true, healthy: false, status: response.status, ...bitcoinInfo });
     }
   } catch {
-    res.json({ enabled: true, healthy: false, error: "Connection refused" });
+    res.json({ enabled: true, healthy: false, error: "Connection refused", ...bitcoinInfo });
   }
 });
 
