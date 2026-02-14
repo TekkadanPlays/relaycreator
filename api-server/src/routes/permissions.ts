@@ -299,7 +299,7 @@ router.post("/revoke", requireAuth, async (req: Request, res: Response) => {
 router.post("/requests/:id/decide", requireAuth, async (req: Request, res: Response) => {
   if (!(await ensureAdmin(req, res))) return;
 
-  const requestId = req.params.id;
+  const requestId = req.params.id as string;
   const { decision, note } = req.body;
 
   if (!decision || !["approved", "denied"].includes(decision)) {
