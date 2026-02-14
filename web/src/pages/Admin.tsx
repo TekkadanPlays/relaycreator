@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import { useAuth } from "../stores/auth";
@@ -7,7 +7,8 @@ import {
   Radio, Users, Zap, Globe, Shield, Loader2, Settings, Server,
   ArrowRight, Trash2, Search, RefreshCw, Lock, ChevronDown,
   Activity, DollarSign, BarChart3, Eye, Copy, Check, X,
-  Play, ExternalLink, Plus,
+  Play, ExternalLink, Plus, Wallet, AlertTriangle, KeyRound,
+  CheckCircle2, XCircle, Clock, ShieldCheck, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -15,8 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useRelayDomain } from "../hooks/useRelayDomain";
+import { useHasPermission, useHasPermissionGranted } from "../hooks/usePermissions";
 
-type Tab = "myrelays" | "overview" | "relays" | "users" | "orders" | "config" | "demo";
+type Tab = "myrelays" | "overview" | "relays" | "users" | "orders" | "config" | "demo" | "coinos" | "permissions";
 type PanelTier = "admin" | "operator" | "demo";
 
 const ADMIN_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
@@ -25,6 +27,8 @@ const ADMIN_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
   { id: "relays", label: "All Relays", icon: Radio },
   { id: "users", label: "Users", icon: Users },
   { id: "orders", label: "Orders", icon: DollarSign },
+  { id: "permissions", label: "Permissions", icon: KeyRound },
+  { id: "coinos", label: "CoinOS", icon: Wallet },
   { id: "config", label: "Config", icon: Settings },
 ];
 
@@ -167,6 +171,8 @@ export default function Admin() {
           {tab === "relays" && <RelaysTab />}
           {tab === "users" && <UsersTab />}
           {tab === "orders" && <OrdersTab />}
+          {tab === "permissions" && <PermissionsTab />}
+          {tab === "coinos" && <CoinosAdminTab />}
           {tab === "config" && <ConfigTab />}
           {tab === "demo" && <DemoTab />}
         </main>
@@ -905,6 +911,486 @@ function DemoTab() {
           </p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PERMISSIONS TAB (admin: manage permission requests & grants)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface PermissionRequestItem {
+  id: string;
+  userId: string;
+  type: string;
+  status: string;
+  reason: string | null;
+  decision_note: string | null;
+  created_at: string;
+  decided_at: string | null;
+  user: { id: string; pubkey: string; name: string | null; admin: boolean };
+  decided_by?: { id: string; pubkey: string; name: string | null } | null;
+}
+
+interface PermissionItem {
+  id: string;
+  userId: string;
+  type: string;
+  granted_at: string;
+  granted_by: string | null;
+  disclaimer_accepted: boolean;
+  revoked_at: string | null;
+  user: { id: string; pubkey: string; name: string | null; admin: boolean };
+}
+
+function PermissionsTab() {
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<"pending" | "approved" | "denied">("pending");
+
+  const { data: reqData, isLoading: reqLoading } = useQuery({
+    queryKey: ["admin", "permissionRequests", filter],
+    queryFn: () => api.get<{ requests: PermissionRequestItem[] }>(`/permissions/requests?status=${filter}`),
+  });
+
+  const { data: permData, isLoading: permLoading } = useQuery({
+    queryKey: ["admin", "permissions"],
+    queryFn: () => api.get<{ permissions: PermissionItem[] }>("/permissions/all"),
+  });
+
+  const requests = reqData?.requests || [];
+  const permissions = permData?.permissions || [];
+
+  const decideMutation = useMutation({
+    mutationFn: ({ id, decision, note }: { id: string; decision: string; note?: string }) =>
+      api.post(`/permissions/requests/${id}/decide`, { decision, note }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "permissionRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "permissions"] });
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: ({ userId, type }: { userId: string; type: string }) =>
+      api.post("/permissions/revoke", { userId, type }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "permissions"] });
+    },
+  });
+
+  const handleDecide = (id: string, decision: "approved" | "denied") => {
+    const note = decision === "denied" ? prompt("Reason for denial (optional):") : undefined;
+    decideMutation.mutate({ id, decision, note: note || undefined });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Permission Management</h2>
+        <p className="text-sm text-muted-foreground">Review requests and manage granted permissions</p>
+      </div>
+
+      {/* Request filter tabs */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Permission Requests</h3>
+        <div className="flex gap-1 mb-4">
+          {(["pending", "approved", "denied"] as const).map((s) => (
+            <Button
+              key={s}
+              variant={filter === s ? "default" : "outline"}
+              size="sm"
+              className="text-xs capitalize"
+              onClick={() => setFilter(s)}
+            >
+              {s === "pending" && <Clock className="size-3 mr-1" />}
+              {s === "approved" && <CheckCircle2 className="size-3 mr-1" />}
+              {s === "denied" && <XCircle className="size-3 mr-1" />}
+              {s}
+            </Button>
+          ))}
+        </div>
+
+        {reqLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No {filter} requests
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border/50 divide-y divide-border/30">
+            {requests.map((req) => (
+              <div key={req.id} className="px-4 py-3 hover:bg-muted/20 transition-colors">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
+                        {req.type.replace("_", " ")}
+                      </Badge>
+                      <span className="font-mono text-xs text-muted-foreground truncate">
+                        {req.user.name || req.user.pubkey.slice(0, 16) + "..."}
+                      </span>
+                    </div>
+                    {req.reason && (
+                      <p className="text-xs text-muted-foreground mt-1">&ldquo;{req.reason}&rdquo;</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">
+                      {new Date(req.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {req.status === "pending" && (
+                    <div className="flex gap-1.5 shrink-0">
+                      <Button
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => handleDecide(req.id, "approved")}
+                        disabled={decideMutation.isPending}
+                      >
+                        <CheckCircle2 className="size-3" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+                        onClick={() => handleDecide(req.id, "denied")}
+                        disabled={decideMutation.isPending}
+                      >
+                        <XCircle className="size-3" /> Deny
+                      </Button>
+                    </div>
+                  )}
+                  {req.status !== "pending" && req.decided_by && (
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      by {req.decided_by.name || req.decided_by.pubkey.slice(0, 8) + "..."}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Active permissions */}
+      <div>
+        <h3 className="text-sm font-semibold mb-3">Active Permissions</h3>
+        {permLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : permissions.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No active permissions granted
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/30">
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">User</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">Permission</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Disclaimer</th>
+                  <th className="text-left px-4 py-2.5 font-medium text-muted-foreground hidden sm:table-cell">Granted</th>
+                  <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {permissions.map((p) => (
+                  <tr key={p.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="font-mono text-xs truncate max-w-[160px]">
+                        {p.user.name || p.user.pubkey.slice(0, 16) + "..."}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {p.type.replace("_", " ")}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {p.disclaimer_accepted ? (
+                        <ShieldCheck className="size-3.5 text-emerald-400" />
+                      ) : (
+                        <Clock className="size-3.5 text-amber-400" />
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(p.granted_at).toLocaleDateString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                        onClick={() => {
+                          if (confirm(`Revoke ${p.type} from ${p.user.name || p.user.pubkey.slice(0, 16)}?`)) {
+                            revokeMutation.mutate({ userId: p.userId, type: p.type });
+                          }
+                        }}
+                        disabled={revokeMutation.isPending}
+                      >
+                        Revoke
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COINOS ADMIN TAB (requires coinos_admin permission + disclaimer)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface CoinosStatus {
+  enabled: boolean;
+  healthy: boolean;
+  [key: string]: unknown;
+}
+
+interface NodeInfoData {
+  alias?: string;
+  num_peers?: number;
+  num_active_channels?: number;
+  block_height?: number;
+  synced_to_chain?: boolean;
+  [key: string]: unknown;
+}
+
+function CoinosAdminTab() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const hasPermission = useHasPermission("coinos_admin");
+  const hasGrant = useHasPermissionGranted("coinos_admin");
+  const [disclaimerAccepting, setDisclaimerAccepting] = useState(false);
+
+  // Fetch disclaimer text
+  const { data: typesData } = useQuery({
+    queryKey: ["permissionTypes"],
+    queryFn: () => api.get<{ types: { type: string; disclaimer: string }[] }>("/permissions/types"),
+    staleTime: Infinity,
+  });
+
+  const disclaimer = typesData?.types?.find((t) => t.type === "coinos_admin")?.disclaimer || "";
+
+  const acceptDisclaimer = useCallback(async () => {
+    setDisclaimerAccepting(true);
+    try {
+      await api.post("/permissions/accept-disclaimer", { type: "coinos_admin" });
+      // Refresh user data to get updated permissions
+      const { user: updatedUser } = await api.get<{ user: any }>("/auth/me");
+      useAuth.setState({ user: updatedUser });
+    } finally {
+      setDisclaimerAccepting(false);
+    }
+  }, []);
+
+  // If user doesn't have the permission at all, show request prompt
+  if (!user?.admin && !hasGrant) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Lock className="size-10 text-muted-foreground/30 mb-4" />
+        <h2 className="text-xl font-bold">CoinOS Access Required</h2>
+        <p className="mt-1 text-sm text-muted-foreground max-w-md">
+          CoinOS admin access requires explicit permission. Contact a platform administrator to request access.
+        </p>
+      </div>
+    );
+  }
+
+  // If permission granted but disclaimer not accepted, show disclaimer gate
+  if (!hasPermission && (hasGrant || user?.admin)) {
+    return (
+      <div className="max-w-lg mx-auto py-12 space-y-6">
+        <div className="flex flex-col items-center text-center space-y-3">
+          <div className="size-14 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <AlertTriangle className="size-7 text-amber-400" />
+          </div>
+          <h2 className="text-xl font-bold">CoinOS Admin Access</h2>
+          <p className="text-sm text-muted-foreground">
+            You must read and accept the following disclaimer before accessing the CoinOS backend.
+          </p>
+        </div>
+
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <Info className="size-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-sm leading-relaxed">{disclaimer}</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col items-center gap-3">
+          <Button
+            className="gap-2 w-full max-w-xs"
+            onClick={acceptDisclaimer}
+            disabled={disclaimerAccepting}
+          >
+            {disclaimerAccepting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ShieldCheck className="size-4" />
+            )}
+            I Understand &amp; Accept
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center max-w-xs">
+            By clicking above, you accept full responsibility for actions taken within the CoinOS admin interface.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Full CoinOS admin interface
+  return <CoinosAdminDashboard />;
+}
+
+function CoinosAdminDashboard() {
+  const { data: statusData, isLoading: statusLoading } = useQuery({
+    queryKey: ["coinos", "status"],
+    queryFn: () => api.get<CoinosStatus>("/coinos/status"),
+    refetchInterval: 30_000,
+  });
+
+  const { data: infoData, isLoading: infoLoading } = useQuery({
+    queryKey: ["coinos", "info"],
+    queryFn: () => api.get<NodeInfoData>("/coinos/info"),
+    staleTime: 60_000,
+  });
+
+  const { data: ratesData } = useQuery({
+    queryKey: ["coinos", "rates"],
+    queryFn: () => api.get<Record<string, number>>("/coinos/rates"),
+    staleTime: 30_000,
+  });
+
+  const isHealthy = statusData?.healthy ?? false;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">CoinOS Backend</h2>
+          <p className="text-sm text-muted-foreground">Lightning node &amp; payment infrastructure</p>
+        </div>
+        <Badge
+          variant={isHealthy ? "default" : "destructive"}
+          className={cn("text-xs", isHealthy && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20")}
+        >
+          {statusLoading ? "Checking..." : isHealthy ? "Healthy" : "Unhealthy"}
+        </Badge>
+      </div>
+
+      {/* Status cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="border-border/50">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Activity className="size-4" />
+              <span className="text-xs font-medium">Node Status</span>
+            </div>
+            {statusLoading ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">
+                  {isHealthy ? "Online" : "Offline"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  CoinOS {statusData?.enabled ? "enabled" : "disabled"}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Server className="size-4" />
+              <span className="text-xs font-medium">Lightning Node</span>
+            </div>
+            {infoLoading ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : infoData ? (
+              <div className="space-y-1">
+                {infoData.alias && (
+                  <p className="text-sm font-semibold truncate">{infoData.alias}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {infoData.num_active_channels ?? "?"} channels · {infoData.num_peers ?? "?"} peers
+                </p>
+                {infoData.block_height && (
+                  <p className="text-xs text-muted-foreground">
+                    Block {infoData.block_height.toLocaleString()}
+                    {infoData.synced_to_chain === false && (
+                      <span className="text-amber-400 ml-1">(syncing)</span>
+                    )}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Unable to fetch node info</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <DollarSign className="size-4" />
+              <span className="text-xs font-medium">Exchange Rate</span>
+            </div>
+            {ratesData ? (
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">
+                  ${ratesData.USD?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">BTC/USD</p>
+              </div>
+            ) : (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="border-amber-500/20 bg-amber-500/5">
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="size-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">Administrative Access</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You are viewing the CoinOS backend with admin privileges. All actions are logged.
+                Exercise caution with payment operations — transactions are irreversible.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Raw status dump for debugging */}
+      {statusData && Object.keys(statusData).length > 2 && (
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Raw Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-xs font-mono text-muted-foreground bg-muted/30 rounded-lg p-3 overflow-x-auto">
+              {JSON.stringify(statusData, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

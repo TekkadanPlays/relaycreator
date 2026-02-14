@@ -103,6 +103,12 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
     user = await prisma.user.create({ data: { pubkey } });
   }
 
+  // Fetch active permissions
+  const permissions = await prisma.permission.findMany({
+    where: { userId: user.id, revoked_at: null },
+    select: { type: true, disclaimer_accepted: true },
+  });
+
   const token = signToken(pubkey, user.id);
 
   res.json({
@@ -112,6 +118,7 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
       pubkey: user.pubkey,
       name: user.name,
       admin: user.admin,
+      permissions: permissions.map((p) => ({ type: p.type, disclaimer_accepted: p.disclaimer_accepted })),
     },
   });
 });
@@ -136,7 +143,17 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  res.json({ user });
+  const permissions = await prisma.permission.findMany({
+    where: { userId: user.id, revoked_at: null },
+    select: { type: true, disclaimer_accepted: true },
+  });
+
+  res.json({
+    user: {
+      ...user,
+      permissions: permissions.map((p) => ({ type: p.type, disclaimer_accepted: p.disclaimer_accepted })),
+    },
+  });
 });
 
 export default router;

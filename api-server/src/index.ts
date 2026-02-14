@@ -13,6 +13,7 @@ import nip86Routes from "./routes/nip86.js";
 import { startPaymentChecker } from "./lib/paymentChecker.js";
 import coinosRoutes from "./routes/coinos.js";
 import adminRoutes from "./routes/admin.js";
+import permissionsRoutes from "./routes/permissions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,6 +62,9 @@ app.use("/api", sconfigRoutes);
 
 // Admin panel API
 app.use("/api/admin", adminRoutes);
+
+// Permissions system
+app.use("/api/permissions", permissionsRoutes);
 
 // CoinOS wallet proxy (optional)
 app.use("/api/coinos", coinosRoutes);

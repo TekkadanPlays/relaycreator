@@ -2,11 +2,17 @@ import { create } from "zustand";
 import { api } from "../lib/api";
 import { clearWalletSession } from "../lib/coinos";
 
-interface User {
+export interface UserPermission {
+  type: string;
+  disclaimer_accepted: boolean;
+}
+
+export interface User {
   id: string;
   pubkey: string;
   name: string | null;
   admin: boolean;
+  permissions?: UserPermission[];
 }
 
 interface AuthState {

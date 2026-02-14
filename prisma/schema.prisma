@@ -20,6 +20,9 @@ model User {
   moderator Moderator[]
   admin     Boolean @default(false)
   nip05Orders Nip05Order[]
+  permissions          Permission[]
+  permissionRequests   PermissionRequest[]  @relation("requester")
+  permissionDecisions  PermissionRequest[]  @relation("decider")
 
   @@index([id])
 }
@@ -268,6 +271,41 @@ model LoginToken {
   id         String   @id @default(cuid())
   token      String   @unique
   created_at DateTime
+}
+
+model Permission {
+  id                  String    @id @default(cuid())
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String
+  type                String    @db.VarChar(50)   // e.g. "admin", "coinos_admin", "operator"
+  granted_at          DateTime  @default(now())
+  granted_by          String?   @db.VarChar(255)  // pubkey of the admin who granted
+  disclaimer_accepted Boolean   @default(false)
+  disclaimer_accepted_at DateTime?
+  revoked_at          DateTime?
+  notes               String?   @db.Text
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@index([type])
+}
+
+model PermissionRequest {
+  id            String    @id @default(cuid())
+  user          User      @relation("requester", fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  type          String    @db.VarChar(50)   // permission type being requested
+  status        String    @db.VarChar(20)   @default("pending") // "pending", "approved", "denied"
+  reason        String?   @db.Text          // user's reason for requesting
+  decided_by    User?     @relation("decider", fields: [decidedById], references: [id])
+  decidedById   String?
+  decision_note String?   @db.Text          // admin's note on approval/denial
+  created_at    DateTime  @default(now())
+  decided_at    DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([type, status])
 }
 
 model Job {
