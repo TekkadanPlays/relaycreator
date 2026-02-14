@@ -22,6 +22,11 @@ const envSchema = z.object({
   COINOS_API_KEY: z.string().default("nStack"),
   BITCOIN_IMPLEMENTATION: z.string().default("Bitcoin Knots"),
   BITCOIN_PRUNED: z.string().default("true"),
+  WALLET_ENABLED: z.string().default("false"),
+  WALLET_SERVICE_URL: z.string().default("http://127.0.0.1:8080"),
+  BITCOIN_RPC_URL: z.string().default("http://127.0.0.1:8332"),
+  BITCOIN_RPC_USER: z.string().default("relaytools"),
+  BITCOIN_RPC_PASS: z.string().default(""),
 });
 
 export type Env = z.infer<typeof envSchema>;

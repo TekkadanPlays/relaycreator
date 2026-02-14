@@ -12,6 +12,7 @@ import sconfigRoutes from "./routes/sconfig.js";
 import nip86Routes from "./routes/nip86.js";
 import { startPaymentChecker } from "./lib/paymentChecker.js";
 import coinosRoutes from "./routes/coinos.js";
+import walletRoutes from "./routes/wallet.js";
 import adminRoutes from "./routes/admin.js";
 import permissionsRoutes from "./routes/permissions.js";
 
@@ -41,6 +42,7 @@ app.get("/api/config", (_req, res) => {
     domain: env.CREATOR_DOMAIN,
     payments_enabled: env.PAYMENTS_ENABLED === "true",
     coinos_enabled: env.COINOS_ENABLED === "true",
+    wallet_enabled: env.WALLET_ENABLED === "true",
     invoice_amount: env.INVOICE_AMOUNT,
     invoice_premium_amount: env.INVOICE_PREMIUM_AMOUNT,
   });
@@ -66,8 +68,11 @@ app.use("/api/admin", adminRoutes);
 // Permissions system
 app.use("/api/permissions", permissionsRoutes);
 
-// CoinOS wallet proxy (optional)
+// CoinOS wallet proxy (optional - legacy)
 app.use("/api/coinos", coinosRoutes);
+
+// New wallet service (Rust + SQLite)
+app.use("/api/wallet", walletRoutes);
 
 // NIP-86 relay management (used by Nostr clients)
 app.use("/api/86", nip86Routes);

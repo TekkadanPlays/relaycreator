@@ -18,6 +18,7 @@ model User {
   moderator Moderator[]
   admin     Boolean @default(false)
   nip05Orders Nip05Order[]
+  permission Permission?
 
   @@index([id])
 }
@@ -278,4 +279,30 @@ model Job {
   @@index([relayId])
   @@index([status])
   @@index([kind])
+}
+
+model Permission {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id])
+  type              String   @db.VarChar(50)
+  disclaimer_accepted Boolean @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+}
+
+model PermissionRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   @db.VarChar(50)
+  status    String   @db.VarChar(20) @default("pending")
+  message   String?  @db.Text
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
