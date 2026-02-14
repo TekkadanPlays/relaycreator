@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { useRelayDomain } from "../hooks/useRelayDomain";
 import { useHasPermission, useHasPermissionGranted } from "../hooks/usePermissions";
 
-type Tab = "myrelays" | "overview" | "relays" | "users" | "orders" | "config" | "demo" | "coinos" | "permissions";
+type Tab = "myrelays" | "overview" | "relays" | "users" | "orders" | "config" | "demo" | "coinos" | "permissions" | "request_access";
 type PanelTier = "admin" | "operator" | "demo";
 
 const ADMIN_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
@@ -34,10 +34,12 @@ const ADMIN_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
 
 const OPERATOR_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
   { id: "myrelays", label: "My Relays", icon: Zap },
+  { id: "request_access", label: "Request Access", icon: KeyRound },
 ];
 
 const DEMO_TABS: { id: Tab; label: string; icon: typeof Globe }[] = [
   { id: "demo", label: "Live Demo", icon: Play },
+  { id: "request_access", label: "Request Access", icon: KeyRound },
 ];
 
 function usePanelTier(): PanelTier {
@@ -175,6 +177,7 @@ export default function Admin() {
           {tab === "coinos" && <CoinosAdminTab />}
           {tab === "config" && <ConfigTab />}
           {tab === "demo" && <DemoTab />}
+          {tab === "request_access" && <RequestAccessTab />}
         </main>
       </div>
     </div>
@@ -1251,6 +1254,244 @@ function CoinosAdminTab() {
 
   // Full CoinOS admin interface
   return <CoinosAdminDashboard />;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// REQUEST ACCESS TAB (user-facing permission request UI)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface MyPermissionsData {
+  permissions: { id: string; type: string; granted_at: string; disclaimer_accepted: boolean; revoked_at: string | null }[];
+  requests: { id: string; type: string; status: string; reason: string | null; created_at: string; decided_at: string | null; decision_note: string | null }[];
+}
+
+interface PermissionTypeInfo {
+  type: string;
+  disclaimer: string;
+}
+
+function RequestAccessTab() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [requestType, setRequestType] = useState("");
+  const [requestReason, setRequestReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const { data: myData, isLoading } = useQuery({
+    queryKey: ["permissions", "mine"],
+    queryFn: () => api.get<MyPermissionsData>("/permissions/mine"),
+    enabled: !!user,
+  });
+
+  const { data: typesData } = useQuery({
+    queryKey: ["permissionTypes"],
+    queryFn: () => api.get<{ types: PermissionTypeInfo[] }>("/permissions/types"),
+    staleTime: Infinity,
+  });
+
+  const myPermissions = myData?.permissions || [];
+  const myRequests = myData?.requests || [];
+  const permTypes = typesData?.types || [];
+
+  // Filter out types the user already has or has pending requests for
+  const activeTypes = new Set(myPermissions.filter((p) => !p.revoked_at).map((p) => p.type));
+  const pendingTypes = new Set(myRequests.filter((r) => r.status === "pending").map((r) => r.type));
+  const availableTypes = permTypes.filter((t) => !activeTypes.has(t.type) && !pendingTypes.has(t.type));
+
+  const handleSubmit = async () => {
+    if (!requestType) return;
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await api.post("/permissions/request", { type: requestType, reason: requestReason || undefined });
+      queryClient.invalidateQueries({ queryKey: ["permissions", "mine"] });
+      setRequestType("");
+      setRequestReason("");
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to submit request");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <Lock className="size-10 text-muted-foreground/30 mb-4" />
+        <h2 className="text-xl font-bold">Sign in Required</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Sign in with a NIP-07 extension to request permissions.</p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-24">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold">Request Access</h2>
+        <p className="text-sm text-muted-foreground">
+          Request elevated permissions from platform administrators
+        </p>
+      </div>
+
+      {/* Current permissions */}
+      {myPermissions.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold mb-3">Your Permissions</h3>
+          <div className="flex flex-wrap gap-2">
+            {myPermissions.filter((p) => !p.revoked_at).map((p) => (
+              <Badge key={p.id} className="gap-1.5 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                <ShieldCheck className="size-3" />
+                {p.type.replace("_", " ")}
+                {p.disclaimer_accepted && <Check className="size-3" />}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending requests */}
+      {myRequests.filter((r) => r.status === "pending").length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold mb-3">Pending Requests</h3>
+          <div className="rounded-lg border border-border/50 divide-y divide-border/30">
+            {myRequests.filter((r) => r.status === "pending").map((r) => (
+              <div key={r.id} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <Badge variant="outline" className="text-[10px] capitalize mb-1">
+                    {r.type.replace("_", " ")}
+                  </Badge>
+                  {r.reason && (
+                    <p className="text-xs text-muted-foreground mt-1">{r.reason}</p>
+                  )}
+                </div>
+                <Badge variant="secondary" className="text-[10px] gap-1">
+                  <Clock className="size-2.5" /> Pending
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Past decisions */}
+      {myRequests.filter((r) => r.status !== "pending").length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold mb-3">Request History</h3>
+          <div className="rounded-lg border border-border/50 divide-y divide-border/30">
+            {myRequests.filter((r) => r.status !== "pending").slice(0, 10).map((r) => (
+              <div key={r.id} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] capitalize">
+                      {r.type.replace("_", " ")}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">
+                      {r.decided_at ? new Date(r.decided_at).toLocaleDateString() : ""}
+                    </span>
+                  </div>
+                  {r.decision_note && (
+                    <p className="text-xs text-muted-foreground mt-1">{r.decision_note}</p>
+                  )}
+                </div>
+                {r.status === "approved" ? (
+                  <Badge className="text-[10px] gap-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                    <CheckCircle2 className="size-2.5" /> Approved
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-[10px] gap-1">
+                    <XCircle className="size-2.5" /> Denied
+                  </Badge>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* New request form */}
+      {availableTypes.length > 0 ? (
+        <Card className="border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Request a Permission</CardTitle>
+            <CardDescription className="text-xs">
+              Select a permission type and optionally explain why you need it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {availableTypes.map((t) => (
+                <Button
+                  key={t.type}
+                  variant={requestType === t.type ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs capitalize"
+                  onClick={() => setRequestType(t.type)}
+                >
+                  {t.type.replace("_", " ")}
+                </Button>
+              ))}
+            </div>
+
+            {requestType && (
+              <>
+                <div className="rounded-lg bg-muted/30 p-3">
+                  <div className="flex items-start gap-2">
+                    <Info className="size-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {permTypes.find((t) => t.type === requestType)?.disclaimer || ""}
+                    </p>
+                  </div>
+                </div>
+
+                <Input
+                  placeholder="Why do you need this permission? (optional)"
+                  value={requestReason}
+                  onChange={(e) => setRequestReason(e.target.value)}
+                  className="text-sm"
+                />
+
+                {submitError && (
+                  <p className="text-xs text-destructive">{submitError}</p>
+                )}
+
+                <Button
+                  className="gap-1.5 w-full"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="size-4" />
+                  )}
+                  Submit Request
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-border/50 border-dashed">
+          <CardContent className="p-5 text-center">
+            <p className="text-sm text-muted-foreground">
+              {activeTypes.size > 0 || pendingTypes.size > 0
+                ? "All available permissions are either granted or pending."
+                : "No permission types available to request at this time."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }
 
 function CoinosAdminDashboard() {
