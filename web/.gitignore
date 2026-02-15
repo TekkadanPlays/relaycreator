@@ -1,4 +1,6 @@
 node_modules/
 dist/
+.dev-build/
 .env
 *.tsbuildinfo
+bun.lock

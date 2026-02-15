@@ -1,4 +1,3 @@
-import "./index.css";
 import { createElement } from "inferno-create-element";
 import { render } from "inferno";
 import { BrowserRouter } from "inferno-router";
