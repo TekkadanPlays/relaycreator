@@ -1,154 +1,151 @@
-import { Link } from "react-router";
+import { createElement } from "inferno-create-element";
+import { Link } from "inferno-router";
 import {
   Radio, Zap, Shield, Globe, ArrowRight, Layers, Lock,
   Users, FileText, ArrowUpDown,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+} from "@/lib/icons";
+import { Button } from "@/ui/Button";
+import { Card, CardContent } from "@/ui/Card";
+import type { IconComponent } from "@/lib/icons";
+
+const capabilities: { Icon: IconComponent; title: string; desc: string }[] = [
+  { Icon: Shield, title: "Access Control", desc: "NIP-42 auth, pubkey allow/block lists, keyword filters, event kind restrictions. Block-by-default or allow-by-default." },
+  { Icon: Users, title: "Team Management", desc: "Add moderators by pubkey. They manage lists and have posting access. Only owners change the team." },
+  { Icon: ArrowUpDown, title: "Relay Streaming", desc: "Sync events upstream, downstream, or bidirectional. Built-in relay federation." },
+  { Icon: Zap, title: "Lightning Payments", desc: "Gate access behind a Lightning paywall. Users pay, get auto-added to the allow list. Request payment from any connecting client." },
+  { Icon: Layers, title: "Event Filtering", desc: "Filter by kind, keyword, or pubkey. Allow tagged events and giftwrap (NIP-59) for DM compatibility." },
+  { Icon: FileText, title: "NIP-11 Profile & More", desc: "Relay identity, directory listing, billing controls, danger zone — everything from one settings page." },
+];
+
+const steps = [
+  { step: "1", text: "Choose Standard or Premium plan. Pay with Lightning." },
+  { step: "2", text: "Pick a relay name — you get a subdomain with automatic SSL." },
+  { step: "3", text: "Configure access rules, add moderators, go live." },
+];
+
+const configs: { Icon: IconComponent; label: string; desc: string }[] = [
+  { Icon: Users, label: "Community Relay", desc: "Pubkey allow-list for your group" },
+  { Icon: Lock, label: "Private Relay", desc: "NIP-42 auth, restricted read + write" },
+  { Icon: Zap, label: "Paid Public Relay", desc: "Lightning paywall, auto-allowlist" },
+  { Icon: Globe, label: "Free Public Relay", desc: "Open to all, with moderation tools" },
+];
+
+const stats = [
+  { value: "strfry", label: "Engine" },
+  { value: "21 sats", label: "To start" },
+  { value: "< 60s", label: "Deploy" },
+];
 
 export default function Home() {
-  return (
-    <div className="space-y-20 pb-16 animate-in">
-      {/* ─── HERO ─── */}
-      <section className="flex flex-col items-center text-center pt-10 sm:pt-16">
-        <div className="max-w-3xl space-y-6">
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-[1.1]">
-            Your Relay,{" "}
-            <span className="text-gradient">Your Rules</span>
-          </h1>
+  return createElement("div", { className: "space-y-20 pb-16 animate-in" },
 
-          <p className="mx-auto max-w-xl text-lg text-muted-foreground leading-relaxed">
-            Deploy a fully managed Nostr relay in under a minute.
-            Total control over access, moderation, and your community.
-          </p>
+    // Hero
+    createElement("section", { className: "flex flex-col items-center text-center pt-10 sm:pt-16" },
+      createElement("div", { className: "max-w-3xl space-y-6" },
+        createElement("h1", { className: "text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-[1.1]" },
+          "Your Relay, ",
+          createElement("span", { className: "text-gradient" }, "Your Rules"),
+        ),
+        createElement("p", { className: "mx-auto max-w-xl text-lg text-muted-foreground leading-relaxed" },
+          "Deploy a fully managed Nostr relay in under a minute. Total control over access, moderation, and your community.",
+        ),
+        createElement("div", { className: "flex flex-col items-center gap-3 sm:flex-row sm:justify-center pt-2" },
+          createElement(Link, { to: "/signup", className: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-medium h-10 px-8 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer transition-all" },
+            createElement(Radio, { className: "size-5" }), "Create Your Relay",
+          ),
+          createElement(Link, { to: "/directory", className: "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-base font-medium h-10 px-6 border-2 border-input bg-transparent hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all" },
+            "Browse Directory", createElement(ArrowRight, { className: "size-4" }),
+          ),
+        ),
+      ),
 
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center pt-2">
-            <Button size="lg" className="gap-2 px-8 text-base" asChild>
-              <Link to="/signup">
-                <Radio className="size-5" /> Create Your Relay
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="gap-2 text-base" asChild>
-              <Link to="/directory">
-                Browse Directory <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+      // Stats pill
+      createElement("div", { className: "mt-10 inline-flex items-center rounded-full border border-border/50 bg-card/60 backdrop-blur-sm divide-x divide-border/50 shadow-sm" },
+        ...stats.map((stat) =>
+          createElement("div", { className: "px-5 py-2.5 text-center" },
+            createElement("div", { className: "text-sm font-bold tracking-tight" }, stat.value),
+            createElement("div", { className: "text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5" }, stat.label),
+          ),
+        ),
+      ),
+    ),
 
-        {/* Stats pill */}
-        <div className="mt-10 inline-flex items-center rounded-full border border-border/50 bg-card/60 backdrop-blur-sm divide-x divide-border/50 shadow-sm">
-          {[
-            { value: "strfry", label: "Engine" },
-            { value: "21 sats", label: "To start" },
-            { value: "< 60s", label: "Deploy" },
-          ].map((stat) => (
-            <div key={stat.label} className="px-5 py-2.5 text-center">
-              <div className="text-sm font-bold tracking-tight">{stat.value}</div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+    // Platform capabilities
+    createElement("section", null,
+      createElement("div", { className: "grid grid-cols-1 gap-6 lg:grid-cols-2" },
 
-      {/* ─── PLATFORM CAPABILITIES ─── */}
-      <section>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Left: what operators get */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold tracking-tight">
-              A full relay management platform
-            </h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Not just hosting — a complete control plane for your Nostr relay.
-              Every setting is live-configurable from the dashboard.
-            </p>
-            <div className="space-y-2 pt-2">
-              {[
-                { icon: Shield, title: "Access Control", desc: "NIP-42 auth, pubkey allow/block lists, keyword filters, event kind restrictions. Block-by-default or allow-by-default." },
-                { icon: Users, title: "Team Management", desc: "Add moderators by pubkey. They manage lists and have posting access. Only owners change the team." },
-                { icon: ArrowUpDown, title: "Relay Streaming", desc: "Sync events upstream, downstream, or bidirectional. Built-in relay federation." },
-                { icon: Zap, title: "Lightning Payments", desc: "Gate access behind a Lightning paywall. Users pay, get auto-added to the allow list. Request payment from any connecting client." },
-                { icon: Layers, title: "Event Filtering", desc: "Filter by kind, keyword, or pubkey. Allow tagged events and giftwrap (NIP-59) for DM compatibility." },
-                { icon: FileText, title: "NIP-11 Profile & More", desc: "Relay identity, directory listing, billing controls, danger zone — everything from one settings page." },
-              ].map((item) => (
-                <div key={item.title} className="flex gap-3 rounded-lg border border-border/30 p-3 hover:border-border/60 transition-colors">
-                  <div className="rounded-md bg-primary/10 p-2 h-fit shrink-0">
-                    <item.icon className="size-4 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-semibold">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{item.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        // Left column
+        createElement("div", { className: "space-y-4" },
+          createElement("h2", { className: "text-xl font-bold tracking-tight" }, "A full relay management platform"),
+          createElement("p", { className: "text-sm text-muted-foreground leading-relaxed" },
+            "Not just hosting — a complete control plane for your Nostr relay. Every setting is live-configurable from the dashboard.",
+          ),
+          createElement("div", { className: "space-y-2 pt-2" },
+            ...capabilities.map((item) =>
+              createElement("div", { className: "flex gap-3 rounded-lg border border-border/30 p-3 hover:border-border/60 transition-colors" },
+                createElement("div", { className: "rounded-md bg-primary/10 p-2 h-fit shrink-0" },
+                  createElement(item.Icon, { className: "size-4 text-primary" }),
+                ),
+                createElement("div", { className: "min-w-0" },
+                  createElement("h3", { className: "text-sm font-semibold" }, item.title),
+                  createElement("p", { className: "text-xs text-muted-foreground leading-relaxed mt-0.5" }, item.desc),
+                ),
+              ),
+            ),
+          ),
+        ),
 
-          {/* Right: how it works + relay types + open source */}
-          <div className="space-y-6">
-            <Card className="border-border/50">
-              <CardContent className="p-6 space-y-4">
-                <h3 className="font-bold">How it works</h3>
-                <ol className="space-y-3">
-                  {[
-                    { step: "1", text: "Choose Standard or Premium plan. Pay with Lightning." },
-                    { step: "2", text: "Pick a relay name — you get a subdomain with automatic SSL." },
-                    { step: "3", text: "Configure access rules, add moderators, go live." },
-                  ].map((item) => (
-                    <li key={item.step} className="flex gap-3 items-start">
-                      <span className="flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5">
-                        {item.step}
-                      </span>
-                      <span className="text-sm text-muted-foreground">{item.text}</span>
-                    </li>
-                  ))}
-                </ol>
-              </CardContent>
-            </Card>
+        // Right column
+        createElement("div", { className: "space-y-6" },
 
-            <Card className="border-border/50">
-              <CardContent className="p-6 space-y-3">
-                <h3 className="font-bold">Popular configurations</h3>
-                {[
-                  { icon: Users, label: "Community Relay", desc: "Pubkey allow-list for your group" },
-                  { icon: Lock, label: "Private Relay", desc: "NIP-42 auth, restricted read + write" },
-                  { icon: Zap, label: "Paid Public Relay", desc: "Lightning paywall, auto-allowlist" },
-                  { icon: Globe, label: "Free Public Relay", desc: "Open to all, with moderation tools" },
-                ].map((type) => (
-                  <div key={type.label} className="flex items-center gap-3 rounded-md bg-muted/30 px-3 py-2.5">
-                    <type.icon className="size-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{type.label}</p>
-                      <p className="text-xs text-muted-foreground">{type.desc}</p>
-                    </div>
-                  </div>
-                ))}
-                <Button variant="ghost" size="sm" className="gap-1 text-xs w-full mt-1" asChild>
-                  <Link to="/faq">
-                    Learn more about relay types <ArrowRight className="size-3" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
+          // How it works
+          createElement(Card, { className: "border-border/50" },
+            createElement(CardContent, { className: "p-6 space-y-4" },
+              createElement("h3", { className: "font-bold" }, "How it works"),
+              createElement("ol", { className: "space-y-3" },
+                ...steps.map((item) =>
+                  createElement("li", { className: "flex gap-3 items-start" },
+                    createElement("span", { className: "flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5" }, item.step),
+                    createElement("span", { className: "text-sm text-muted-foreground" }, item.text),
+                  ),
+                ),
+              ),
+            ),
+          ),
 
-            <Card className="border-border/50 bg-primary/5">
-              <CardContent className="p-6 space-y-3">
-                <h3 className="font-bold">Free. Open Source. Forever.</h3>
-                <p className="text-sm text-muted-foreground">
-                  GPLv3 licensed. Run it yourself or use our hosted infrastructure.
-                  The protocol is Nostr. The engine is strfry. The management layer is relay.tools.
-                </p>
-                <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                  <a href="https://github.com/relaytools" target="_blank" rel="noopener noreferrer">
-                    <Globe className="size-3.5" /> View on GitHub
-                  </a>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-    </div>
+          // Popular configurations
+          createElement(Card, { className: "border-border/50" },
+            createElement(CardContent, { className: "p-6 space-y-3" },
+              createElement("h3", { className: "font-bold" }, "Popular configurations"),
+              ...configs.map((type) =>
+                createElement("div", { className: "flex items-center gap-3 rounded-md bg-muted/30 px-3 py-2.5" },
+                  createElement(type.Icon, { className: "size-4 text-primary shrink-0" }),
+                  createElement("div", { className: "min-w-0" },
+                    createElement("p", { className: "text-sm font-medium" }, type.label),
+                    createElement("p", { className: "text-xs text-muted-foreground" }, type.desc),
+                  ),
+                ),
+              ),
+              createElement(Link, { to: "/faq", className: "inline-flex items-center justify-center gap-1 text-xs w-full mt-1 h-8 rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all" },
+                "Learn more about relay types", createElement(ArrowRight, { className: "size-3" }),
+              ),
+            ),
+          ),
+
+          // Open source
+          createElement(Card, { className: "border-border/50 bg-primary/5" },
+            createElement(CardContent, { className: "p-6 space-y-3" },
+              createElement("h3", { className: "font-bold" }, "Free. Open Source. Forever."),
+              createElement("p", { className: "text-sm text-muted-foreground" },
+                "GPLv3 licensed. Run it yourself or use our hosted infrastructure. The protocol is Nostr. The engine is strfry. The management layer is relay.tools.",
+              ),
+              createElement("a", { href: "https://github.com/relaytools", target: "_blank", rel: "noopener noreferrer", className: "inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium border-2 border-input bg-transparent hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all" },
+                createElement(Globe, { className: "size-3.5" }), "View on GitHub",
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
   );
 }

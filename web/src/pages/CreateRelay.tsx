@@ -1,240 +1,103 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "../stores/auth";
+import { Component } from "inferno";
+import { createElement } from "inferno-create-element";
 import { api } from "../lib/api";
-import { Check, Loader2, Zap, AlertCircle, Radio } from "lucide-react";
-import { nip19 } from "nostr-tools";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { authStore, type AuthState } from "../stores/auth";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/ui/Card";
+import { Input } from "@/ui/Input";
+import { Label } from "@/ui/Label";
+import { Button } from "@/ui/Button";
+import { Loader2, Check, Zap, AlertCircle, Radio } from "@/lib/icons";
 
-export default function CreateRelay() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+interface CreateRelayState extends AuthState {
+  name: string;
+  loading: boolean;
+  error: string;
+  success: boolean;
+  domain: string;
+}
 
-  const [name, setName] = useState("");
-  const [nameError, setNameError] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<"standard" | "premium">("standard");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
+// TODO: Port full relay creation flow with plan selection, payment from React version
+export default class CreateRelay extends Component<{}, CreateRelayState> {
+  declare state: CreateRelayState;
+  private unsub: (() => void) | null = null;
 
-  const { data: config } = useQuery({
-    queryKey: ["config"],
-    queryFn: () => api.get<{ domain: string; payments_enabled: boolean; invoice_amount: number; invoice_premium_amount: number }>("/config"),
-    staleTime: 60_000,
-  });
-
-  const domain = config?.domain || "mycelium.social";
-
-  function validateName(val: string) {
-    setName(val);
-    setError("");
-    if (!val) {
-      setNameError("");
-      return;
-    }
-    if (/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}$/.test(val)) {
-      setNameError("");
-    } else {
-      setNameError("Letters, numbers, and hyphens only");
-    }
+  constructor(props: {}) {
+    super(props);
+    this.state = { ...authStore.get(), name: "", loading: false, error: "", success: false, domain: "" };
   }
 
-  function isValid() {
-    return user && name.length > 0 && !nameError;
+  componentDidMount() {
+    this.unsub = authStore.subscribe((s) => this.setState(s as any));
+    this.loadConfig();
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!isValid() || !user) return;
+  componentWillUnmount() { this.unsub?.(); }
 
-    setSubmitting(true);
-    setError("");
-
+  private async loadConfig() {
     try {
-      let submitHex = user.pubkey;
-      if (/^npub1[0-9a-zA-Z]{58}$/.test(user.pubkey)) {
-        const decoded = nip19.decode(user.pubkey);
-        submitHex = decoded.data as string;
-      }
-
-      const data = await api.get<{ order_id: string }>(
-        `/invoices?relayname=${name}&pubkey=${submitHex}&plan=${selectedPlan}`
-      );
-
-      navigate(`/invoices?relayname=${name}&pubkey=${submitHex}&order_id=${data.order_id}&plan=${selectedPlan}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to create relay");
-    } finally {
-      setSubmitting(false);
-    }
+      const config = await api.get<{ domain: string }>("/config");
+      this.setState({ domain: config.domain });
+    } catch { /* ignore */ }
   }
 
-  const standardPrice = config?.invoice_amount ?? 21;
-  const premiumPrice = config?.invoice_premium_amount ?? 2100;
-  const currentPrice = selectedPlan === "premium" ? premiumPrice : standardPrice;
+  private handleSubmit = async () => {
+    const { name, user } = this.state;
+    if (!name.trim() || !user) return;
+    this.setState({ loading: true, error: "" });
+    try {
+      await api.post("/relays", { name: name.trim().toLowerCase() });
+      this.setState({ success: true, loading: false });
+    } catch (err: any) {
+      this.setState({ error: err.message, loading: false });
+    }
+  };
 
-  const plans = [
-    {
-      id: "standard" as const,
-      label: "Standard",
-      price: standardPrice,
-      desc: "Full relay with complete customization",
-      features: [
-        "Customizable on-the-fly",
-        "Inbox / Outbox support",
-        "Public / Private modes",
-        "Communities & DMs",
-        "NIP-42 authentication",
-        "Access control lists",
-      ],
-    },
-    {
-      id: "premium" as const,
-      label: "Premium",
-      price: premiumPrice,
-      desc: "Everything in Standard, plus power features",
-      best: true,
-      features: [
-        "Everything in Standard",
-        "Relay-to-relay streaming",
-        "Social graph filtering",
-        "Priority provisioning",
-        "Lightning paywalls",
-        "Advanced event filtering",
-      ],
-    },
-  ];
+  render() {
+    const { name, loading, error, success, user, domain } = this.state;
 
-  return (
-    <div className="mx-auto max-w-2xl animate-in">
-      {/* Header */}
-      <div className="pt-6 pb-8 sm:pt-10 sm:pb-10">
-        <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-          Create a <span className="text-gradient">Relay</span>
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Choose a plan, pick a name, and you're live in under a minute.
-        </p>
-      </div>
+    if (!user) {
+      return createElement("div", { className: "flex flex-col items-center justify-center py-20 text-center space-y-4" },
+        createElement(Radio, { className: "size-12 text-primary" }),
+        createElement("h1", { className: "text-2xl font-bold" }, "Sign in to create a relay"),
+        createElement("p", { className: "text-muted-foreground" }, "Connect your Nostr identity to get started."),
+      );
+    }
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Plan Selection */}
-        <section className="space-y-3">
-          <Label className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            1. Choose your plan
-          </Label>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {plans.map((plan) => (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => setSelectedPlan(plan.id)}
-                className={cn(
-                  "relative flex flex-col rounded-lg border p-5 text-left transition-all",
-                  selectedPlan === plan.id
-                    ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                    : "border-border/50 hover:border-border"
-                )}
-              >
-                {plan.best && (
-                  <Badge className="absolute -top-2.5 right-3 bg-primary text-primary-foreground text-[10px] px-2 py-0.5">
-                    Recommended
-                  </Badge>
-                )}
-                <div className="flex items-baseline justify-between mb-1">
-                  <span className="font-semibold">{plan.label}</span>
-                  <span className="text-lg font-bold tabular-nums">
-                    {plan.price.toLocaleString()}
-                    <span className="text-xs font-normal text-muted-foreground ml-1">sats</span>
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">{plan.desc}</p>
-                <ul className="space-y-1.5">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Check className={cn(
-                        "size-3 shrink-0",
-                        selectedPlan === plan.id ? "text-primary" : "text-muted-foreground/50"
-                      )} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </button>
-            ))}
-          </div>
-        </section>
+    if (success) {
+      return createElement("div", { className: "flex flex-col items-center justify-center py-20 text-center space-y-4" },
+        createElement(Check, { className: "size-12 text-primary" }),
+        createElement("h1", { className: "text-2xl font-bold" }, "Relay Created!"),
+        createElement("p", { className: "text-muted-foreground" }, `${name}.${domain} is being provisioned.`),
+      );
+    }
 
-        {/* Relay Name */}
-        <section className="space-y-3">
-          <Label htmlFor="relayname" className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            2. Pick a name
-          </Label>
-          <div className="flex">
-            <Input
-              id="relayname"
-              placeholder="myrelay"
-              autoComplete="off"
-              autoFocus
-              value={name}
-              onChange={(e) => validateName(e.target.value)}
-              className={cn(
-                "rounded-r-none border-r-0 text-base h-11",
-                nameError && "border-destructive focus-visible:ring-destructive"
-              )}
-            />
-            <div className="flex items-center rounded-r-md border border-l-0 bg-muted px-4 text-sm text-muted-foreground font-mono">
-              .{domain}
-            </div>
-          </div>
-          {nameError && (
-            <p className="text-xs text-destructive">{nameError}</p>
-          )}
-          {name && !nameError && (
-            <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2">
-              <Radio className="size-3.5 text-primary shrink-0" />
-              <code className="font-mono text-sm text-foreground">
-                wss://{name}.{domain}
-              </code>
-            </div>
-          )}
-        </section>
-
-        {/* Auth state */}
-        {!user && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
-            Sign in with a Nostr extension to continue.
-          </div>
-        )}
-
-        {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            <AlertCircle className="size-4 shrink-0" />
-            {error}
-          </div>
-        )}
-
-        {/* Submit */}
-        <div className="space-y-3 pt-2">
-          <Button type="submit" className="w-full gap-2 h-12 text-base" disabled={!isValid() || submitting}>
-            {submitting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <>
-                <Zap className="size-4" />
-                Deploy for {currentPrice.toLocaleString()} sats
-              </>
-            )}
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            You'll be taken to a Lightning invoice to complete payment.
-          </p>
-        </div>
-      </form>
-    </div>
-  );
+    return createElement("div", { className: "max-w-lg mx-auto space-y-6 animate-in" },
+      createElement(Card, null,
+        createElement(CardHeader, null,
+          createElement(CardTitle, null, "Create a Relay"),
+          createElement(CardDescription, null, "Choose a name for your new Nostr relay."),
+        ),
+        createElement(CardContent, { className: "space-y-4" },
+          createElement("div", { className: "space-y-2" },
+            createElement(Label, null, "Relay Name"),
+            createElement("div", { className: "flex items-center gap-2" },
+              createElement(Input, {
+                placeholder: "myrelay",
+                value: name,
+                onInput: (e: Event) => this.setState({ name: (e.target as HTMLInputElement).value }),
+              }),
+              domain ? createElement("span", { className: "text-sm text-muted-foreground whitespace-nowrap" }, `.${domain}`) : null,
+            ),
+          ),
+          error ? createElement("p", { className: "text-sm text-destructive flex items-center gap-1" },
+            createElement(AlertCircle, { className: "size-4" }), error,
+          ) : null,
+          createElement(Button, { onClick: this.handleSubmit, disabled: loading || !name.trim(), className: "w-full gap-2" },
+            loading ? createElement(Loader2, { className: "size-4 animate-spin" }) : createElement(Zap, { className: "size-4" }),
+            "Create Relay",
+          ),
+        ),
+      ),
+    );
+  }
 }

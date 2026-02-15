@@ -1,50 +1,50 @@
-import { useEffect, lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router";
-import { Loader2 } from "lucide-react";
-import { useAuth } from "./stores/auth";
+import { Component } from "inferno";
+import { createElement } from "inferno-create-element";
+import { Route, Switch, Redirect } from "inferno-router";
+import { checkAuth, authStore, type AuthState } from "./stores/auth";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
+import CreateRelay from "./pages/CreateRelay";
+import RelayDetail from "./pages/RelayDetail";
+import RelaySettings from "./pages/RelaySettings";
+import Invoices from "./pages/Invoices";
+import Directory from "./pages/Directory";
+import FAQ from "./pages/FAQ";
+import Wallet from "./pages/Wallet";
+import Admin from "./pages/Admin";
 
-const CreateRelay = lazy(() => import("./pages/CreateRelay"));
-const RelayDetail = lazy(() => import("./pages/RelayDetail"));
-const RelaySettings = lazy(() => import("./pages/RelaySettings"));
-const Invoices = lazy(() => import("./pages/Invoices"));
-const Directory = lazy(() => import("./pages/Directory"));
-const FAQ = lazy(() => import("./pages/FAQ"));
-const Wallet = lazy(() => import("./pages/Wallet"));
-const Admin = lazy(() => import("./pages/Admin"));
+export default class App extends Component<{}, AuthState> {
+  declare state: AuthState;
+  private unsub: (() => void) | null = null;
 
-function PageLoader() {
-  return (
-    <div className="flex justify-center py-24">
-      <Loader2 className="size-8 animate-spin text-muted-foreground" />
-    </div>
-  );
-}
+  constructor(props: {}) {
+    super(props);
+    this.state = authStore.get();
+  }
 
-export default function App() {
-  const checkAuth = useAuth((s) => s.checkAuth);
-
-  useEffect(() => {
+  componentDidMount() {
+    this.unsub = authStore.subscribe((s) => this.setState(s));
     checkAuth();
-  }, [checkAuth]);
+  }
 
-  return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="signup" element={<CreateRelay />} />
-          <Route path="relays/myrelays" element={<Navigate to="/admin" replace />} />
-          <Route path="relays/:slug" element={<RelayDetail />} />
-          <Route path="relays/:slug/settings" element={<RelaySettings />} />
-          <Route path="invoices" element={<Invoices />} />
-          <Route path="directory" element={<Directory />} />
-          <Route path="faq" element={<FAQ />} />
-          <Route path="wallet" element={<Wallet />} />
-          <Route path="admin" element={<Admin />} />
-        </Route>
-      </Routes>
-    </Suspense>
-  );
+  componentWillUnmount() {
+    this.unsub?.();
+  }
+
+  render() {
+    return createElement(Layout, null,
+      createElement(Switch, null,
+        createElement(Route, { exact: true, path: "/", component: Home }),
+        createElement(Route, { path: "/signup", component: CreateRelay }),
+        createElement(Route, { path: "/relays/myrelays", render: () => createElement(Redirect, { to: "/admin" }) }),
+        createElement(Route, { path: "/relays/:slug/settings", component: RelaySettings }),
+        createElement(Route, { path: "/relays/:slug", component: RelayDetail }),
+        createElement(Route, { path: "/invoices", component: Invoices }),
+        createElement(Route, { path: "/directory", component: Directory }),
+        createElement(Route, { path: "/faq", component: FAQ }),
+        createElement(Route, { path: "/wallet", component: Wallet }),
+        createElement(Route, { path: "/admin", component: Admin }),
+      ),
+    );
+  }
 }
