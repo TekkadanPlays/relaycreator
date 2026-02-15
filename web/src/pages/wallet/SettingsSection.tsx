@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { coinos, type CoinosUser, type CoinosCredits, type NodeInfo } from "../../lib/coinos";
+import { useState } from "react";
+import { coinos, type CoinosUser } from "../../lib/coinos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,13 +8,9 @@ import {
   Settings,
   Shield,
   Zap,
-  Bitcoin,
   Loader2,
   Check,
-  Server,
-  CreditCard,
   Globe,
-  Bell,
 } from "lucide-react";
 
 interface SettingsSectionProps {
@@ -24,9 +20,6 @@ interface SettingsSectionProps {
 }
 
 export default function SettingsSection({ coinosUser, onUserUpdate, onError }: SettingsSectionProps) {
-  const [credits, setCredits] = useState<CoinosCredits | null>(null);
-  const [nodeInfo, setNodeInfo] = useState<NodeInfo | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -37,23 +30,6 @@ export default function SettingsSection({ coinosUser, onUserUpdate, onError }: S
   const [threshold, setThreshold] = useState(String(coinosUser.threshold || ""));
   const [reserve, setReserve] = useState(String(coinosUser.reserve || ""));
   const [notify, setNotify] = useState(coinosUser.notify ?? true);
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  async function loadSettings() {
-    setLoading(true);
-    try {
-      const [c, n] = await Promise.allSettled([
-        coinos.credits(),
-        coinos.info(),
-      ]);
-      if (c.status === "fulfilled") setCredits(c.value);
-      if (n.status === "fulfilled") setNodeInfo(n.value);
-    } catch {}
-    setLoading(false);
-  }
 
   async function handleSave() {
     setSaving(true);
@@ -74,16 +50,12 @@ export default function SettingsSection({ coinosUser, onUserUpdate, onError }: S
     setSaving(false);
   }
 
-  function formatSats(n: number) {
-    return new Intl.NumberFormat().format(n);
-  }
-
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-bold">Settings</h2>
         <p className="text-sm text-muted-foreground">
-          Wallet preferences, auto-withdraw, notifications, and node information.
+          Wallet preferences, auto-withdraw, and notifications.
         </p>
       </div>
 
@@ -174,74 +146,6 @@ export default function SettingsSection({ coinosUser, onUserUpdate, onError }: S
           </div>
         </div>
       </div>
-
-      {/* Fee Credits */}
-      {credits && (
-        <div className="rounded-lg border border-border/30 p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <CreditCard className="size-4 text-blue-500" />
-            <h3 className="text-sm font-semibold">Fee Credits</h3>
-          </div>
-          <p className="text-[11px] text-muted-foreground">Free transaction credits remaining per network.</p>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-md bg-amber-500/10 p-3 text-center">
-              <Bitcoin className="size-4 text-amber-500 mx-auto mb-1" />
-              <p className="text-lg font-bold tabular-nums">{credits.bitcoin}</p>
-              <p className="text-[10px] text-muted-foreground">Bitcoin</p>
-            </div>
-            <div className="rounded-md bg-purple-500/10 p-3 text-center">
-              <Zap className="size-4 text-purple-500 mx-auto mb-1" />
-              <p className="text-lg font-bold tabular-nums">{credits.lightning}</p>
-              <p className="text-[10px] text-muted-foreground">Lightning</p>
-            </div>
-            <div className="rounded-md bg-blue-500/10 p-3 text-center">
-              <Zap className="size-4 text-blue-500 mx-auto mb-1" />
-              <p className="text-lg font-bold tabular-nums">{credits.liquid}</p>
-              <p className="text-[10px] text-muted-foreground">Liquid</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Node Info */}
-      {loading ? (
-        <div className="flex justify-center py-6">
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : nodeInfo && (
-        <div className="rounded-lg border border-border/30 p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <Server className="size-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold">Lightning Node</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {nodeInfo.alias && (
-              <div>
-                <p className="text-muted-foreground text-xs">Alias</p>
-                <p className="font-semibold">{nodeInfo.alias}</p>
-              </div>
-            )}
-            {nodeInfo.block_height && (
-              <div>
-                <p className="text-muted-foreground text-xs">Block Height</p>
-                <p className="font-semibold tabular-nums">{formatSats(nodeInfo.block_height)}</p>
-              </div>
-            )}
-            {nodeInfo.network && (
-              <div>
-                <p className="text-muted-foreground text-xs">Network</p>
-                <p className="font-semibold capitalize">{nodeInfo.network}</p>
-              </div>
-            )}
-            {nodeInfo.pubkey && (
-              <div className="col-span-2">
-                <p className="text-muted-foreground text-xs">Node Pubkey</p>
-                <p className="font-mono text-xs break-all">{nodeInfo.pubkey}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
