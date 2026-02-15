@@ -35,13 +35,13 @@ router.get("/relays", (req: Request, res: Response) => {
     if (running === "true") {
       const allRelays = await prisma.relay.findMany({
         where: { OR: [{ status: "running" }, { status: "provision" }] },
-        select: { id: true, name: true, port: true, domain: true, status: true, streams: true },
+        select: { id: true, name: true, port: true, domain: true, ip: true, status: true, auth_required: true, streams: true },
       });
       res.json(allRelays);
     } else {
       const allRelays = await prisma.relay.findMany({
         where: { status: "provision", ip: ip },
-        select: { id: true, name: true, port: true, domain: true, status: true, streams: true },
+        select: { id: true, name: true, port: true, domain: true, ip: true, status: true, auth_required: true, streams: true },
       });
       res.json(allRelays);
     }
