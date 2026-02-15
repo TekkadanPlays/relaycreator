@@ -49,35 +49,83 @@ router.get("/relays", (req: Request, res: Response) => {
 });
 
 /**
- * GET /sconfig/relays/:id
- * Get a single relay config for provisioning.
+ * GET /sconfig/relays/authrequired
+ * Used by interceptor daemon to resolve backend URL for a relay.
+ * Query params: host (relay hostname, e.g. "admin.mycelium.social")
+ * Returns HostResponse: { name, ip, port, domain, mode, invoice }
+ * mode: "authrequired" | "authnone" | "authnone:requestpayment"
  */
-router.get("/relays/:id", (req: Request, res: Response) => {
-  if (!verifyDeployPubkey(req, res)) return;
+router.get("/relays/authrequired", (req: Request, res: Response) => {
+  const host = req.query.host as string | undefined;
 
   void (async () => {
-    const relay = await prisma.relay.findFirst({
-      where: { id: req.params.id as string },
-      include: {
-        owner: true,
-        streams: true,
-        moderators: { include: { user: true } },
-        allow_list: {
-          include: { list_keywords: true, list_pubkeys: true, list_kinds: true },
-        },
-        block_list: {
-          include: { list_keywords: true, list_pubkeys: true, list_kinds: true },
-        },
-        acl_sources: true,
-      },
-    });
+    if (host) {
+      // Interceptor mode: resolve a single relay by hostname
+      // Check external domains first
+      const external = await prisma.relay.findFirst({
+        where: { is_external: true, domain: host, OR: [{ status: "running" }, { status: "provision" }] },
+        select: { id: true, name: true, ip: true, port: true, domain: true, auth_required: true, request_payment: true, payment_amount: true },
+      });
 
-    if (!relay) {
-      res.status(404).json({ error: "relay not found" });
-      return;
+      if (external) {
+        let mode = "authnone";
+        if (external.auth_required) mode = "authrequired";
+        else if (external.request_payment) mode = "authnone:requestpayment";
+        res.json({
+          name: external.name,
+          ip: external.ip || "127.0.0.1",
+          port: external.port,
+          domain: external.domain,
+          mode,
+          invoice: "",
+        });
+        return;
+      }
+
+      // Internal domain: parse subdomain
+      const parts = host.split(".");
+      const subdomain = parts[0];
+      const domain = parts.slice(1).join(".");
+
+      if (!subdomain) {
+        res.status(400).json({ error: "invalid host" });
+        return;
+      }
+
+      const relay = await prisma.relay.findFirst({
+        where: { name: subdomain, domain, OR: [{ status: "running" }, { status: "provision" }] },
+        select: { id: true, name: true, ip: true, port: true, domain: true, auth_required: true, request_payment: true, payment_amount: true },
+      });
+
+      if (!relay) {
+        res.status(404).json({ error: "relay not found" });
+        return;
+      }
+
+      let mode = "authnone";
+      if (relay.auth_required) mode = "authrequired";
+      else if (relay.request_payment) mode = "authnone:requestpayment";
+
+      res.json({
+        name: relay.name,
+        ip: relay.ip || "127.0.0.1",
+        port: relay.port,
+        domain: relay.domain,
+        mode,
+        invoice: "",
+      });
+    } else {
+      // Legacy mode: return all auth-required relays
+      if (!verifyDeployPubkey(req, res)) return;
+      const relays = await prisma.relay.findMany({
+        where: {
+          auth_required: true,
+          OR: [{ status: "running" }, { status: "provision" }],
+        },
+        select: { id: true, name: true, domain: true, port: true, ip: true },
+      });
+      res.json(relays);
     }
-
-    res.json(relay);
   })();
 });
 
@@ -200,25 +248,6 @@ router.get("/relays/authorized", (req: Request, res: Response) => {
 });
 
 /**
- * GET /sconfig/relays/authrequired
- * Get list of relays that require NIP-42 auth.
- */
-router.get("/relays/authrequired", (req: Request, res: Response) => {
-  if (!verifyDeployPubkey(req, res)) return;
-
-  void (async () => {
-    const relays = await prisma.relay.findMany({
-      where: {
-        auth_required: true,
-        OR: [{ status: "running" }, { status: "provision" }],
-      },
-      select: { id: true, name: true, domain: true, port: true },
-    });
-    res.json(relays);
-  })();
-});
-
-/**
  * GET /sconfig/relays/deleting
  * Get list of relays marked for deletion.
  */
@@ -231,6 +260,39 @@ router.get("/relays/deleting", (req: Request, res: Response) => {
       select: { id: true, name: true, domain: true, port: true },
     });
     res.json(relays);
+  })();
+});
+
+/**
+ * GET /sconfig/relays/:id
+ * Get a single relay config for provisioning.
+ */
+router.get("/relays/:id", (req: Request, res: Response) => {
+  if (!verifyDeployPubkey(req, res)) return;
+
+  void (async () => {
+    const relay = await prisma.relay.findFirst({
+      where: { id: req.params.id as string },
+      include: {
+        owner: true,
+        streams: true,
+        moderators: { include: { user: true } },
+        allow_list: {
+          include: { list_keywords: true, list_pubkeys: true, list_kinds: true },
+        },
+        block_list: {
+          include: { list_keywords: true, list_pubkeys: true, list_kinds: true },
+        },
+        acl_sources: true,
+      },
+    });
+
+    if (!relay) {
+      res.status(404).json({ error: "relay not found" });
+      return;
+    }
+
+    res.json(relay);
   })();
 });
 
