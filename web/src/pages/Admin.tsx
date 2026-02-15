@@ -10,12 +10,13 @@ import {
   Play, ExternalLink, Plus, Wallet, AlertTriangle, KeyRound,
   CheckCircle2, XCircle, Clock, ShieldCheck, Info,
   Bitcoin, ArrowUpRight, ArrowDownLeft, Hash, Cpu, TrendingUp,
-  CircleDollarSign, Boxes, Network, Fingerprint,
+  CircleDollarSign, Boxes, Network, Fingerprint, Vault, FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { useRelayDomain } from "../hooks/useRelayDomain";
 import { useHasPermission, useHasPermissionGranted } from "../hooks/usePermissions";
@@ -1923,6 +1924,12 @@ function CoinosAdminDashboard() {
         </CardContent>
       </Card>
 
+      {/* Funds Management (collapsible) */}
+      <CoinosAdminFunds />
+
+      {/* Invoice Management (collapsible) */}
+      <CoinosAdminInvoices />
+
       {/* Admin warning — compact */}
       <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-xs">
         <AlertTriangle className="size-3.5 text-amber-400 shrink-0" />
@@ -1972,5 +1979,489 @@ function CoinosAdminDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COINOS ADMIN — FUNDS MANAGEMENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface FundManagerItem {
+  id: string;
+  username: string;
+  pubkey?: string;
+  picture?: string;
+}
+
+function CoinosAdminFunds() {
+  const [expanded, setExpanded] = useState(false);
+  const [fundId, setFundId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [fund, setFund] = useState<{ amount: number; authorization?: any; payments: CoinosPaymentItem[] } | null>(null);
+  const [managers, setManagers] = useState<FundManagerItem[]>([]);
+  const [error, setError] = useState("");
+
+  // Authorize
+  const [authAmount, setAuthAmount] = useState("");
+  const [authCurrency, setAuthCurrency] = useState("USD");
+  const [authSats, setAuthSats] = useState("");
+  const [authorizing, setAuthorizing] = useState(false);
+
+  // Withdraw
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawResult, setWithdrawResult] = useState("");
+
+  // Add manager
+  const [newManager, setNewManager] = useState("");
+  const [addingManager, setAddingManager] = useState(false);
+
+  async function handleLookup() {
+    if (!fundId.trim()) return;
+    setLoading(true);
+    setFund(null);
+    setManagers([]);
+    setError("");
+    try {
+      const [f, m] = await Promise.allSettled([
+        api.get<{ amount: number; authorization?: any; payments: CoinosPaymentItem[] }>(`/coinos/fund/${encodeURIComponent(fundId.trim())}`),
+        api.get<FundManagerItem[]>(`/coinos/fund/${encodeURIComponent(fundId.trim())}/managers`),
+      ]);
+      if (f.status === "fulfilled") setFund(f.value);
+      else setError("Fund not found");
+      if (m.status === "fulfilled") setManagers(Array.isArray(m.value) ? m.value : []);
+    } catch (err: any) { setError(err.message); }
+    setLoading(false);
+  }
+
+  async function handleAuthorize() {
+    if (!fundId.trim()) return;
+    setAuthorizing(true);
+    setError("");
+    try {
+      await api.post("/coinos/authorize", {
+        id: fundId.trim(),
+        fiat: parseFloat(authAmount) || 0,
+        currency: authCurrency,
+        amount: parseInt(authSats) || 0,
+      });
+      setAuthAmount("");
+      setAuthSats("");
+      await handleLookup();
+    } catch (err: any) { setError(err.message); }
+    setAuthorizing(false);
+  }
+
+  async function handleWithdraw() {
+    if (!fundId.trim() || !withdrawAmount) return;
+    setWithdrawing(true);
+    setWithdrawResult("");
+    setError("");
+    try {
+      await api.post("/coinos/take", { id: fundId.trim(), amount: parseInt(withdrawAmount) });
+      setWithdrawResult("Withdrawal successful!");
+      setWithdrawAmount("");
+      await handleLookup();
+    } catch (err: any) { setError(err.message); }
+    setWithdrawing(false);
+  }
+
+  async function handleAddManager() {
+    if (!fundId.trim() || !newManager.trim()) return;
+    setAddingManager(true);
+    setError("");
+    try {
+      const result = await api.post<FundManagerItem[]>("/coinos/fund/managers", { id: fundId.trim(), username: newManager.trim() });
+      if (Array.isArray(result)) setManagers(result);
+      setNewManager("");
+    } catch (err: any) { setError(err.message); }
+    setAddingManager(false);
+  }
+
+  async function handleRemoveManager(managerId: string) {
+    if (!fundId.trim()) return;
+    setError("");
+    try {
+      const result = await api.post<FundManagerItem[]>(`/coinos/fund/${encodeURIComponent(fundId.trim())}/managers/delete`, { id: managerId });
+      if (Array.isArray(result)) setManagers(result);
+      else setManagers((prev) => prev.filter((m) => m.id !== managerId));
+    } catch (err: any) { setError(err.message); }
+  }
+
+  return (
+    <Card className="border-border/50">
+      <button className="flex items-center justify-between w-full px-4 py-3" onClick={() => setExpanded(!expanded)}>
+        <span className="text-xs font-semibold flex items-center gap-1.5">
+          <Vault className="size-3 text-muted-foreground" /> Funds Management
+        </span>
+        <ChevronDown className={cn("size-3.5 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+      </button>
+      {expanded && (
+        <CardContent className="pt-0 space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="size-3 shrink-0" /> {error}
+              <button onClick={() => setError("")} className="ml-auto text-[10px] underline">dismiss</button>
+            </div>
+          )}
+
+          {/* Lookup */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Fund ID or name..."
+              value={fundId}
+              onChange={(e) => setFundId(e.target.value)}
+              className="h-8 text-sm"
+              onKeyDown={(e) => e.key === "Enter" && handleLookup()}
+            />
+            <Button onClick={handleLookup} disabled={!fundId.trim() || loading} size="sm" className="gap-1 h-8 px-3 shrink-0">
+              {loading ? <Loader2 className="size-3 animate-spin" /> : <Search className="size-3" />}
+              Load
+            </Button>
+          </div>
+
+          {fund && (
+            <>
+              {/* Fund overview */}
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Vault className="size-4 text-primary" />
+                  <div>
+                    <p className="text-xs font-semibold">Fund: {fundId}</p>
+                    <p className="text-[10px] text-muted-foreground">{managers.length} manager{managers.length !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold font-mono tabular-nums">{formatSats(fund.amount)}</p>
+                  {fund.authorization && (
+                    <p className="text-[10px] text-emerald-400 flex items-center gap-1 justify-end">
+                      <ShieldCheck className="size-2.5" /> Auth: {formatSats(fund.authorization.amount || 0)}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Authorize */}
+              <div className="rounded-md border border-border/30 p-3 space-y-2">
+                <p className="text-xs font-semibold">Authorize Spending</p>
+                <div className="grid gap-2 grid-cols-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Fiat</Label>
+                    <Input type="number" value={authAmount} onChange={(e) => setAuthAmount(e.target.value)} placeholder="100" className="h-7 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Currency</Label>
+                    <Input value={authCurrency} onChange={(e) => setAuthCurrency(e.target.value.toUpperCase())} placeholder="USD" className="h-7 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Sats</Label>
+                    <Input type="number" value={authSats} onChange={(e) => setAuthSats(e.target.value)} placeholder="100000" className="h-7 text-xs" />
+                  </div>
+                </div>
+                <Button onClick={handleAuthorize} disabled={authorizing} size="sm" className="gap-1 h-7 text-xs">
+                  {authorizing ? <Loader2 className="size-3 animate-spin" /> : <ShieldCheck className="size-3" />}
+                  Authorize
+                </Button>
+              </div>
+
+              {/* Withdraw */}
+              <div className="rounded-md border border-border/30 p-3 space-y-2">
+                <p className="text-xs font-semibold">Withdraw</p>
+                <div className="flex gap-2">
+                  <Input type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} placeholder="Sats" className="h-7 text-xs" />
+                  <Button onClick={handleWithdraw} disabled={!withdrawAmount || withdrawing} size="sm" className="gap-1 h-7 text-xs shrink-0">
+                    {withdrawing ? <Loader2 className="size-3 animate-spin" /> : <ArrowUpRight className="size-3" />}
+                    Withdraw
+                  </Button>
+                </div>
+                {withdrawResult && (
+                  <p className="text-[10px] text-emerald-400 flex items-center gap-1"><Check className="size-2.5" /> {withdrawResult}</p>
+                )}
+              </div>
+
+              {/* Managers */}
+              <div className="rounded-md border border-border/30 p-3 space-y-2">
+                <p className="text-xs font-semibold">Managers</p>
+                {managers.length > 0 ? (
+                  <div className="space-y-1">
+                    {managers.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between rounded-md bg-muted/20 px-2.5 py-1.5">
+                        <div>
+                          <p className="text-xs font-medium">{m.username}</p>
+                          {m.pubkey && <p className="text-[9px] text-muted-foreground font-mono truncate max-w-[200px]">{m.pubkey}</p>}
+                        </div>
+                        <button onClick={() => handleRemoveManager(m.id)} className="text-muted-foreground hover:text-destructive transition-colors p-1">
+                          <Trash2 className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">No managers</p>
+                )}
+                <div className="flex gap-2">
+                  <Input placeholder="Username..." value={newManager} onChange={(e) => setNewManager(e.target.value)} className="h-7 text-xs" onKeyDown={(e) => e.key === "Enter" && handleAddManager()} />
+                  <Button onClick={handleAddManager} disabled={!newManager.trim() || addingManager} size="sm" className="gap-1 h-7 text-xs shrink-0">
+                    {addingManager ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                    Add
+                  </Button>
+                </div>
+              </div>
+
+              {/* Recent fund transactions */}
+              {fund.payments && fund.payments.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold">Fund Transactions</p>
+                  <div className="rounded-md border border-border/30 divide-y divide-border/20">
+                    {fund.payments.slice(0, 8).map((p, i) => {
+                      const isIn = p.amount > 0;
+                      return (
+                        <div key={p.id || i} className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-muted/10 transition-colors">
+                          <div className={cn("size-5 rounded-full flex items-center justify-center shrink-0", isIn ? "bg-emerald-500/10" : "bg-red-500/10")}>
+                            {isIn ? <ArrowDownLeft className="size-2.5 text-emerald-400" /> : <ArrowUpRight className="size-2.5 text-red-400" />}
+                          </div>
+                          <span className={cn("text-[10px] font-mono font-semibold tabular-nums w-20 shrink-0", isIn ? "text-emerald-400" : "text-red-400")}>
+                            {isIn ? "+" : ""}{formatSats(p.amount)}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground truncate flex-1">{p.memo || (isIn ? "Deposit" : "Withdrawal")}</span>
+                          <span className="text-[9px] text-muted-foreground shrink-0">{timeAgo(p.created)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {!fund && !loading && fundId && (
+            <p className="text-xs text-muted-foreground text-center py-4">Enter a fund ID and click Load</p>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// COINOS ADMIN — INVOICE MANAGEMENT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface AdminInvoiceItem {
+  id?: string;
+  hash?: string;
+  bolt11?: string;
+  text?: string;
+  amount: number;
+  memo?: string;
+  type?: string;
+  created?: number;
+  received?: boolean;
+}
+
+function CoinosAdminInvoices() {
+  const [expanded, setExpanded] = useState(false);
+  const [invoices, setInvoices] = useState<AdminInvoiceItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState<string | null>(null);
+
+  // Create
+  const [amount, setAmount] = useState("");
+  const [memo, setMemo] = useState("");
+  const [invoiceType, setInvoiceType] = useState("lightning");
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<AdminInvoiceItem | null>(null);
+
+  // Lookup
+  const [lookupId, setLookupId] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<AdminInvoiceItem | null>(null);
+
+  async function loadInvoices() {
+    setLoading(true);
+    setError("");
+    try {
+      const list = await api.get<AdminInvoiceItem[]>("/coinos/invoices");
+      setInvoices(Array.isArray(list) ? list : []);
+      setLoaded(true);
+    } catch { setInvoices([]); setLoaded(true); }
+    setLoading(false);
+  }
+
+  async function handleCreate() {
+    const amt = parseInt(amount);
+    if (!amt) return;
+    setCreating(true);
+    setCreated(null);
+    setError("");
+    try {
+      const inv = await api.post<AdminInvoiceItem>("/coinos/invoice", { invoice: { amount: amt, memo: memo || undefined, type: invoiceType } });
+      setCreated(inv);
+      setAmount("");
+      setMemo("");
+      if (loaded) await loadInvoices();
+    } catch (err: any) { setError(err.message); }
+    setCreating(false);
+  }
+
+  async function handleLookup() {
+    if (!lookupId.trim()) return;
+    setLookupLoading(true);
+    setLookupResult(null);
+    setError("");
+    try {
+      const inv = await api.get<AdminInvoiceItem>(`/coinos/invoice/${encodeURIComponent(lookupId.trim())}`);
+      setLookupResult(inv);
+    } catch (err: any) { setError(err.message); }
+    setLookupLoading(false);
+  }
+
+  function copyText(text: string, id: string) {
+    navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  function handleExpand() {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && !loaded) loadInvoices();
+  }
+
+  return (
+    <Card className="border-border/50">
+      <button className="flex items-center justify-between w-full px-4 py-3" onClick={handleExpand}>
+        <span className="text-xs font-semibold flex items-center gap-1.5">
+          <FileText className="size-3 text-muted-foreground" /> Invoice Management
+        </span>
+        <ChevronDown className={cn("size-3.5 text-muted-foreground transition-transform", expanded && "rotate-180")} />
+      </button>
+      {expanded && (
+        <CardContent className="pt-0 space-y-4">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              <AlertTriangle className="size-3 shrink-0" /> {error}
+              <button onClick={() => setError("")} className="ml-auto text-[10px] underline">dismiss</button>
+            </div>
+          )}
+
+          {/* Create invoice */}
+          <div className="rounded-md border border-border/30 p-3 space-y-2">
+            <p className="text-xs font-semibold">Create Invoice</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-[10px]">Amount (sats)</Label>
+                <Input type="number" placeholder="21000" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-7 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px]">Memo</Label>
+                <Input placeholder="Payment for..." value={memo} onChange={(e) => setMemo(e.target.value)} className="h-7 text-xs" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {["lightning", "bitcoin", "liquid"].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setInvoiceType(t)}
+                    className={cn(
+                      "rounded px-2 py-0.5 text-[10px] font-medium border transition-colors capitalize",
+                      invoiceType === t ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <Button onClick={handleCreate} disabled={!amount || creating} size="sm" className="gap-1 h-7 text-xs ml-auto">
+                {creating ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                Create
+              </Button>
+            </div>
+            {created && (
+              <div className="rounded-md bg-emerald-500/5 border border-emerald-500/20 p-2 space-y-1.5">
+                <p className="text-[10px] text-emerald-400 font-semibold">Invoice created!</p>
+                {(created.bolt11 || created.hash || created.text) && (
+                  <div className="flex items-start gap-1.5">
+                    <code className="text-[9px] font-mono text-muted-foreground break-all flex-1 leading-relaxed">
+                      {created.bolt11 || created.hash || created.text}
+                    </code>
+                    <button
+                      onClick={() => copyText(created.bolt11 || created.hash || created.text || "", "admin-inv")}
+                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                    >
+                      {copied === "admin-inv" ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Lookup invoice */}
+          <div className="rounded-md border border-border/30 p-3 space-y-2">
+            <p className="text-xs font-semibold">Lookup Invoice</p>
+            <div className="flex gap-2">
+              <Input placeholder="Invoice ID or hash..." value={lookupId} onChange={(e) => setLookupId(e.target.value)} className="h-7 text-xs" onKeyDown={(e) => e.key === "Enter" && handleLookup()} />
+              <Button onClick={handleLookup} disabled={!lookupId.trim() || lookupLoading} size="sm" className="gap-1 h-7 text-xs shrink-0">
+                {lookupLoading ? <Loader2 className="size-3 animate-spin" /> : <Search className="size-3" />}
+                Lookup
+              </Button>
+            </div>
+            {lookupResult && (
+              <div className="grid grid-cols-2 gap-1.5 text-[10px] rounded-md bg-muted/20 p-2">
+                <div><span className="text-muted-foreground">Amount:</span> <span className="font-semibold font-mono">{formatSats(lookupResult.amount)}</span></div>
+                <div><span className="text-muted-foreground">Type:</span> <span className="font-semibold capitalize">{lookupResult.type || "—"}</span></div>
+                <div><span className="text-muted-foreground">Status:</span> <span className={cn("font-semibold", lookupResult.received ? "text-emerald-400" : "text-amber-400")}>{lookupResult.received ? "Paid" : "Pending"}</span></div>
+                {lookupResult.memo && <div className="col-span-2"><span className="text-muted-foreground">Memo:</span> <span className="font-semibold">{lookupResult.memo}</span></div>}
+              </div>
+            )}
+          </div>
+
+          {/* Invoice list */}
+          {loading ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : invoices.length > 0 ? (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-semibold">All Invoices</p>
+                <Button variant="ghost" size="sm" className="h-6 px-2" onClick={loadInvoices}>
+                  <RefreshCw className="size-3" />
+                </Button>
+              </div>
+              <div className="rounded-md border border-border/30 divide-y divide-border/20">
+                {invoices.slice(0, 15).map((inv) => (
+                  <div key={inv.id || inv.hash} className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-muted/10 transition-colors">
+                    <div className="size-5 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+                      <Zap className="size-2.5 text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-medium truncate">
+                        {inv.memo || `#${(inv.id || inv.hash || "").slice(0, 8)}`}
+                      </p>
+                      <p className="text-[9px] text-muted-foreground flex items-center gap-1">
+                        {inv.type && <span className="capitalize">{inv.type}</span>}
+                        {inv.created && <span>· {timeAgo(inv.created)}</span>}
+                        <span>· {inv.received ? "Paid" : "Pending"}</span>
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold tabular-nums shrink-0">{formatSats(inv.amount)}</span>
+                  </div>
+                ))}
+              </div>
+              {invoices.length > 15 && (
+                <p className="text-[10px] text-muted-foreground text-center mt-1">Showing 15 of {invoices.length}</p>
+              )}
+            </div>
+          ) : loaded ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No invoices found</p>
+          ) : null}
+        </CardContent>
+      )}
+    </Card>
   );
 }
