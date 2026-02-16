@@ -312,6 +312,7 @@ router.get("/haproxy/:id", (req: Request, res: Response) => {
       const pemName = env.HAPROXY_PEM;
       const interceptorPort = env.INTERCEPTOR_PORT;
       const usethisdomain = env.CREATOR_DOMAIN;
+      const coinosEnabled = env.COINOS_ENABLED === "true";
 
       const fetchServers = await prisma.server.findMany();
 
@@ -494,6 +495,19 @@ frontend secured
     http-request set-header host %[hdr(host),field(1,:)]
     capture request header Host len 30
 
+	# --- CoinOS external API proxy ---
+	acl is_coinos path_beg /coinos
+	acl has_api_key req.hdr(x-api-key) -m found
+	http-request deny deny_status 403 if is_coinos !has_api_key
+	http-request set-path %[path,regsub(^/coinos,,)] if is_coinos
+	use_backend coinos if is_coinos
+
+	# --- Ribbit frontend routing ---
+	acl is_api path_beg /api
+	acl is_wellknown path_beg /.well-known
+	acl is_admin path_beg /admin
+	use_backend ribbit if !is_api !is_wellknown !is_admin { srv_is_up(ribbit/ribbit-001) }
+
 	http-request return content-type image/x-icon file /etc/haproxy/static/favicon.ico if { path /favicon.ico }
 	http-request return content-type image/png file /etc/haproxy/static/favicon-32x32.png if { path /favicon-32x32.png }
 	http-request return content-type image/png file /etc/haproxy/static/favicon-16x16.png if { path /favicon-16x16.png }
@@ -514,6 +528,18 @@ backend main
     ${app_servers_cfg}
 
 	${haproxy_backends_cfg}
+
+backend ribbit
+	mode		http
+	option		redispatch
+	balance		source
+	option forwardfor except 127.0.0.1 header x-real-ip
+	server ribbit-001 127.0.0.1:3000 maxconn 100000 weight 10 check inter 5s fall 3 rise 2
+
+backend coinos
+	mode		http
+	option forwardfor except 127.0.0.1 header x-real-ip
+	server coinos-001 127.0.0.1:3119 maxconn 10000 weight 10 check inter 10s fall 3 rise 2
 
 backend certbot_server
     server certbot 127.0.0.1:10000
