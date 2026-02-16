@@ -80,6 +80,7 @@ app.use("/86", nip86Routes);
 
 // Serve SPA static files in production
 const spaDistPath = path.resolve(__dirname, "../../web/dist");
+app.use("/rc", express.static(spaDistPath));
 app.use(express.static(spaDistPath));
 
 // SPA fallback: any non-API route serves index.html for client-side routing

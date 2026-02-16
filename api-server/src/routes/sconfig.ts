@@ -506,7 +506,8 @@ frontend secured
 	acl is_api path_beg /api
 	acl is_wellknown path_beg /.well-known
 	acl is_admin path_beg /admin
-	use_backend ribbit if !is_api !is_wellknown !is_admin { srv_is_up(ribbit/ribbit-001) }
+	acl is_rc path_beg /rc
+	use_backend ribbit if !is_api !is_wellknown !is_admin !is_rc { srv_is_up(ribbit/ribbit-001) }
 
 	http-request return content-type image/x-icon file /etc/haproxy/static/favicon.ico if { path /favicon.ico }
 	http-request return content-type image/png file /etc/haproxy/static/favicon-32x32.png if { path /favicon-32x32.png }

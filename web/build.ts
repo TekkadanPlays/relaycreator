@@ -46,12 +46,12 @@ const html = `<!DOCTYPE html>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>relay.tools — Create Your Nostr Relay</title>
-    <link rel="stylesheet" href="/${entryName.replace('.js', '.css')}" />
-    <link rel="stylesheet" href="/index.css" />
+    <link rel="stylesheet" href="/rc/${entryName.replace('.js', '.css')}" />
+    <link rel="stylesheet" href="/rc/index.css" />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/${entryName}"></script>
+    <script type="module" src="/rc/${entryName}"></script>
   </body>
 </html>`;
 
