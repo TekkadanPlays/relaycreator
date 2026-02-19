@@ -107,10 +107,27 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
             createElement("span", { className: "text-lg font-bold tracking-tight" }, "relay.tools"),
           ),
 
-          // Center nav links (desktop)
-          createElement("nav", { className: "hidden sm:flex items-center gap-1" },
-            createElement(Link, { to: "/directory", className: "inline-flex h-9 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground" }, "Directory"),
-            createElement("a", { href: "https://app.mycelium.social", className: "inline-flex h-9 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground" }, "Social"),
+          // Center nav dropdown (desktop)
+          createElement("nav", { className: "hidden sm:flex items-center" },
+            createElement(DropdownMenu, null,
+              createElement(DropdownMenuTrigger, null,
+                createElement(Button, { variant: "ghost", size: "sm", className: "gap-1.5 text-sm font-medium" },
+                  createElement(Globe, { className: "size-4" }), "Explore",
+                ),
+              ),
+              createElement(DropdownMenuContent, { className: "w-48" },
+                createElement(DropdownMenuItem, { onClick: () => { window.location.href = "/directory"; } },
+                  createElement(Radio, { className: "size-4" }), " Directory",
+                ),
+                createElement(DropdownMenuSeparator, null),
+                createElement(DropdownMenuItem, { onClick: () => { window.location.href = "https://app.mycelium.social"; } },
+                  createElement(User, { className: "size-4" }), " Social",
+                ),
+                createElement(DropdownMenuItem, { onClick: () => { window.location.href = "https://chat.mycelium.social"; } },
+                  createElement(Zap, { className: "size-4" }), " Chat",
+                ),
+              ),
+            ),
           ),
 
           // Right side
@@ -199,13 +216,20 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
                 createElement(link.Icon, { className: "size-4" }), link.label,
               ),
             ),
-            // Social (external link)
+            // External links
             createElement("a", {
               href: "https://app.mycelium.social",
               className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent",
               onClick: () => this.setState({ mobileOpen: false }),
             },
-              createElement(Globe, { className: "size-4" }), "Social",
+              createElement(User, { className: "size-4" }), "Social",
+            ),
+            createElement("a", {
+              href: "https://chat.mycelium.social",
+              className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent",
+              onClick: () => this.setState({ mobileOpen: false }),
+            },
+              createElement(Zap, { className: "size-4" }), "Chat",
             ),
             createElement(Separator, { className: "my-2" }),
             user
