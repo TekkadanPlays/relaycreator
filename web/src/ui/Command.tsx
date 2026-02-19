@@ -184,3 +184,51 @@ export function CommandShortcut({ className, children }: CommandShortcutProps) {
     className: cn('ml-auto text-xs tracking-widest text-muted-foreground', className),
   }, children);
 }
+
+// ---------------------------------------------------------------------------
+// CommandDialog — wraps Command in a Dialog-style overlay
+// ---------------------------------------------------------------------------
+
+interface CommandDialogProps {
+  open: boolean;
+  onClose?: () => void;
+  children?: any;
+}
+
+export class CommandDialog extends Component<CommandDialogProps> {
+  private handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') this.props.onClose?.();
+  };
+
+  componentDidMount() {
+    document.addEventListener('keydown', this.handleKeyDown);
+    document.body.style.overflow = 'hidden';
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener('keydown', this.handleKeyDown);
+    document.body.style.overflow = '';
+  }
+
+  render() {
+    const { open, onClose, children } = this.props;
+    if (!open) return null;
+
+    return createElement('div', {
+      'data-slot': 'command-dialog',
+      className: 'fixed inset-0 z-50',
+    },
+      createElement('div', {
+        className: 'fixed inset-0 bg-black/50 backdrop-blur-[2px]',
+        onClick: onClose,
+      }),
+      createElement('div', {
+        className: 'fixed top-[50%] left-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%]',
+      },
+        createElement(Command, {
+          className: 'rounded-lg border shadow-lg',
+        }, children),
+      ),
+    );
+  }
+}
