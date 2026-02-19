@@ -107,6 +107,12 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
             createElement("span", { className: "text-lg font-bold tracking-tight" }, "relay.tools"),
           ),
 
+          // Center nav links (desktop)
+          createElement("nav", { className: "hidden sm:flex items-center gap-1" },
+            createElement(Link, { to: "/directory", className: "inline-flex h-9 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground" }, "Directory"),
+            createElement("a", { href: "https://app.mycelium.social", className: "inline-flex h-9 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground" }, "Social"),
+          ),
+
           // Right side
           createElement("div", { className: "flex items-center gap-2" },
 
@@ -192,6 +198,14 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
               createElement(Link, { to: link.to, className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent", onClick: () => this.setState({ mobileOpen: false }) },
                 createElement(link.Icon, { className: "size-4" }), link.label,
               ),
+            ),
+            // Social (external link)
+            createElement("a", {
+              href: "https://app.mycelium.social",
+              className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent",
+              onClick: () => this.setState({ mobileOpen: false }),
+            },
+              createElement(Globe, { className: "size-4" }), "Social",
             ),
             createElement(Separator, { className: "my-2" }),
             user
