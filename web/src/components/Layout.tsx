@@ -12,10 +12,34 @@ import {
 } from "@/ui/DropdownMenu";
 import { Sheet, SheetContent } from "@/ui/Sheet";
 import {
+  Command, CommandInput, CommandList, CommandEmpty,
+  CommandGroup, CommandItem, CommandSeparator,
+} from "@/ui/Command";
+import {
   Radio, LogOut, Menu, Zap, Globe, User, Loader2, X,
-  HelpCircle, Github, Wallet, Shield, Play,
+  HelpCircle, Github, Wallet, Shield, Play, ChevronDown,
+  MessageCircle, ExternalLink,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
+import type { IconComponent } from "@/lib/icon";
+
+interface NavItem {
+  label: string;
+  href: string;
+  Icon: IconComponent;
+  external?: boolean;
+  group: string;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { label: "Home",         href: "/",          Icon: Radio,         group: "Relay Tools" },
+  { label: "Directory",    href: "/directory",  Icon: Globe,         group: "Relay Tools" },
+  { label: "Create Relay", href: "/signup",     Icon: Zap,           group: "Relay Tools" },
+  { label: "Wallet",       href: "/wallet",     Icon: Wallet,        group: "Relay Tools" },
+  { label: "FAQ",          href: "/faq",        Icon: HelpCircle,    group: "Relay Tools" },
+  { label: "Social",       href: "https://app.mycelium.social",  Icon: User,          group: "Mycelium", external: true },
+  { label: "Chat",         href: "https://chat.mycelium.social", Icon: MessageCircle, group: "Mycelium", external: true },
+];
 
 interface LayoutProps {
   children?: any;
@@ -24,6 +48,8 @@ interface LayoutProps {
 interface LayoutState extends AuthState {
   loginError: string;
   mobileOpen: boolean;
+  navOpen: boolean;
+  navSearch: string;
   panelTier: "admin" | "operator" | "demo";
   panelLabel: string;
 }
@@ -31,6 +57,7 @@ interface LayoutState extends AuthState {
 export default class Layout extends Component<LayoutProps, LayoutState> {
   declare state: LayoutState;
   private unsub: (() => void) | null = null;
+  private navRef: HTMLDivElement | null = null;
 
   constructor(props: LayoutProps) {
     super(props);
@@ -39,10 +66,18 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
       ...auth,
       loginError: "",
       mobileOpen: false,
+      navOpen: false,
+      navSearch: "",
       panelTier: "demo",
       panelLabel: "Live Demo",
     };
   }
+
+  private handleNavOutside = (e: MouseEvent) => {
+    if (this.state.navOpen && this.navRef && !this.navRef.contains(e.target as Node)) {
+      this.setState({ navOpen: false });
+    }
+  };
 
   componentDidMount() {
     this.unsub = authStore.subscribe((s) => {
@@ -50,10 +85,12 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
       this.updatePanelTier(s);
     });
     this.updatePanelTier(authStore.get());
+    document.addEventListener('mousedown', this.handleNavOutside);
   }
 
   componentWillUnmount() {
     this.unsub?.();
+    document.removeEventListener('mousedown', this.handleNavOutside);
   }
 
   private async updatePanelTier(auth: AuthState) {
@@ -89,7 +126,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
   };
 
   render() {
-    const { user, loading, loginError, mobileOpen, panelTier, panelLabel } = this.state;
+    const { user, loading, loginError, mobileOpen, navOpen, navSearch, panelTier, panelLabel } = this.state;
     const { children } = this.props;
     const PanelIcon = panelTier === "admin" ? Shield : panelTier === "operator" ? Zap : Play;
 
@@ -107,27 +144,59 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
             createElement("span", { className: "text-lg font-bold tracking-tight" }, "relay.tools"),
           ),
 
-          // Center nav dropdown (desktop)
-          createElement("nav", { className: "hidden sm:flex items-center" },
-            createElement(DropdownMenu, null,
-              createElement(DropdownMenuTrigger, null,
-                createElement(Button, { variant: "ghost", size: "sm", className: "gap-1.5 text-sm font-medium" },
-                  createElement(Globe, { className: "size-4" }), "Explore",
-                ),
-              ),
-              createElement(DropdownMenuContent, { className: "w-48" },
-                createElement(DropdownMenuItem, { onClick: () => { window.location.href = "/directory"; } },
-                  createElement(Radio, { className: "size-4" }), " Directory",
-                ),
-                createElement(DropdownMenuSeparator, null),
-                createElement(DropdownMenuItem, { onClick: () => { window.location.href = "https://app.mycelium.social"; } },
-                  createElement(User, { className: "size-4" }), " Social",
-                ),
-                createElement(DropdownMenuItem, { onClick: () => { window.location.href = "https://chat.mycelium.social"; } },
-                  createElement(Zap, { className: "size-4" }), " Chat",
-                ),
-              ),
+          // Center nav combobox (desktop)
+          createElement("div", {
+            ref: (el: HTMLDivElement | null) => { this.navRef = el; },
+            className: "hidden sm:block relative",
+          },
+            createElement(Button, {
+              variant: "outline", size: "sm",
+              className: "gap-1.5 text-sm font-medium w-[180px] justify-between",
+              onClick: () => this.setState((s: LayoutState) => ({ navOpen: !s.navOpen, navSearch: "" })),
+            },
+              createElement(Globe, { className: "size-4" }),
+              "Navigate",
+              createElement(ChevronDown, { className: "size-3.5 opacity-50" }),
             ),
+            navOpen
+              ? createElement("div", { className: "absolute top-full left-0 z-50 mt-1 w-[220px]" },
+                  createElement(Command, { className: "rounded-lg border shadow-md" },
+                    createElement(CommandInput, {
+                      placeholder: "Search pages...",
+                      value: navSearch,
+                      onInput: (e: Event) => this.setState({ navSearch: (e.target as HTMLInputElement).value }),
+                    }),
+                    createElement(CommandList, null,
+                      (() => {
+                        const q = navSearch.toLowerCase();
+                        const filtered = q ? NAV_ITEMS.filter((n) => n.label.toLowerCase().includes(q)) : NAV_ITEMS;
+                        if (filtered.length === 0) return createElement(CommandEmpty, null, "No pages found.");
+                        const groups = [...new Set(filtered.map((n) => n.group))];
+                        return groups.map((g) =>
+                          createElement(CommandGroup, { heading: g, key: g },
+                            ...filtered.filter((n) => n.group === g).map((item) =>
+                              createElement(CommandItem, {
+                                key: item.href,
+                                onClick: () => {
+                                  this.setState({ navOpen: false });
+                                  if (item.external) { window.location.href = item.href; }
+                                  else { window.location.href = item.href; }
+                                },
+                              },
+                                createElement(item.Icon, { className: "size-4" }),
+                                item.label,
+                                item.external
+                                  ? createElement(ExternalLink, { className: "size-3 ml-auto opacity-40" })
+                                  : null,
+                              ),
+                            ),
+                          ),
+                        );
+                      })(),
+                    ),
+                  ),
+                )
+              : null,
           ),
 
           // Right side
@@ -205,31 +274,27 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
             createElement(Link, { to: "/admin", className: cn("flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium mb-2", panelTier === "admin" ? "bg-primary text-primary-foreground" : "border border-input"), onClick: () => this.setState({ mobileOpen: false }) },
               createElement(PanelIcon, { className: "size-4" }), panelLabel,
             ),
-            ...[
-              { to: "/", label: "Home", Icon: Radio },
-              { to: "/directory", label: "Directory", Icon: Globe },
-              ...(user ? [{ to: "/wallet", label: "Wallet", Icon: Wallet }] : []),
-              { to: "/signup", label: "Create Relay", Icon: Radio },
-              { to: "/faq", label: "FAQ", Icon: HelpCircle },
-            ].map((link) =>
-              createElement(Link, { to: link.to, className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent", onClick: () => this.setState({ mobileOpen: false }) },
-                createElement(link.Icon, { className: "size-4" }), link.label,
+            ...NAV_ITEMS.filter((n) => !n.external).map((item) =>
+              createElement(Link, {
+                to: item.href,
+                className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent",
+                onClick: () => this.setState({ mobileOpen: false }),
+              },
+                createElement(item.Icon, { className: "size-4" }), item.label,
               ),
             ),
-            // External links
-            createElement("a", {
-              href: "https://app.mycelium.social",
-              className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent",
-              onClick: () => this.setState({ mobileOpen: false }),
-            },
-              createElement(User, { className: "size-4" }), "Social",
-            ),
-            createElement("a", {
-              href: "https://chat.mycelium.social",
-              className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent",
-              onClick: () => this.setState({ mobileOpen: false }),
-            },
-              createElement(Zap, { className: "size-4" }), "Chat",
+            createElement(Separator, { className: "my-1" }),
+            createElement("div", { className: "px-2 py-1.5 text-xs font-medium text-muted-foreground" }, "Mycelium"),
+            ...NAV_ITEMS.filter((n) => n.external).map((item) =>
+              createElement("a", {
+                href: item.href,
+                className: "flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent",
+                onClick: () => this.setState({ mobileOpen: false }),
+              },
+                createElement(item.Icon, { className: "size-4" }),
+                item.label,
+                createElement(ExternalLink, { className: "size-3 ml-auto opacity-40" }),
+              ),
             ),
             createElement(Separator, { className: "my-2" }),
             user
