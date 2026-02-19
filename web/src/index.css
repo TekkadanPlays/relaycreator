@@ -147,6 +147,16 @@
   background-clip: text;
 }
 
+/* Mushroom logo glow — gentle pulse, GPU-composited */
+@keyframes mush-glow {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+.animate-mush-glow {
+  animation: mush-glow 3s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

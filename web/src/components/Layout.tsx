@@ -22,6 +22,7 @@ import {
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 import type { IconComponent } from "@/lib/icon";
+import { MushLogo } from "./MushLogo";
 
 interface NavItem {
   label: string;
@@ -141,9 +142,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
 
           // Logo
           createElement(Link, { to: "/", className: "flex items-center gap-2.5 group shrink-0" },
-            createElement("div", { className: "flex items-center justify-center size-8 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors" },
-              createElement(Radio, { className: "size-4 text-primary" }),
-            ),
+            createElement(MushLogo, { className: "size-8", glow: true }),
             createElement("span", { className: "text-lg font-bold tracking-tight" }, "relay.tools"),
           ),
 
@@ -270,7 +269,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
       mobileOpen ? createElement(Sheet, { open: true, onOpenChange: (open: boolean) => this.setState({ mobileOpen: open }) },
         createElement(SheetContent, { onClose: () => this.setState({ mobileOpen: false }) },
           createElement("div", { className: "flex items-center gap-2 font-bold mb-4" },
-            createElement(Radio, { className: "size-4 text-primary" }),
+            createElement(MushLogo, { className: "size-6" }),
             "relay.tools",
           ),
           createElement(Separator, null),
@@ -332,7 +331,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
         createElement("div", { className: "mx-auto max-w-7xl px-4 sm:px-6 py-6" },
           createElement("div", { className: "flex flex-col items-center gap-4 sm:flex-row sm:justify-between text-sm text-muted-foreground" },
             createElement("div", { className: "flex items-center gap-2" },
-              createElement(Radio, { className: "size-3.5 text-primary" }),
+              createElement(MushLogo, { className: "size-5" }),
               createElement("span", { className: "font-medium text-foreground/80" }, "relay.tools"),
               createElement("span", { className: "text-border" }, "·"),
               createElement("span", { className: "text-xs" }, "GPLv3 Licensed"),
