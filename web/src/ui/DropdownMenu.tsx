@@ -1,19 +1,11 @@
-import { Component } from 'inferno';
 import { createElement } from 'inferno-create-element';
 import { cn } from './utils';
 
 // ---------------------------------------------------------------------------
-// DropdownMenu
-//
-// InfernoJS has no portals, so the menu is positioned relative to the trigger
-// wrapper. Click-outside is handled via a document listener.
+// DropdownMenu — simple relative wrapper, state managed by parent
 // ---------------------------------------------------------------------------
 
-interface DropdownMenuProps {
-  children?: any;
-}
-
-export function DropdownMenu({ children }: DropdownMenuProps) {
+export function DropdownMenu({ children }: { children?: any }) {
   return createElement('div', {
     'data-slot': 'dropdown-menu',
     className: 'relative inline-block',
@@ -21,7 +13,7 @@ export function DropdownMenu({ children }: DropdownMenuProps) {
 }
 
 // ---------------------------------------------------------------------------
-// DropdownMenuTrigger
+// DropdownMenuTrigger — just a button, parent provides onClick
 // ---------------------------------------------------------------------------
 
 interface DropdownMenuTriggerProps {
@@ -40,68 +32,39 @@ export function DropdownMenuTrigger({ className, onClick, children }: DropdownMe
 }
 
 // ---------------------------------------------------------------------------
-// DropdownMenuContent
+// DropdownMenuContent — always renders, parent controls visibility
 // ---------------------------------------------------------------------------
 
 interface DropdownMenuContentProps {
   className?: string;
   align?: 'start' | 'center' | 'end';
   side?: 'top' | 'bottom';
-  open?: boolean;
-  onClose?: () => void;
   children?: any;
 }
 
-export class DropdownMenuContent extends Component<DropdownMenuContentProps> {
-  private handleClickOutside = (e: MouseEvent) => {
-    const el = (this as any).$LI?.dom;
-    if (el && !el.contains(e.target as Node)) {
-      this.props.onClose?.();
-    }
+export function DropdownMenuContent({ className, align = 'end', side = 'bottom', children }: DropdownMenuContentProps) {
+  const alignClasses: Record<string, string> = {
+    start: 'left-0',
+    center: 'left-1/2 -translate-x-1/2',
+    end: 'right-0',
   };
 
-  private handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') this.props.onClose?.();
+  const sideClasses: Record<string, string> = {
+    top: 'bottom-full mb-1',
+    bottom: 'top-full mt-1',
   };
 
-  componentDidMount() {
-    setTimeout(() => {
-      document.addEventListener('mousedown', this.handleClickOutside);
-      document.addEventListener('keydown', this.handleKeyDown);
-    }, 0);
-  }
-
-  componentWillUnmount() {
-    document.removeEventListener('mousedown', this.handleClickOutside);
-    document.removeEventListener('keydown', this.handleKeyDown);
-  }
-
-  render() {
-    const { className, align = 'end', side = 'bottom', open, children } = this.props;
-    if (!open) return null;
-
-    const alignClasses: Record<string, string> = {
-      start: 'left-0',
-      center: 'left-1/2 -translate-x-1/2',
-      end: 'right-0',
-    };
-
-    const sideClasses: Record<string, string> = {
-      top: 'bottom-full mb-1',
-      bottom: 'top-full mt-1',
-    };
-
-    return createElement('div', {
-      'data-slot': 'dropdown-menu-content',
-      role: 'menu',
-      className: cn(
-        'absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
-        alignClasses[align],
-        sideClasses[side],
-        className,
-      ),
-    }, children);
-  }
+  return createElement('div', {
+    'data-slot': 'dropdown-menu-content',
+    role: 'menu',
+    className: cn(
+      'absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+      'animate-in fade-in-0 zoom-in-95',
+      alignClasses[align],
+      sideClasses[side],
+      className,
+    ),
+  }, children);
 }
 
 // ---------------------------------------------------------------------------

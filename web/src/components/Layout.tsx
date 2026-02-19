@@ -7,8 +7,8 @@ import { Button } from "@/ui/Button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/ui/Avatar";
 import { Separator } from "@/ui/Separator";
 import {
-  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
-  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+  DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuLabel,
 } from "@/ui/DropdownMenu";
 import { Sheet, SheetContent } from "@/ui/Sheet";
 import {
@@ -47,6 +47,7 @@ interface LayoutState extends AuthState {
   mobileOpen: boolean;
   navOpen: boolean;
   navSearch: string;
+  userMenuOpen: boolean;
   panelTier: "admin" | "operator" | "demo";
   panelLabel: string;
 }
@@ -55,6 +56,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
   declare state: LayoutState;
   private unsub: (() => void) | null = null;
   private navRef: HTMLDivElement | null = null;
+  private userMenuRef: HTMLDivElement | null = null;
 
   constructor(props: LayoutProps) {
     super(props);
@@ -65,6 +67,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
       mobileOpen: false,
       navOpen: false,
       navSearch: "",
+      userMenuOpen: false,
       panelTier: "demo",
       panelLabel: "Live Demo",
     };
@@ -73,6 +76,9 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
   private handleNavOutside = (e: MouseEvent) => {
     if (this.state.navOpen && this.navRef && !this.navRef.contains(e.target as Node)) {
       this.setState({ navOpen: false });
+    }
+    if (this.state.userMenuOpen && this.userMenuRef && !this.userMenuRef.contains(e.target as Node)) {
+      this.setState({ userMenuOpen: false });
     }
   };
 
@@ -123,7 +129,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
   };
 
   render() {
-    const { user, loading, loginError, mobileOpen, navOpen, navSearch, panelTier, panelLabel } = this.state;
+    const { user, loading, loginError, mobileOpen, navOpen, navSearch, userMenuOpen, panelTier, panelLabel } = this.state;
     const { children } = this.props;
     const PanelIcon = panelTier === "admin" ? Shield : panelTier === "operator" ? Zap : Play;
 
@@ -209,35 +215,41 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
             loading
               ? createElement(Loader2, { className: "size-4 animate-spin text-muted-foreground" })
               : user
-                ? createElement(DropdownMenu, null,
-                    createElement(DropdownMenuTrigger, null,
-                      createElement(Button, { variant: "ghost", size: "icon", className: "rounded-full" },
-                        createElement(Avatar, { className: "size-8" },
-                          createElement(AvatarFallback, { className: "bg-primary/10 text-primary text-xs font-medium" },
-                            user.pubkey.slice(0, 2).toUpperCase(),
-                          ),
+                ? createElement("div", {
+                    ref: (el: HTMLDivElement | null) => { this.userMenuRef = el; },
+                    className: "relative inline-block",
+                  },
+                    createElement(Button, {
+                      variant: "ghost", size: "icon", className: "rounded-full",
+                      onClick: () => this.setState((s: LayoutState) => ({ userMenuOpen: !s.userMenuOpen })),
+                    },
+                      createElement(Avatar, { className: "size-8" },
+                        createElement(AvatarFallback, { className: "bg-primary/10 text-primary text-xs font-medium" },
+                          user.pubkey.slice(0, 2).toUpperCase(),
                         ),
                       ),
                     ),
-                    createElement(DropdownMenuContent, { className: "w-52" },
-                      createElement(DropdownMenuLabel, null,
-                        createElement("p", { className: "font-mono text-xs text-muted-foreground truncate" }, user.pubkey.slice(0, 20) + "..."),
-                      ),
-                      createElement(DropdownMenuSeparator, null),
-                      createElement(DropdownMenuItem, { onClick: () => { window.location.href = "/wallet"; } },
-                        createElement(Wallet, { className: "size-4" }), " Wallet",
-                      ),
-                      createElement(DropdownMenuItem, { onClick: () => { window.location.href = "/signup"; } },
-                        createElement(Zap, { className: "size-4" }), " Create Relay",
-                      ),
-                      createElement(DropdownMenuItem, { onClick: () => { window.location.href = "/faq"; } },
-                        createElement(HelpCircle, { className: "size-4" }), " FAQ",
-                      ),
-                      createElement(DropdownMenuSeparator, null),
-                      createElement(DropdownMenuItem, { onClick: this.handleLogout, className: "text-destructive" },
-                        createElement(LogOut, { className: "size-4" }), " Sign Out",
-                      ),
-                    ),
+                    userMenuOpen
+                      ? createElement(DropdownMenuContent, { className: "w-52" },
+                          createElement(DropdownMenuLabel, null,
+                            createElement("p", { className: "font-mono text-xs text-muted-foreground truncate" }, user.pubkey.slice(0, 20) + "..."),
+                          ),
+                          createElement(DropdownMenuSeparator, null),
+                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/wallet"; } },
+                            createElement(Wallet, { className: "size-4" }), " Wallet",
+                          ),
+                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/signup"; } },
+                            createElement(Zap, { className: "size-4" }), " Create Relay",
+                          ),
+                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/faq"; } },
+                            createElement(HelpCircle, { className: "size-4" }), " FAQ",
+                          ),
+                          createElement(DropdownMenuSeparator, null),
+                          createElement(DropdownMenuItem, { onClick: this.handleLogout, className: "text-destructive" },
+                            createElement(LogOut, { className: "size-4" }), " Sign Out",
+                          ),
+                        )
+                      : null,
                   )
                 : createElement(Button, { onClick: this.handleLogin, size: "sm", className: "gap-1.5" },
                     createElement(User, { className: "size-4" }), " Sign In",
