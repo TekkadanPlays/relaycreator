@@ -23,6 +23,7 @@ import {
 import { cn } from "@/ui/utils";
 import type { IconComponent } from "@/lib/icon";
 import { MushLogo } from "./MushLogo";
+import { ThemeToggle } from "@/ui/ThemeToggle";
 
 interface NavItem {
   label: string;
@@ -141,10 +142,16 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
       createElement("header", { className: "sticky top-0 z-50 border-b border-border/30 bg-background/80 backdrop-blur-xl backdrop-saturate-150" },
         createElement("div", { className: "mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6" },
 
-          // Logo
-          createElement(Link, { to: "/", className: "flex items-center gap-2.5 group shrink-0" },
-            createElement(MushLogo, { className: "size-8", glow: true }),
-            createElement("span", { className: "text-lg font-bold tracking-tight" }, "mycelium"),
+          // Logo + Docs
+          createElement("div", { className: "flex items-center gap-4" },
+            createElement(Link, { to: "/", className: "flex items-center gap-2.5 group shrink-0" },
+              createElement(MushLogo, { className: "size-8", glow: true }),
+              createElement("span", { className: "text-lg font-bold tracking-tight" }, "mycelium"),
+            ),
+            createElement(Link, { to: "/docs", className: "hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" },
+              createElement(FileText, { className: "size-3.5" }),
+              "Docs",
+            ),
           ),
 
           // Center nav combobox (desktop)
@@ -254,6 +261,19 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
                 : createElement(Button, { onClick: this.handleLogin, size: "sm", className: "gap-1.5" },
                     createElement(User, { className: "size-4" }), " Sign In",
                   ),
+
+            // Theme toggle
+            createElement(ThemeToggle, { className: "hidden sm:inline-flex" }),
+
+            // GitHub
+            createElement("a", {
+              href: "https://github.com/TekkadanPlays",
+              target: "_blank",
+              rel: "noopener noreferrer",
+              className: "hidden sm:inline-flex items-center justify-center size-9 rounded-md border border-input bg-background text-foreground shadow-xs cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground",
+            },
+              createElement(Github, { className: "size-4" }),
+            ),
 
             // Mobile menu button
             createElement(Button, {

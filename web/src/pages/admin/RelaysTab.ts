@@ -1,0 +1,96 @@
+import { createElement } from "inferno-create-element";
+import { Link } from "inferno-router";
+import { Input } from "@/ui/Input";
+import { Search, Eye, Settings, Trash2 } from "@/lib/icons";
+import { renderStatusBadge, renderLoading, pubkeyShort } from "./helpers";
+import type { AdminRelay } from "./types";
+
+export function renderRelays(
+  relays: AdminRelay[],
+  relaysLoading: boolean,
+  relaySearch: string,
+  fallbackDomain: string,
+  onSearchChange: (v: string) => void,
+  onDelete: (id: string, name: string) => void,
+) {
+  const q = relaySearch.toLowerCase();
+  const filtered = q ? relays.filter((r) => r.name.toLowerCase().includes(q) || r.owner.pubkey.includes(q)) : relays;
+
+  return createElement("div", { className: "space-y-4" },
+    createElement("div", { className: "flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between" },
+      createElement("div", null,
+        createElement("h2", { className: "text-lg font-semibold" }, "All Relays"),
+        createElement("p", { className: "text-sm text-muted-foreground" }, relays.length + " total"),
+      ),
+      createElement("div", { className: "relative" },
+        createElement(Search, { className: "absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" }),
+        createElement(Input, {
+          placeholder: "Search relays...",
+          value: relaySearch,
+          onInput: (e: Event) => onSearchChange((e.target as HTMLInputElement).value),
+          className: "pl-9 h-8 w-56 text-sm",
+        }),
+      ),
+    ),
+    relaysLoading ? renderLoading() :
+      createElement("div", { className: "rounded-lg border border-border/50 overflow-hidden" },
+        createElement("div", { className: "overflow-x-auto" },
+          createElement("table", { className: "w-full text-sm" },
+            createElement("thead", null,
+              createElement("tr", { className: "border-b border-border/50 bg-muted/30" },
+                createElement("th", { className: "text-left px-4 py-2.5 font-medium text-muted-foreground" }, "Relay"),
+                createElement("th", { className: "text-left px-4 py-2.5 font-medium text-muted-foreground" }, "Status"),
+                createElement("th", { className: "text-left px-4 py-2.5 font-medium text-muted-foreground hidden md:table-cell" }, "Owner"),
+                createElement("th", { className: "text-left px-4 py-2.5 font-medium text-muted-foreground hidden lg:table-cell" }, "Port"),
+                createElement("th", { className: "text-left px-4 py-2.5 font-medium text-muted-foreground hidden lg:table-cell" }, "Orders"),
+                createElement("th", { className: "text-right px-4 py-2.5 font-medium text-muted-foreground" }, "Actions"),
+              ),
+            ),
+            createElement("tbody", null,
+              ...filtered.map((relay) =>
+                createElement("tr", { key: relay.id, className: "border-b border-border/30 hover:bg-muted/20 transition-colors" },
+                  createElement("td", { className: "px-4 py-3" },
+                    createElement("div", null,
+                      createElement("p", { className: "font-medium" }, relay.name),
+                      createElement("p", { className: "text-xs text-muted-foreground font-mono" },
+                        relay.name + "." + (relay.domain || fallbackDomain),
+                      ),
+                    ),
+                  ),
+                  createElement("td", { className: "px-4 py-3" }, renderStatusBadge(relay.status)),
+                  createElement("td", { className: "px-4 py-3 hidden md:table-cell" },
+                    createElement("span", { className: "text-xs font-mono" }, pubkeyShort(relay.owner.pubkey)),
+                  ),
+                  createElement("td", { className: "px-4 py-3 hidden lg:table-cell" },
+                    createElement("span", { className: "font-mono text-xs" }, relay.port || "???"),
+                  ),
+                  createElement("td", { className: "px-4 py-3 hidden lg:table-cell" },
+                    createElement("span", { className: "text-xs" }, String(relay._count.Order)),
+                  ),
+                  createElement("td", { className: "px-4 py-3" },
+                    createElement("div", { className: "flex items-center justify-end gap-1" },
+                      createElement(Link, { to: `/relays/${relay.name}`, className: "inline-flex items-center justify-center size-7 rounded-md hover:bg-accent transition-colors" },
+                        createElement(Eye, { className: "size-3.5" }),
+                      ),
+                      createElement(Link, { to: `/relays/${relay.name}/settings`, className: "inline-flex items-center justify-center size-7 rounded-md hover:bg-accent transition-colors" },
+                        createElement(Settings, { className: "size-3.5" }),
+                      ),
+                      createElement("button", {
+                        className: "inline-flex items-center justify-center size-7 rounded-md hover:bg-accent text-destructive hover:text-destructive transition-colors cursor-pointer",
+                        onClick: () => onDelete(relay.id, relay.name),
+                      },
+                        createElement(Trash2, { className: "size-3.5" }),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        filtered.length === 0 ? createElement("div", { className: "py-12 text-center text-sm text-muted-foreground" },
+          relaySearch ? `No relays matching "${relaySearch}"` : "No relays found",
+        ) : null,
+      ),
+  );
+}
