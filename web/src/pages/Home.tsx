@@ -70,6 +70,26 @@ export default function Home() {
       ),
     ),
 
+    // Ship in minutes — grey band
+    createElement("section", { className: "-mx-4 sm:-mx-6 px-4 sm:px-6 py-12 bg-muted/40 border-y border-border/30" },
+      createElement("div", { className: "mx-auto max-w-7xl" },
+        createElement("div", { className: "text-center mb-8" },
+          createElement("h2", { className: "text-2xl font-bold tracking-tight" }, "Ship in minutes"),
+          createElement("p", { className: "text-sm text-muted-foreground mt-2" },
+            "Three steps. One Lightning payment. Your relay is live.",
+          ),
+        ),
+        createElement("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto" },
+          ...steps.map((item) =>
+            createElement("div", { className: "flex flex-col items-center text-center gap-3" },
+              createElement("span", { className: "flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary text-lg font-bold" }, item.step),
+              createElement("span", { className: "text-sm text-muted-foreground leading-relaxed" }, item.text),
+            ),
+          ),
+        ),
+      ),
+    ),
+
     // Platform capabilities
     createElement("section", null,
       createElement("div", { className: "grid grid-cols-1 gap-6 lg:grid-cols-2" },
@@ -97,21 +117,6 @@ export default function Home() {
 
         // Right column
         createElement("div", { className: "space-y-6" },
-
-          // How it works
-          createElement(Card, { className: "border-border/50" },
-            createElement(CardContent, { className: "p-6 space-y-4" },
-              createElement("h3", { className: "font-bold" }, "How it works"),
-              createElement("ol", { className: "space-y-3" },
-                ...steps.map((item) =>
-                  createElement("li", { className: "flex gap-3 items-start" },
-                    createElement("span", { className: "flex size-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0 mt-0.5" }, item.step),
-                    createElement("span", { className: "text-sm text-muted-foreground" }, item.text),
-                  ),
-                ),
-              ),
-            ),
-          ),
 
           // Popular configurations
           createElement(Card, { className: "border-border/50" },

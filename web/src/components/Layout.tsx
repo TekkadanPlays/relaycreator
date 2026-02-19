@@ -18,7 +18,7 @@ import {
 import {
   Radio, LogOut, Menu, Zap, Globe, User, Loader2, X,
   HelpCircle, Github, Wallet, Shield, Play, ChevronDown,
-  MessageCircle, ExternalLink,
+  MessageCircle, ExternalLink, FileText,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 import type { IconComponent } from "@/lib/icon";
@@ -35,6 +35,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Home",         href: "/",          Icon: Radio,         group: "Relay Tools" },
   { label: "Directory",    href: "/directory",  Icon: Globe,         group: "Relay Tools" },
+  { label: "Docs",         href: "/docs",       Icon: FileText,      group: "Relay Tools" },
   { label: "Social",       href: "https://app.mycelium.social",  Icon: User,          group: "Mycelium", external: true },
   { label: "Chat",         href: "https://chat.mycelium.social", Icon: MessageCircle, group: "Mycelium", external: true },
 ];
@@ -143,7 +144,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
           // Logo
           createElement(Link, { to: "/", className: "flex items-center gap-2.5 group shrink-0" },
             createElement(MushLogo, { className: "size-8", glow: true }),
-            createElement("span", { className: "text-lg font-bold tracking-tight" }, "relay.tools"),
+            createElement("span", { className: "text-lg font-bold tracking-tight" }, "mycelium"),
           ),
 
           // Center nav combobox (desktop)
@@ -270,7 +271,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
         createElement(SheetContent, { onClose: () => this.setState({ mobileOpen: false }) },
           createElement("div", { className: "flex items-center gap-2 font-bold mb-4" },
             createElement(MushLogo, { className: "size-6" }),
-            "relay.tools",
+            "mycelium",
           ),
           createElement(Separator, null),
           createElement("nav", { className: "flex flex-col gap-1 mt-4" },
@@ -332,11 +333,11 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
           createElement("div", { className: "flex flex-col items-center gap-4 sm:flex-row sm:justify-between text-sm text-muted-foreground" },
             createElement("div", { className: "flex items-center gap-2" },
               createElement(MushLogo, { className: "size-5" }),
-              createElement("span", { className: "font-medium text-foreground/80" }, "relay.tools"),
+              createElement("span", { className: "font-medium text-foreground/80" }, "mycelium.social"),
+              createElement("span", { className: "text-border" }, "·"),
+              createElement("span", { className: "text-xs" }, "Powered by relay.tools & strfry"),
               createElement("span", { className: "text-border" }, "·"),
               createElement("span", { className: "text-xs" }, "GPLv3 Licensed"),
-              createElement("span", { className: "text-border" }, "·"),
-              createElement("span", { className: "text-xs" }, "Powered by strfry"),
             ),
             createElement("div", { className: "flex items-center gap-4" },
               createElement(Link, { to: "/directory", className: "text-xs hover:text-foreground transition-colors" }, "Directory"),

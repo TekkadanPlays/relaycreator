@@ -45,7 +45,7 @@ const html = `<!DOCTYPE html>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>relay.tools — Create Your Nostr Relay</title>
+    <title>mycelium.social — Nostr Relay Infrastructure</title>
     <link rel="stylesheet" href="/rc/${entryName.replace('.js', '.css')}" />
     <link rel="stylesheet" href="/rc/index.css" />
   </head>

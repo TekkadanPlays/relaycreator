@@ -12,6 +12,7 @@ import Directory from "./pages/Directory";
 import FAQ from "./pages/FAQ";
 import Wallet from "./pages/Wallet";
 import Admin from "./pages/Admin";
+import { Docs } from "./pages/docs/DocsRouter";
 
 export default class App extends Component<{}, AuthState> {
   declare state: AuthState;
@@ -44,6 +45,8 @@ export default class App extends Component<{}, AuthState> {
         createElement(Route, { path: "/faq", component: FAQ }),
         createElement(Route, { path: "/wallet", component: Wallet }),
         createElement(Route, { path: "/admin", component: Admin }),
+        createElement(Route, { path: "/docs/:rest*", component: Docs }),
+        createElement(Route, { path: "/docs", component: Docs }),
       ),
     );
   }
