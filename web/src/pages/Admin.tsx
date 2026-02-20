@@ -197,8 +197,19 @@ export default class Admin extends Component<{}, AdminState> {
 
   private async loadOverview() {
     this.setState({ overviewLoading: true });
-    try { const d = await api.get<OverviewData>("/admin/overview"); this.setState({ overview: d, overviewLoading: false }); }
-    catch { this.setState({ overviewLoading: false }); }
+    try {
+      const [stats, relaysData, usersData] = await Promise.all([
+        api.get<OverviewData>("/admin/stats"),
+        api.get<{ relays: AdminRelay[] }>("/admin/relays").catch(() => null),
+        api.get<{ users: AdminUser[] }>("/admin/users").catch(() => null),
+      ]);
+      this.setState({
+        overview: stats,
+        relays: relaysData?.relays || this.state.relays,
+        users: usersData?.users || this.state.users,
+        overviewLoading: false,
+      });
+    } catch { this.setState({ overviewLoading: false }); }
   }
 
   private async loadRelays() {
@@ -552,6 +563,7 @@ export default class Admin extends Component<{}, AdminState> {
       case "overview":
         return renderOverview(
           this.state.overview, this.state.overviewLoading, this.state.fallbackDomain,
+          this.state.relays, this.state.users,
           this.state.coinosStatus, this.state.coinosCredits, this.state.coinosStatusLoading,
           this.state.influxPlatform, this.state.influxPlatformLoading, this.state.influxRange,
           this.state.influxTopRelays,
@@ -645,7 +657,7 @@ export default class Admin extends Component<{}, AdminState> {
       demo: "Directory",
     };
 
-    return createElement("div", { className: "flex gap-0 -mx-4 sm:-mx-6 min-h-[calc(100vh-4rem)] animate-in" },
+    return createElement("div", { className: "flex min-h-[calc(100vh-3.5rem)] animate-in" },
 
       // ─── Desktop sidebar ──────────────────────────────────────────────
       createElement("aside", { className: "hidden lg:flex flex-col w-56 shrink-0 border-r border-border/40 bg-muted/20 py-4" },

@@ -365,8 +365,15 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
         ),
       ) : null,
 
-      // Main content
-      createElement("main", { className: "mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-8" },
+      // Main content — full-width for admin panel, constrained for everything else
+      createElement("main", {
+        className: cn(
+          "w-full flex-1",
+          typeof window !== "undefined" && window.location.pathname.startsWith("/admin")
+            ? "px-0 py-0"
+            : "mx-auto max-w-7xl px-4 sm:px-6 py-8",
+        ),
+      },
         children,
       ),
 

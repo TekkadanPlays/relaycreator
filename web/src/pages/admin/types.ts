@@ -73,11 +73,12 @@ export interface MyPermissionsData {
 export interface OverviewData {
   totalRelays: number;
   runningRelays: number;
+  provisioningRelays: number;
   totalUsers: number;
   totalOrders: number;
-  recentRelays: AdminRelay[];
-  recentUsers: AdminUser[];
-  coinosStatus?: { enabled: boolean; healthy: boolean };
+  paidOrders: number;
+  recentOrders: number;
+  totalRevenue: number;
 }
 
 export interface CoinosStatus {
