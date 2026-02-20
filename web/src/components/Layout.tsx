@@ -139,6 +139,23 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
     const { user, loading, loginError, mobileOpen, navOpen, navSearch, userMenuOpen, panelTier, panelLabel } = this.state;
     const { children } = this.props;
     const PanelIcon = panelTier === "admin" ? Shield : panelTier === "operator" ? Zap : Play;
+    const isAdminRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/admin");
+
+    // Admin route: render children directly with no header/footer (Admin has its own sidebar layout)
+    if (isAdminRoute) {
+      return createElement("div", { className: "min-h-screen bg-background" },
+        // Login error (still show if present)
+        loginError ? createElement("div", { className: "fixed top-4 right-4 z-50" },
+          createElement("div", { className: "flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive" },
+            createElement("span", null, loginError),
+            createElement("button", { onClick: () => this.setState({ loginError: "" }), className: "ml-2 rounded-md p-1 hover:bg-destructive/20 transition-colors cursor-pointer" },
+              createElement(X, { className: "size-4" }),
+            ),
+          ),
+        ) : null,
+        children,
+      );
+    }
 
     return createElement("div", { className: "min-h-screen bg-background flex flex-col" },
 

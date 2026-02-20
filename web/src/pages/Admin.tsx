@@ -676,7 +676,7 @@ export default class Admin extends Component<{}, AdminState> {
       ),
     );
 
-    return createElement(SidebarProvider, { className: "min-h-[calc(100vh-3.5rem)]" },
+    return createElement(SidebarProvider, { className: "min-h-svh" },
 
       // ─── Sidebar ─────────────────────────────────────────────────────
       createElement(Sidebar, { collapsible: "icon" },
@@ -703,29 +703,23 @@ export default class Admin extends Component<{}, AdminState> {
 
         // Footer: user card + new relay CTA
         createElement(SidebarFooter, null,
-          // New Relay button
-          user ? createElement(SidebarMenu, null,
-            createElement(SidebarMenuItem, null,
-              createElement(Link, { to: "/signup", className: "flex items-center justify-center gap-1.5 w-full rounded-md text-xs font-medium h-8 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" },
-                createElement(Zap, { className: "size-3.5" }), "New Relay",
-              ),
-            ),
-          ) : null,
           // User card
           user ? createElement(SidebarMenu, null,
             createElement(SidebarMenuItem, null,
-              createElement(SidebarMenuButton, { size: "lg", tooltip: user.name || "Profile" },
-                createElement(Avatar, { className: "size-7" },
-                  user.picture
-                    ? createElement(AvatarImage, { src: user.picture, alt: user.name || "Profile" })
-                    : null,
-                  createElement(AvatarFallback, { className: "text-[10px]" },
-                    user.pubkey.slice(0, 2).toUpperCase(),
+              createElement(Link, { to: "/profile", style: { textDecoration: "none", color: "inherit" } },
+                createElement(SidebarMenuButton, { size: "lg", tooltip: user.name || "Profile" },
+                  createElement(Avatar, { className: "size-7" },
+                    user.picture
+                      ? createElement(AvatarImage, { src: user.picture, alt: user.name || "Profile" })
+                      : null,
+                    createElement(AvatarFallback, { className: "text-[10px]" },
+                      user.pubkey.slice(0, 2).toUpperCase(),
+                    ),
                   ),
-                ),
-                createElement("div", { className: "flex flex-col gap-0.5 leading-none min-w-0" },
-                  createElement("span", { className: "text-sm font-medium truncate" }, user.name || user.pubkey.slice(0, 8) + "..."),
-                  createElement("span", { className: "text-[10px] text-muted-foreground font-mono truncate" }, user.pubkey.slice(0, 16) + "..."),
+                  createElement("div", { className: "flex flex-col gap-0.5 leading-none min-w-0" },
+                    createElement("span", { className: "text-sm font-medium truncate" }, user.name || user.pubkey.slice(0, 8) + "..."),
+                    createElement("span", { className: "text-[10px] text-muted-foreground font-mono truncate" }, user.pubkey.slice(0, 16) + "..."),
+                  ),
                 ),
               ),
             ),

@@ -176,6 +176,12 @@ export class Sidebar extends Component<SidebarComponentProps> {
 
     // Desktop
     const isFloating = variant === 'floating' || variant === 'inset';
+    const isCollapsed = !open && collapsible === 'icon';
+    const isOffcanvas = !open && collapsible === 'offcanvas';
+    const gapWidth = isOffcanvas ? '0px' : isCollapsed ? SIDEBAR_WIDTH_ICON : SIDEBAR_WIDTH;
+    const containerWidth = isCollapsed
+      ? (isFloating ? `calc(${SIDEBAR_WIDTH_ICON} + 1rem + 2px)` : SIDEBAR_WIDTH_ICON)
+      : SIDEBAR_WIDTH;
 
     return createElement('div', {
       className: 'group peer text-foreground hidden md:block',
@@ -185,40 +191,30 @@ export class Sidebar extends Component<SidebarComponentProps> {
       'data-side': side,
       'data-slot': 'sidebar',
     },
-      // Gap element
+      // Gap element — reserves horizontal space in the document flow
       createElement('div', {
         'data-slot': 'sidebar-gap',
-        className: cn(
-          'relative bg-transparent transition-[width] duration-200 ease-linear',
-          'group-data-[collapsible=offcanvas]:w-0',
-          isFloating
-            ? 'group-data-[collapsible=icon]:w-[calc(3rem+1rem)]'
-            : 'group-data-[collapsible=icon]:w-[3rem]',
-        ),
-        style: { width: SIDEBAR_WIDTH },
+        className: 'relative bg-transparent transition-[width] duration-200 ease-linear',
+        style: { width: gapWidth },
       }),
-      // Container
+      // Container — fixed position, holds the actual sidebar
       createElement('div', {
         'data-slot': 'sidebar-container',
         'data-side': side,
         className: cn(
           'fixed inset-y-0 z-10 hidden h-svh transition-[left,right,width] duration-200 ease-linear md:flex',
           side === 'left' ? 'left-0' : 'right-0',
-          isFloating
-            ? 'p-2 group-data-[collapsible=icon]:w-[calc(3rem+1rem+2px)]'
-            : cn(
-                'group-data-[collapsible=icon]:w-[3rem]',
-                side === 'left' ? 'border-r' : 'border-l',
-              ),
+          !isFloating && (side === 'left' ? 'border-r' : 'border-l'),
+          isFloating && 'p-2',
           className,
         ),
-        style: { width: SIDEBAR_WIDTH },
+        style: { width: containerWidth },
       },
         createElement('div', {
           'data-sidebar': 'sidebar',
           'data-slot': 'sidebar-inner',
           className: cn(
-            'bg-card flex size-full flex-col',
+            'bg-sidebar flex size-full flex-col overflow-hidden',
             isFloating && 'rounded-lg shadow-sm ring-1 ring-border',
           ),
         }, children),
@@ -316,7 +312,7 @@ export function SidebarFooter({ className, children }: SlotProps) {
 export function SidebarContent({ className, children }: SlotProps) {
   return createElement('div', {
     'data-slot': 'sidebar-content',
-    className: cn('flex min-h-0 flex-1 flex-col gap-0 overflow-auto group-data-[collapsible=icon]:overflow-hidden', className),
+    className: cn('flex min-h-0 flex-1 flex-col gap-0 overflow-auto', className),
   }, children);
 }
 
@@ -429,6 +425,7 @@ export function SidebarMenuButton({
       'flex w-full items-center overflow-hidden outline-none cursor-pointer',
       'data-[active]:bg-accent data-[active]:text-accent-foreground data-[active]:font-medium',
       '[&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
+      '[&>span]:group-data-[collapsible=icon]:hidden [&>div]:group-data-[collapsible=icon]:hidden',
       variant === 'outline' && 'bg-background shadow-[0_0_0_1px_var(--border)]',
       sizeClass,
       className,
