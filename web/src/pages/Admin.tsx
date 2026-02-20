@@ -3,6 +3,7 @@ import { createElement } from "inferno-create-element";
 import { Link } from "inferno-router";
 import { authStore, type User } from "../stores/auth";
 import { api } from "../lib/api";
+import { fetchProfile } from "../lib/nostr";
 import { Badge } from "@/ui/Badge";
 import { Separator } from "@/ui/Separator";
 import {
@@ -211,12 +212,14 @@ export default class Admin extends Component<{}, AdminState> {
         api.get<{ relays: AdminRelay[] }>("/admin/relays").catch(() => null),
         api.get<{ users: AdminUser[] }>("/admin/users").catch(() => null),
       ]);
+      const users = usersData?.users || this.state.users;
       this.setState({
         overview: stats,
         relays: relaysData?.relays || this.state.relays,
-        users: usersData?.users || this.state.users,
+        users,
         overviewLoading: false,
       });
+      this.enrichUsers(users);
     } catch { this.setState({ overviewLoading: false }); }
   }
 
@@ -237,8 +240,37 @@ export default class Admin extends Component<{}, AdminState> {
 
   private async loadUsers() {
     this.setState({ usersLoading: true });
-    try { const d = await api.get<{ users: AdminUser[] }>("/admin/users"); this.setState({ users: d?.users || [], usersLoading: false }); }
-    catch { this.setState({ usersLoading: false }); }
+    try {
+      const d = await api.get<{ users: AdminUser[] }>("/admin/users");
+      const users = d?.users || [];
+      this.setState({ users, usersLoading: false });
+      this.enrichUsers(users);
+    } catch { this.setState({ usersLoading: false }); }
+  }
+
+  private async enrichUsers(users: AdminUser[]) {
+    // Batch-fetch Nostr profiles for users missing names (non-blocking)
+    const needsEnrich = users.filter((u) => !u.name);
+    if (needsEnrich.length === 0) return;
+    // Process in batches of 5 to avoid hammering relays
+    for (let i = 0; i < needsEnrich.length; i += 5) {
+      const batch = needsEnrich.slice(i, i + 5);
+      const results = await Promise.allSettled(
+        batch.map((u) => fetchProfile(u.pubkey).then((p) => ({ id: u.id, profile: p }))),
+      );
+      let updated = false;
+      const current = [...this.state.users];
+      for (const r of results) {
+        if (r.status !== "fulfilled" || !r.value.profile) continue;
+        const { id, profile } = r.value;
+        const idx = current.findIndex((u) => u.id === id);
+        if (idx >= 0 && !current[idx].name) {
+          current[idx] = { ...current[idx], name: profile.display_name || profile.name || null };
+          updated = true;
+        }
+      }
+      if (updated) this.setState({ users: current });
+    }
   }
 
   private async loadOrders() {
