@@ -516,21 +516,26 @@ export default class Admin extends Component<{}, AdminState> {
     const visibleTabs = tabs.filter((t) => !t.adminOnly || isAdmin);
 
     return createElement("div", { className: "space-y-6 animate-in" },
-      createElement("div", { className: "flex items-center justify-between" },
+      // Header
+      createElement("div", { className: "flex items-start justify-between gap-4" },
         createElement("div", null,
-          createElement("h1", { className: "text-2xl font-bold tracking-tight" },
+          createElement("h1", { className: "text-2xl font-extrabold tracking-tight flex items-center gap-2.5" },
+            createElement(Shield, { className: "size-6 text-primary" }),
             isAdmin ? "Admin Panel" : user ? "Dashboard" : "Relay Explorer",
           ),
-          createElement("p", { className: "text-sm text-muted-foreground mt-0.5" },
+          createElement("p", { className: "text-sm text-muted-foreground mt-1" },
             isAdmin ? "Manage relays, users, orders, and platform settings"
               : user ? "Manage your relays and account"
               : "Browse the relay directory",
           ),
         ),
+        user ? createElement(Link, { to: "/signup", className: "inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0" },
+          createElement(Zap, { className: "size-4" }), "New Relay",
+        ) : null,
       ),
 
       createElement(Tabs, { value: tab },
-        createElement(TabsList, { className: "flex-wrap h-auto gap-0.5" },
+        createElement(TabsList, { className: "flex-wrap h-auto gap-0.5 p-1" },
           ...visibleTabs.map((t) =>
             createElement(TabsTrigger, {
               key: t.id, value: t.id, active: tab === t.id,
