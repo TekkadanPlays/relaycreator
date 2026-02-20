@@ -57,19 +57,24 @@ async function ensureAdmin(req: Request, res: Response): Promise<boolean> {
 router.get("/mine", requireAuth, async (req: Request, res: Response) => {
   const userId = req.auth!.userId;
 
-  const [permissions, requests] = await Promise.all([
-    prisma.permission.findMany({
-      where: { userId, revoked_at: null },
-      orderBy: { granted_at: "desc" },
-    }),
-    prisma.permissionRequest.findMany({
-      where: { userId },
-      orderBy: { created_at: "desc" },
-      take: 20,
-    }),
-  ]);
+  try {
+    const [permissions, requests] = await Promise.all([
+      prisma.permission.findMany({
+        where: { userId, revoked_at: null },
+        orderBy: { granted_at: "desc" },
+      }),
+      prisma.permissionRequest.findMany({
+        where: { userId },
+        orderBy: { created_at: "desc" },
+        take: 20,
+      }),
+    ]);
 
-  res.json({ permissions, requests });
+    res.json({ permissions, requests });
+  } catch (err: any) {
+    console.error("[permissions] /mine error:", err.message);
+    res.status(500).json({ error: "Failed to load permissions", permissions: [], requests: [] });
+  }
 });
 
 /**
@@ -187,15 +192,20 @@ router.post("/accept-disclaimer", requireAuth, async (req: Request, res: Respons
 router.get("/all", requireAuth, async (req: Request, res: Response) => {
   if (!(await ensureAdmin(req, res))) return;
 
-  const permissions = await prisma.permission.findMany({
-    where: { revoked_at: null },
-    include: {
-      user: { select: { id: true, pubkey: true, name: true, admin: true } },
-    },
-    orderBy: { granted_at: "desc" },
-  });
+  try {
+    const permissions = await prisma.permission.findMany({
+      where: { revoked_at: null },
+      include: {
+        user: { select: { id: true, pubkey: true, name: true, admin: true } },
+      },
+      orderBy: { granted_at: "desc" },
+    });
 
-  res.json({ permissions });
+    res.json({ permissions });
+  } catch (err: any) {
+    console.error("[permissions] /all error:", err.message);
+    res.status(500).json({ error: "Failed to load permissions", permissions: [] });
+  }
 });
 
 /**
@@ -205,19 +215,24 @@ router.get("/all", requireAuth, async (req: Request, res: Response) => {
 router.get("/requests", requireAuth, async (req: Request, res: Response) => {
   if (!(await ensureAdmin(req, res))) return;
 
-  const status = (req.query.status as string) || "pending";
+  try {
+    const status = (req.query.status as string) || "pending";
 
-  const requests = await prisma.permissionRequest.findMany({
-    where: { status },
-    include: {
-      user: { select: { id: true, pubkey: true, name: true, admin: true } },
-      decided_by: { select: { id: true, pubkey: true, name: true } },
-    },
-    orderBy: { created_at: "desc" },
-    take: 100,
-  });
+    const requests = await prisma.permissionRequest.findMany({
+      where: { status },
+      include: {
+        user: { select: { id: true, pubkey: true, name: true, admin: true } },
+        decided_by: { select: { id: true, pubkey: true, name: true } },
+      },
+      orderBy: { created_at: "desc" },
+      take: 100,
+    });
 
-  res.json({ requests });
+    res.json({ requests });
+  } catch (err: any) {
+    console.error("[permissions] /requests error:", err.message);
+    res.status(500).json({ error: "Failed to load permission requests", requests: [] });
+  }
 });
 
 /**

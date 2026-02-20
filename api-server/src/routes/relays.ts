@@ -225,6 +225,22 @@ router.get("/public", async (_req: Request, res: Response) => {
 });
 
 /**
+ * GET /relays/directory
+ * Alias for /relays/public (used by Admin page).
+ */
+router.get("/directory", async (_req: Request, res: Response) => {
+  const relays = await prisma.relay.findMany({
+    where: {
+      listed_in_directory: true,
+      OR: [{ status: "running" }, { status: "provision" }],
+    },
+    include: relayPublicInclude,
+  });
+
+  res.json({ relays });
+});
+
+/**
  * GET /relays/by-name/:name
  * Get a relay by subdomain name. Returns full data if requester is owner/mod/admin.
  * NOTE: This MUST be registered before /:id to avoid /:id matching "by-name" as an id.
