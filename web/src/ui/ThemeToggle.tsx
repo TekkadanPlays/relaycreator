@@ -1,60 +1,46 @@
 import { Component } from 'inferno';
 import { createElement } from 'inferno-create-element';
 import { cn } from './utils';
+import { isDarkMode, toggleDarkMode, subscribeTheme } from '@/stores/theme';
 
 // ---------------------------------------------------------------------------
 // ThemeToggle
 //
-// Toggles between light and dark themes by adding/removing the .dark class
-// on the <html> element. Persists preference in localStorage.
+// Toggles between light and dark themes via the centralized theme store.
 // ---------------------------------------------------------------------------
-
-function getStoredTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'dark';
-  const stored = localStorage.getItem('theme');
-  if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-function applyTheme(theme: 'light' | 'dark') {
-  const root = document.documentElement;
-  if (theme === 'dark') {
-    root.classList.add('dark');
-  } else {
-    root.classList.remove('dark');
-  }
-  localStorage.setItem('theme', theme);
-}
 
 interface ThemeToggleProps {
   className?: string;
 }
 
 interface ThemeToggleState {
-  theme: 'light' | 'dark';
+  dark: boolean;
 }
 
 export class ThemeToggle extends Component<ThemeToggleProps, ThemeToggleState> {
   declare state: ThemeToggleState;
+  private unsub: (() => void) | null = null;
 
   constructor(props: ThemeToggleProps) {
     super(props);
-    this.state = { theme: getStoredTheme() };
+    this.state = { dark: isDarkMode() };
   }
 
   componentDidMount() {
-    applyTheme(this.state.theme);
+    this.unsub = subscribeTheme(() => this.setState({ dark: isDarkMode() }));
+  }
+
+  componentWillUnmount() {
+    this.unsub?.();
   }
 
   private toggle = () => {
-    const next = this.state.theme === 'dark' ? 'light' : 'dark';
-    this.setState({ theme: next });
-    applyTheme(next);
+    toggleDarkMode();
   };
 
   render() {
     const { className } = this.props;
-    const isDark = this.state.theme === 'dark';
+    const isDark = this.state.dark;
 
     return createElement('button', {
       type: 'button',

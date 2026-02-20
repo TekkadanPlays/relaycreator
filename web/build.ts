@@ -40,7 +40,7 @@ console.log("  ✓ CSS compiled");
 
 // Generate index.html with hashed filenames
 const html = `<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
