@@ -126,6 +126,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
       this.setState({ loginError: "" });
       await login();
     } catch (err: any) {
+      console.error("[auth] Login failed:", err);
       this.setState({ loginError: err.message || "Login failed" });
     }
   };
