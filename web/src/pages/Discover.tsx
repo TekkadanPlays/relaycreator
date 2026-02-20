@@ -51,29 +51,36 @@ interface DiscoverState {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function parseRstateRelay(raw: any): RelayInfo {
-  const url = raw.url || raw.relay_url || raw.d || "";
-  const info = raw.info || raw.nip11 || {};
-  const geo = raw.geo || raw.location || {};
-  const nips: number[] = [];
-  for (const n of (info.supported_nips || raw.supported_nips || [])) {
-    if (typeof n === "number") nips.push(n);
-  }
-  const sw = info.software || raw.software || "";
+  // rstate CompactRelayState schema:
+  // relayUrl, network.value, software.family.value, software.version.value,
+  // rtt.{open,read,write}.value, nips.list, geo.{lat,lon}, country.value,
+  // lastSeenAt, lastOpenAt, observationCount, labels, updated_at
+  const url = raw.relayUrl || raw.url || "";
+  const sw = raw.software?.family?.value || "";
+  const ver = raw.software?.version?.value || "";
+  const nips: number[] = Array.isArray(raw.nips?.list) ? raw.nips.list : [];
+  const countryCode = raw.country?.value || "";
+
+  // Determine online status: if lastOpenAt is within the last 30 minutes
+  const now = Math.floor(Date.now() / 1000);
+  const lastOpen = raw.lastOpenAt || 0;
+  const isOnline = lastOpen > 0 && (now - lastOpen) < 1800;
+
   return {
     url,
-    name: info.name || raw.name || url.replace("wss://", "").replace("ws://", ""),
-    description: info.description || raw.description || "",
-    software: sw ? (sw.split("/").pop() || sw) : "",
-    version: info.version || raw.version || "",
+    name: url.replace("wss://", "").replace("ws://", "").replace(/\/$/, ""),
+    description: "",
+    software: sw,
+    version: ver,
     supportedNips: nips.sort((a, b) => a - b),
-    countryCode: geo.country_code || geo.countryCode || raw.country_code || "",
-    countryName: geo.country || geo.countryName || raw.country || "",
-    city: geo.city || raw.city || "",
-    isOnline: raw.is_online ?? raw.online ?? true,
-    uptimePct: raw.uptime_pct ?? raw.uptime ?? null,
-    rttRead: raw.rtt_read ?? raw.avg_rtt_read ?? raw.rtt?.read ?? null,
-    rttWrite: raw.rtt_write ?? raw.avg_rtt_write ?? raw.rtt?.write ?? null,
-    lastSeen: raw.last_seen ?? raw.created_at ?? 0,
+    countryCode,
+    countryName: countryCode,
+    city: "",
+    isOnline,
+    uptimePct: null,
+    rttRead: raw.rtt?.read?.value ?? null,
+    rttWrite: raw.rtt?.write?.value ?? null,
+    lastSeen: raw.lastSeenAt ?? raw.updated_at ?? 0,
   };
 }
 
@@ -127,26 +134,31 @@ export default class Discover extends Component<{}, DiscoverState> {
   private async fetchRelays() {
     this.setState({ loading: true, error: "" });
     try {
-      // Try rstate via relaycreator API proxy
-      const res = await fetch("/api/rstate/relays?limit=1000");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const rawList = Array.isArray(data) ? data : (data.relays || data.data || []);
-      const relays = rawList.map(parseRstateRelay).filter((r: RelayInfo) => r.url);
-      if (relays.length === 0) throw new Error("No relays returned");
-      this.setState({ relays, loading: false, rstateAvailable: true });
-    } catch {
-      // Fallback: try app.mycelium.social rstate proxy
-      try {
-        const res = await fetch("https://app.mycelium.social/api/rstate/relays?limit=1000");
+      // Fetch all relays from rstate via API proxy, paginating in chunks of 200 (max)
+      let allRelays: RelayInfo[] = [];
+      let offset = 0;
+      const limit = 200;
+      let total = Infinity;
+
+      while (offset < total) {
+        const res = await fetch(`/api/rstate/relays?limit=${limit}&offset=${offset}&sortBy=lastSeen&sortOrder=desc`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        const rawList = Array.isArray(data) ? data : (data.relays || data.data || []);
-        const relays = rawList.map(parseRstateRelay).filter((r: RelayInfo) => r.url);
-        this.setState({ relays, loading: false, rstateAvailable: relays.length > 0 });
-      } catch (err: any) {
-        this.setState({ loading: false, error: "Could not connect to relay intelligence service.", rstateAvailable: false });
+        total = data.total ?? 0;
+        const rawList = Array.isArray(data.relays) ? data.relays : [];
+        if (rawList.length === 0) break;
+        const parsed = rawList.map(parseRstateRelay).filter((r: RelayInfo) => r.url);
+        allRelays = allRelays.concat(parsed);
+        offset += limit;
+        // Safety cap at 2000 relays
+        if (allRelays.length >= 2000) break;
       }
+
+      if (allRelays.length === 0) throw new Error("No relays returned");
+      this.setState({ relays: allRelays, loading: false, rstateAvailable: true });
+    } catch (err: any) {
+      console.error("rstate fetch failed:", err);
+      this.setState({ loading: false, error: "Could not connect to relay intelligence service. rstate may be unavailable.", rstateAvailable: false });
     }
   }
 
