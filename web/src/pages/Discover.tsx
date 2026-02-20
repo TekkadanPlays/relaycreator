@@ -138,7 +138,7 @@ export default class Discover extends Component<{}, DiscoverState> {
     } catch {
       // Fallback: try app.mycelium.social rstate proxy
       try {
-        const res = await fetch("https://app.mycelium.social/relays?limit=1000");
+        const res = await fetch("https://app.mycelium.social/api/rstate/relays?limit=1000");
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const rawList = Array.isArray(data) ? data : (data.relays || data.data || []);

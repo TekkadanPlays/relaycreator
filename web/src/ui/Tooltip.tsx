@@ -59,7 +59,7 @@ export class Tooltip extends Component<TooltipProps, TooltipState> {
 
     return createElement('div', {
       'data-slot': 'tooltip',
-      className: 'relative inline-flex',
+      className: 'relative inline-flex w-full',
       onMouseEnter: this.show,
       onMouseLeave: this.hide,
       onFocus: this.show,

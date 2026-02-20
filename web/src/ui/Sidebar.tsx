@@ -317,10 +317,9 @@ export function SidebarContent({ className, children }: SlotProps) {
 }
 
 export function SidebarSeparator({ className }: { className?: string }) {
-  if (!_sidebarState.open) return null;
   return createElement(Separator, {
     'data-slot': 'sidebar-separator',
-    className: cn('mx-2 w-auto', className),
+    className: cn(_sidebarState.open ? 'mx-2 w-auto' : 'mx-1 w-auto', className),
   } as any);
 }
 
@@ -420,18 +419,10 @@ export function SidebarMenuButton({
     ? 'size-8 p-2'
     : (size === 'sm' ? 'h-7 text-xs' : size === 'lg' ? 'h-12 text-sm' : 'h-8 text-sm');
 
-  // When collapsed, filter children to only show SVG icons
+  // When collapsed, only show the first child (the icon)
   let renderedChildren = children;
   if (collapsed && Array.isArray(children)) {
-    renderedChildren = children.filter((c: any) => {
-      if (!c || typeof c === 'string') return false;
-      // Keep SVG icon components (they render as <svg>)
-      if (c && c.type && typeof c.type === 'function') return true;
-      if (c && c.tag === 'svg') return true;
-      return false;
-    });
-    // If nothing survived the filter, show first child (icon)
-    if (renderedChildren.length === 0 && children.length > 0) renderedChildren = [children[0]];
+    renderedChildren = children[0] ? [children[0]] : children;
   }
 
   const btn = createElement('button', {

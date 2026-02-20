@@ -698,6 +698,7 @@ export default class Admin extends Component<{}, AdminState> {
               ),
             ),
           ),
+          createElement(Separator, { className: "mt-1" } as any),
         ),
 
         // Nav content
@@ -705,8 +706,9 @@ export default class Admin extends Component<{}, AdminState> {
           ...sidebarGroups,
         ),
 
-        // Footer: user card + new relay CTA
+        // Footer: separator + user card
         createElement(SidebarFooter, null,
+          createElement(Separator, { className: "mb-1" } as any),
           // User card
           user ? createElement(SidebarMenu, null,
             createElement(SidebarMenuItem, null,

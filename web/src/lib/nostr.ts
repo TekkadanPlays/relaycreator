@@ -5,9 +5,11 @@ const PROFILE_RELAYS = [
   "wss://purplepag.es",
   "wss://relay.damus.io",
   "wss://relay.nostr.band",
+  "wss://nos.lol",
+  "wss://relay.primal.net",
 ];
 
-const PROFILE_TIMEOUT = 6000;
+const PROFILE_TIMEOUT = 8000;
 
 export interface NostrProfile {
   name?: string;
