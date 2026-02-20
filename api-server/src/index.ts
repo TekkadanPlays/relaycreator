@@ -15,6 +15,7 @@ import coinosRoutes from "./routes/coinos.js";
 import walletRoutes from "./routes/wallet.js";
 import adminRoutes from "./routes/admin.js";
 import permissionsRoutes from "./routes/permissions.js";
+import rstateRoutes from "./routes/rstate.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +74,9 @@ app.use("/api/coinos", coinosRoutes);
 
 // New wallet service (Rust + SQLite)
 app.use("/api/wallet", walletRoutes);
+
+// Relay intelligence (rstate NIP-66 proxy)
+app.use("/api/rstate", rstateRoutes);
 
 // NIP-86 relay management (used by Nostr clients)
 app.use("/api/86", nip86Routes);

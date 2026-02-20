@@ -1,0 +1,139 @@
+import { Router, Request, Response } from "express";
+import { getEnv } from "../lib/env.js";
+
+const router = Router();
+
+// rstate relay intelligence proxy
+// Forwards requests to the local rstate instance (NIP-66 aggregation engine)
+// rstate runs on a separate port and is not exposed publicly.
+
+const RSTATE_TIMEOUT = 10000;
+
+function getRstateUrl(): string {
+  const env = getEnv();
+  return (env as any).RSTATE_URL || process.env.RSTATE_URL || "http://127.0.0.1:3100";
+}
+
+async function proxy(path: string, init?: RequestInit): Promise<globalThis.Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RSTATE_TIMEOUT);
+  try {
+    const res = await fetch(`${getRstateUrl()}${path}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+    return res;
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      return new globalThis.Response(JSON.stringify({ error: "rstate timeout" }), {
+        status: 504,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new globalThis.Response(JSON.stringify({ error: "rstate unavailable" }), {
+      status: 502,
+      headers: { "Content-Type": "application/json" },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// GET /health — rstate health check
+router.get("/health", async (_req: Request, res: Response) => {
+  try {
+    const r = await proxy("/health/ping");
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// GET /relays — list relays (paginated)
+router.get("/relays", async (req: Request, res: Response) => {
+  const qs = new URLSearchParams(req.query as Record<string, string>).toString();
+  try {
+    const r = await proxy(`/relays${qs ? `?${qs}` : ""}`);
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// GET /relays/state — single relay state
+router.get("/relays/state", async (req: Request, res: Response) => {
+  const relayUrl = req.query.relayUrl as string;
+  if (!relayUrl) { res.status(400).json({ error: "relayUrl required" }); return; }
+  try {
+    const r = await proxy(`/relays/state?relayUrl=${encodeURIComponent(relayUrl)}`);
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// POST /relays/search — search relays by filter
+router.post("/relays/search", async (req: Request, res: Response) => {
+  try {
+    const r = await proxy("/relays/search", { method: "POST", body: JSON.stringify(req.body) });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// POST /relays/online — find online relays
+router.post("/relays/online", async (req: Request, res: Response) => {
+  try {
+    const r = await proxy("/relays/online", { method: "POST", body: JSON.stringify(req.body) });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// GET /relays/by/software — group by software
+router.get("/relays/by/software", async (_req: Request, res: Response) => {
+  try {
+    const r = await proxy("/relays/by/software");
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// GET /relays/by/nip — group by NIP support
+router.get("/relays/by/nip", async (_req: Request, res: Response) => {
+  try {
+    const r = await proxy("/relays/by/nip");
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// GET /relays/by/country — group by country
+router.get("/relays/by/country", async (_req: Request, res: Response) => {
+  try {
+    const r = await proxy("/relays/by/country");
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// POST /relays/nearby — geospatial search
+router.post("/relays/nearby", async (req: Request, res: Response) => {
+  try {
+    const r = await proxy("/relays/nearby", { method: "POST", body: JSON.stringify(req.body) });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+// GET /monitors — list monitors
+router.get("/monitors", async (_req: Request, res: Response) => {
+  try {
+    const r = await proxy("/monitors");
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch { res.status(502).json({ error: "rstate unavailable" }); }
+});
+
+export default router;

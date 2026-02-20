@@ -1,5 +1,6 @@
 import { createStore } from "../lib/store";
 import { api } from "../lib/api";
+import { fetchProfile, clearProfileCache } from "../lib/nostr";
 
 export interface UserPermission {
   type: string;
@@ -10,6 +11,7 @@ export interface User {
   id: string;
   pubkey: string;
   name: string | null;
+  picture: string | null;
   admin: boolean;
   permissions?: UserPermission[];
 }
@@ -25,6 +27,21 @@ export const authStore = createStore<AuthState>({
   token: localStorage.getItem("token"),
   loading: true,
 });
+
+/** Fetch Nostr kind-0 profile and merge picture/name into user */
+async function enrichUser(user: User): Promise<User> {
+  try {
+    const profile = await fetchProfile(user.pubkey);
+    if (profile) {
+      return {
+        ...user,
+        picture: profile.picture || user.picture,
+        name: user.name || profile.display_name || profile.name || null,
+      };
+    }
+  } catch { /* ignore */ }
+  return user;
+}
 
 export async function login(): Promise<void> {
   const { token: loginToken } = await api.get<{ token: string }>("/auth/login-token");
@@ -44,11 +61,17 @@ export async function login(): Promise<void> {
   const { token, user } = await api.post<{ token: string; user: User }>("/auth/login", event);
 
   localStorage.setItem("token", token);
-  authStore.set({ user, token, loading: false });
+  authStore.set({ user: { ...user, picture: user.picture || null }, token, loading: false });
+
+  // Enrich with Nostr profile in background (non-blocking)
+  enrichUser(user).then((enriched) => {
+    authStore.set({ ...authStore.get(), user: enriched });
+  });
 }
 
 export function logout(): void {
   localStorage.removeItem("token");
+  clearProfileCache();
   authStore.set({ user: null, token: null, loading: false });
 }
 
@@ -60,7 +83,12 @@ export async function checkAuth(): Promise<void> {
   }
   try {
     const { user } = await api.get<{ user: User }>("/auth/me");
-    authStore.set({ user, token, loading: false });
+    authStore.set({ user: { ...user, picture: user.picture || null }, token, loading: false });
+
+    // Enrich with Nostr profile in background
+    enrichUser(user).then((enriched) => {
+      authStore.set({ ...authStore.get(), user: enriched });
+    });
   } catch {
     localStorage.removeItem("token");
     authStore.set({ user: null, token: null, loading: false });

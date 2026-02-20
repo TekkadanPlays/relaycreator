@@ -18,7 +18,7 @@ import {
 import {
   Radio, LogOut, Menu, Zap, Globe, User, Loader2, X,
   HelpCircle, Github, Wallet, Shield, Play, ChevronDown,
-  MessageCircle, ExternalLink, FileText,
+  MessageCircle, ExternalLink, FileText, Search,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 import type { IconComponent } from "@/lib/icon";
@@ -36,6 +36,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Home",         href: "/",          Icon: Radio,         group: "Relay Tools" },
   { label: "Directory",    href: "/directory",  Icon: Globe,         group: "Relay Tools" },
+  { label: "Discover",     href: "/discover",   Icon: Search,        group: "Relay Tools" },
+  { label: "Relays",       href: "/relays",     Icon: Radio,         group: "Relay Tools" },
   { label: "Docs",         href: "/docs",       Icon: FileText,      group: "Relay Tools" },
   { label: "Live",          href: "https://live.mycelium.social", Icon: Play,          group: "Mycelium", external: true },
   { label: "Social",       href: "https://app.mycelium.social",  Icon: User,          group: "Mycelium", external: true },
@@ -232,6 +234,9 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
                       onClick: () => this.setState((s: LayoutState) => ({ userMenuOpen: !s.userMenuOpen })),
                     },
                       createElement(Avatar, { className: "size-8" },
+                        user.picture
+                          ? createElement(AvatarImage, { src: user.picture, alt: user.name || "Profile" })
+                          : null,
                         createElement(AvatarFallback, { className: "bg-primary/10 text-primary text-xs font-medium" },
                           user.pubkey.slice(0, 2).toUpperCase(),
                         ),
