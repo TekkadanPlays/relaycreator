@@ -28,6 +28,7 @@ const envSchema = z.object({
   BITCOIN_RPC_USER: z.string().default("relaytools"),
   BITCOIN_RPC_PASS: z.string().default(""),
   RSTATE_URL: z.string().default("http://127.0.0.1:3100"),
+  RSTATE_FALLBACK_URL: z.string().default("http://127.0.0.1:3000"),
 });
 
 export type Env = z.infer<typeof envSchema>;

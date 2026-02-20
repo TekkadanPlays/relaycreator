@@ -13,33 +13,40 @@ function getRstateUrl(): string {
   return getEnv().RSTATE_URL;
 }
 
-async function proxy(path: string, init?: RequestInit): Promise<globalThis.Response> {
+function getRstateFallbackUrl(): string {
+  return getEnv().RSTATE_FALLBACK_URL;
+}
+
+async function fetchWithTimeout(url: string, init?: RequestInit): Promise<globalThis.Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), RSTATE_TIMEOUT);
   try {
-    const res = await fetch(`${getRstateUrl()}${path}`, {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        ...init?.headers,
-      },
-    });
-    return res;
-  } catch (err: any) {
-    if (err.name === "AbortError") {
-      return new globalThis.Response(JSON.stringify({ error: "rstate timeout" }), {
-        status: 504,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    return new globalThis.Response(JSON.stringify({ error: "rstate unavailable" }), {
-      status: 502,
-      headers: { "Content-Type": "application/json" },
-    });
+    return await fetch(url, { ...init, signal: controller.signal, headers: { "Content-Type": "application/json", ...init?.headers } });
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function proxy(path: string, init?: RequestInit): Promise<globalThis.Response> {
+  // Try primary rstate URL
+  try {
+    const res = await fetchWithTimeout(`${getRstateUrl()}${path}`, init);
+    if (res.ok) return res;
+  } catch { /* fall through to fallback */ }
+
+  // Try fallback (ribbit server's rstate proxy)
+  const fallback = getRstateFallbackUrl();
+  if (fallback) {
+    try {
+      const res = await fetchWithTimeout(`${fallback}${path}`, init);
+      if (res.ok) return res;
+    } catch { /* fall through to error */ }
+  }
+
+  return new globalThis.Response(JSON.stringify({ error: "rstate unavailable" }), {
+    status: 502,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 // GET /health — rstate health check

@@ -15,6 +15,7 @@ import Admin from "./pages/Admin";
 import Discover from "./pages/Discover";
 import RelayManager from "./pages/RelayManager";
 import { Docs } from "./pages/docs/DocsRouter";
+import { Toaster } from "@/ui/Toast";
 
 export default class App extends Component<{}, AuthState> {
   declare state: AuthState;
@@ -35,23 +36,26 @@ export default class App extends Component<{}, AuthState> {
   }
 
   render() {
-    return createElement(Layout, null,
-      createElement(Switch, null,
-        createElement(Route, { exact: true, path: "/", component: Home }),
-        createElement(Route, { path: "/signup", component: CreateRelay }),
-        createElement(Route, { path: "/relays/myrelays", render: () => createElement(Redirect, { to: "/admin" }) }),
-        createElement(Route, { path: "/relays/:slug/settings", component: RelaySettings }),
-        createElement(Route, { path: "/relays/:slug", component: RelayDetail }),
-        createElement(Route, { path: "/invoices", component: Invoices }),
-        createElement(Route, { path: "/directory", component: Directory }),
-        createElement(Route, { path: "/faq", component: FAQ }),
-        createElement(Route, { path: "/wallet", component: Wallet }),
-        createElement(Route, { path: "/admin", component: Admin }),
-        createElement(Route, { path: "/discover", component: Discover }),
-        createElement(Route, { exact: true, path: "/relays", component: RelayManager }),
-        createElement(Route, { path: "/docs/:rest*", component: Docs }),
-        createElement(Route, { path: "/docs", component: Docs }),
+    return createElement("div", null,
+      createElement(Layout, null,
+        createElement(Switch, null,
+          createElement(Route, { exact: true, path: "/", component: Home }),
+          createElement(Route, { path: "/signup", component: CreateRelay }),
+          createElement(Route, { path: "/relays/myrelays", render: () => createElement(Redirect, { to: "/admin" }) }),
+          createElement(Route, { path: "/relays/:slug/settings", component: RelaySettings }),
+          createElement(Route, { path: "/relays/:slug", component: RelayDetail }),
+          createElement(Route, { path: "/invoices", component: Invoices }),
+          createElement(Route, { path: "/directory", component: Directory }),
+          createElement(Route, { path: "/faq", component: FAQ }),
+          createElement(Route, { path: "/wallet", component: Wallet }),
+          createElement(Route, { path: "/admin", component: Admin }),
+          createElement(Route, { path: "/discover", component: Discover }),
+          createElement(Route, { exact: true, path: "/relays", component: RelayManager }),
+          createElement(Route, { path: "/docs/:rest*", component: Docs }),
+          createElement(Route, { path: "/docs", component: Docs }),
+        ),
       ),
+      createElement(Toaster, null),
     );
   }
 }
