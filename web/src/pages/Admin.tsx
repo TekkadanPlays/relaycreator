@@ -650,31 +650,35 @@ export default class Admin extends Component<{}, AdminState> {
       demo: "Directory",
     };
 
-    // Build sidebar nav groups using blazecn Sidebar components
-    const sidebarGroups = visibleSections.map((section, si) =>
-      createElement(SidebarGroup, { key: `grp-${si}` },
-        section.title
-          ? createElement(SidebarGroupLabel, null, section.title)
-          : null,
-        createElement(SidebarGroupContent, null,
-          createElement(SidebarMenu, null,
-            ...section.items.map((item) =>
-              createElement(SidebarMenuItem, { key: item.id },
-                createElement(SidebarMenuButton, {
-                  isActive: tab === item.id,
-                  tooltip: item.label,
-                  onClick: () => { this.switchTab(item.id); },
-                },
-                  createElement(item.icon, null),
-                  createElement("span", null, item.label),
+    // Build sidebar nav groups with separators between sections
+    const sidebarGroups: any[] = [];
+    visibleSections.forEach((section, si) => {
+      if (si > 0) sidebarGroups.push(createElement(SidebarSeparator, { key: `sep-${si}` }));
+      sidebarGroups.push(
+        createElement(SidebarGroup, { key: `grp-${si}`, className: "py-0" },
+          section.title
+            ? createElement(SidebarGroupLabel, null, section.title)
+            : null,
+          createElement(SidebarGroupContent, null,
+            createElement(SidebarMenu, null,
+              ...section.items.map((item) =>
+                createElement(SidebarMenuItem, { key: item.id },
+                  createElement(SidebarMenuButton, {
+                    isActive: tab === item.id,
+                    tooltip: item.label,
+                    onClick: () => { this.switchTab(item.id); },
+                  },
+                    createElement(item.icon, null),
+                    createElement("span", null, item.label),
+                  ),
+                  item.badge ? createElement(SidebarMenuBadge, null, item.badge) : null,
                 ),
-                item.badge ? createElement(SidebarMenuBadge, null, item.badge) : null,
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    });
 
     return createElement(SidebarProvider, { className: "min-h-svh" },
 
