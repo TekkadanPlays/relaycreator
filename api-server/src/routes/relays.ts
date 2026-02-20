@@ -1,10 +1,154 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import prisma from "../lib/prisma.js";
+import { getEnv } from "../lib/env.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
 
 const router = Router();
+
+// --- Create Relay ---
+
+const createRelaySchema = z.object({
+  name: z.string().min(1).max(63),
+  plan: z.enum(["standard", "premium"]).default("standard"),
+  referrer: z.string().optional().default(""),
+});
+
+/**
+ * POST /relays
+ * Create a new relay for the authenticated user.
+ */
+router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Request, res: Response) => {
+  try {
+    const { name: relayname, plan, referrer } = req.body as z.infer<typeof createRelaySchema>;
+    const env = getEnv();
+
+    // Get the authenticated user
+    const user = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+    if (!user) {
+      res.status(404).json({ error: "user not found" });
+      return;
+    }
+
+    // Validate relay name format
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}$/.test(relayname)) {
+      res.status(400).json({ error: "name must be a valid hostname" });
+      return;
+    }
+
+    // Check if relay name is taken
+    const existing = await prisma.relay.findFirst({ where: { name: relayname } });
+    if (existing) {
+      res.status(409).json({ error: "relay name already exists" });
+      return;
+    }
+
+    // Validate LNBits config if payments enabled
+    if (env.PAYMENTS_ENABLED === "true" && (!env.LNBITS_ADMIN_KEY || !env.LNBITS_INVOICE_READ_KEY || !env.LNBITS_ENDPOINT)) {
+      res.status(500).json({ error: "payments enabled, but no lnbits vars found" });
+      return;
+    }
+
+    let useAmount = env.INVOICE_AMOUNT;
+    const useDomain = env.CREATOR_DOMAIN;
+
+    // Find a free port
+    const allRelays = await prisma.relay.findMany({
+      where: { domain: useDomain },
+      select: { port: true },
+    });
+
+    let p = 0;
+    for (const r of allRelays) {
+      if (r.port != null && r.port > p) p = r.port;
+    }
+    p = p + 1;
+    if (p === 1) p = 7777;
+
+    // Find available server IP
+    const servers = await prisma.server.findMany({ where: { available: true } });
+    let useIP = "127.0.0.1";
+    if (servers.length > 0) useIP = servers[0].ip;
+
+    // Create relay
+    let useStatus: string | null = null;
+    if (env.PAYMENTS_ENABLED !== "true") useStatus = "provision";
+
+    const relayResult = await prisma.relay.create({
+      data: {
+        name: relayname,
+        ownerId: user.id,
+        domain: useDomain,
+        created_at: new Date(),
+        status: useStatus,
+        port: p,
+        ip: useIP,
+        referrer: referrer || "",
+        default_message_policy: false,
+      },
+    });
+
+    await prisma.blockList.create({ data: { relayId: relayResult.id } });
+    await prisma.allowList.create({ data: { relayId: relayResult.id } });
+
+    // Payment flow
+    if (env.PAYMENTS_ENABLED === "true" && env.LNBITS_ADMIN_KEY && env.LNBITS_INVOICE_READ_KEY && env.LNBITS_ENDPOINT) {
+      const LNBits = (await import("lnbits")).default;
+      const { wallet } = LNBits({
+        adminKey: env.LNBITS_ADMIN_KEY,
+        invoiceReadKey: env.LNBITS_INVOICE_READ_KEY,
+        endpoint: env.LNBITS_ENDPOINT,
+      });
+
+      let orderType = "standard";
+      if (plan === "premium") {
+        orderType = "premium";
+        useAmount = env.INVOICE_PREMIUM_AMOUNT;
+      }
+
+      const newInvoice = await wallet.createInvoice({
+        amount: useAmount,
+        memo: relayname + " " + user.pubkey,
+        out: false,
+      });
+
+      const usePaymentRequest = newInvoice.payment_request ?? newInvoice.bolt11 ?? "";
+
+      const orderCreated = await prisma.order.create({
+        data: {
+          relayId: relayResult.id,
+          userId: user.id,
+          status: "pending",
+          paid: false,
+          payment_hash: newInvoice.payment_hash,
+          lnurl: usePaymentRequest,
+          amount: useAmount,
+          order_type: orderType,
+        },
+      });
+
+      res.json({ order_id: orderCreated.id, relay_id: relayResult.id });
+    } else {
+      // No payments — auto-provision
+      const orderCreated = await prisma.order.create({
+        data: {
+          relayId: relayResult.id,
+          userId: user.id,
+          status: "paid",
+          paid: true,
+          payment_hash: "0000",
+          lnurl: "0000",
+        },
+      });
+
+      res.json({ order_id: orderCreated.id, relay_id: relayResult.id });
+    }
+  } catch (err: any) {
+    console.error("POST /relays error:", err);
+    res.status(500).json({ error: err.message || "Internal server error" });
+  }
+});
 
 // --- Shared includes for relay queries ---
 const relayFullInclude = {

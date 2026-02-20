@@ -495,6 +495,10 @@ frontend secured
     http-request set-header host %[hdr(host),field(1,:)]
     capture request header Host len 30
 
+	# --- Oni streaming server (live.mycelium.social) ---
+	acl host_oni hdr(Host) -i live.${usethisdomain}
+	use_backend oni if host_oni
+
 	# --- CoinOS external API proxy ---
 	acl is_coinos path_beg /coinos
 	acl has_api_key req.hdr(x-api-key) -m found
@@ -536,6 +540,15 @@ backend ribbit
 	balance		source
 	option forwardfor except 127.0.0.1 header x-real-ip
 	server ribbit-001 127.0.0.1:3000 maxconn 100000 weight 10 check inter 5s fall 3 rise 2
+
+backend oni
+	mode		http
+	option		redispatch
+	balance		source
+	option forwardfor except 127.0.0.1 header x-real-ip
+	timeout tunnel 300s
+	timeout server 300s
+	server oni-001 127.0.0.1:8085 maxconn 10000 weight 10 check inter 5s fall 3 rise 2
 
 backend coinos
 	mode		http

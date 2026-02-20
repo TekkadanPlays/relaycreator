@@ -324,6 +324,10 @@ frontend secured
 	http-request return content-type image/png file /etc/haproxy/static/apple-touch-icon.png if { path /apple-touch-icon.png }
 	http-request return content-type application/json file /etc/haproxy/static/apple-touch-icon.png if { path /site.webmanifest }
 
+    # --- Oni streaming server (live.DOMAIN) ---
+	acl host_oni hdr(Host) -i live.${usethisdomain}
+	use_backend oni if host_oni
+
     ${deleted_domains}
 
     ${paused_domains}
@@ -342,6 +346,15 @@ backend main
 	${haproxy_backends_cfg}
 
     ${previewBackend}
+
+backend oni
+	mode		http
+	option		redispatch
+	balance		source
+	option forwardfor except 127.0.0.1 header x-real-ip
+	timeout tunnel 300s
+	timeout server 300s
+	server oni-001 127.0.0.1:8085 maxconn 10000 weight 10 check inter 5s fall 3 rise 2
 
 backend certbot_server
     server certbot 127.0.0.1:10000
