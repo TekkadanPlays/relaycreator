@@ -24,6 +24,7 @@ import { cn } from "@/ui/utils";
 import type { IconComponent } from "@/lib/icon";
 import { MushLogo } from "./MushLogo";
 import { ThemeToggle } from "@/ui/ThemeToggle";
+import { ThemeSelector } from "@/ui/ThemeSelector";
 
 interface NavItem {
   label: string;
@@ -212,14 +213,27 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
               : null,
           ),
 
-          // Right side
-          createElement("div", { className: "flex items-center gap-2" },
+          // Right side — matches app.mycelium.social header style
+          createElement("div", { className: "flex items-center gap-1.5" },
 
-            // Panel button (desktop)
-            createElement(Link, { to: "/admin", className: cn("gap-1.5 hidden sm:inline-flex", "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium h-8 px-3 cursor-pointer transition-all", panelTier === "admin" ? "bg-primary text-primary-foreground hover:bg-primary/90" : "border-2 border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground") },
-              createElement(PanelIcon, { className: "size-4" }),
-              panelLabel,
+            // GitHub icon (inline SVG, clean icon button — no border)
+            createElement("a", {
+              href: "https://github.com/TekkadanPlays",
+              target: "_blank",
+              rel: "noopener noreferrer",
+              title: "GitHub",
+              className: "hidden sm:inline-flex items-center justify-center rounded-md size-8 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+            },
+              createElement("svg", {
+                className: "size-4", viewBox: "0 0 24 24", fill: "currentColor",
+              }, createElement("path", { d: "M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" })),
             ),
+
+            // Theme selector (color palette picker)
+            createElement(ThemeSelector, { className: "hidden sm:inline-flex size-8" }),
+
+            // Theme toggle (light/dark)
+            createElement(ThemeToggle, { className: "hidden sm:inline-flex size-8" }),
 
             // Auth section
             loading
@@ -227,73 +241,70 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
               : user
                 ? createElement("div", {
                     ref: (el: HTMLDivElement | null) => { this.userMenuRef = el; },
-                    className: "relative inline-block",
+                    className: "relative hidden md:block",
                   },
-                    createElement(Button, {
-                      variant: "ghost", size: "icon", className: "rounded-full",
+                    // Pill-shaped user button with avatar + name
+                    createElement("button", {
                       onClick: () => this.setState((s: LayoutState) => ({ userMenuOpen: !s.userMenuOpen })),
+                      className: "flex items-center gap-2 rounded-full border border-border px-1 py-1 pr-3 hover:bg-accent/50 transition-colors cursor-pointer",
                     },
-                      createElement(Avatar, { className: "size-8" },
+                      createElement(Avatar, { className: "size-7" },
                         user.picture
                           ? createElement(AvatarImage, { src: user.picture, alt: user.name || "Profile" })
                           : null,
-                        createElement(AvatarFallback, { className: "bg-primary/10 text-primary text-xs font-medium" },
+                        createElement(AvatarFallback, { className: "text-[10px]" },
                           user.pubkey.slice(0, 2).toUpperCase(),
                         ),
                       ),
+                      createElement("span", { className: "text-sm font-medium max-w-[120px] truncate" },
+                        user.name || user.pubkey.slice(0, 8) + "...",
+                      ),
+                      createElement("span", { className: "text-xs opacity-40" }, "\u25BE"),
                     ),
+                    // Dropdown menu
                     userMenuOpen
-                      ? createElement(DropdownMenuContent, { className: "w-52" },
-                          createElement(DropdownMenuLabel, null,
+                      ? createElement("div", {
+                          className: "absolute right-0 top-full mt-2 w-52 bg-popover border border-border rounded-lg shadow-lg py-1 z-50",
+                        },
+                          createElement("div", { className: "px-3 py-2 border-b border-border" },
                             createElement("p", { className: "font-mono text-xs text-muted-foreground truncate" }, user.pubkey.slice(0, 20) + "..."),
                           ),
-                          createElement(DropdownMenuSeparator, null),
-                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/wallet"; } },
-                            createElement(Wallet, { className: "size-4" }), " Wallet",
+                          createElement(Link, { to: "/admin", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                            createElement(Shield, { className: "size-4" }), "Admin Panel",
                           ),
-                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/signup"; } },
-                            createElement(Zap, { className: "size-4" }), " Create Relay",
+                          createElement(Link, { to: "/wallet", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                            createElement(Wallet, { className: "size-4" }), "Wallet",
                           ),
-                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/discover"; } },
-                            createElement(Globe, { className: "size-4" }), " Discover Relays",
+                          createElement(Link, { to: "/signup", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                            createElement(Zap, { className: "size-4" }), "Create Relay",
                           ),
-                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/relays"; } },
-                            createElement(Radio, { className: "size-4" }), " Relay Manager",
+                          createElement(Link, { to: "/discover", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                            createElement(Globe, { className: "size-4" }), "Discover Relays",
                           ),
-                          createElement(DropdownMenuItem, { onClick: () => { this.setState({ userMenuOpen: false }); window.location.href = "/faq"; } },
-                            createElement(HelpCircle, { className: "size-4" }), " FAQ",
+                          createElement(Link, { to: "/relays", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                            createElement(Radio, { className: "size-4" }), "Relay Manager",
                           ),
-                          createElement(DropdownMenuSeparator, null),
-                          createElement(DropdownMenuItem, { onClick: this.handleLogout, className: "text-destructive" },
-                            createElement(LogOut, { className: "size-4" }), " Sign Out",
+                          createElement(Link, { to: "/faq", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                            createElement(HelpCircle, { className: "size-4" }), "FAQ",
                           ),
+                          createElement("div", { className: "border-t border-border my-1" }),
+                          createElement("button", {
+                            onClick: () => { this.handleLogout(); this.setState({ userMenuOpen: false }); },
+                            className: "flex items-center gap-2 px-3 py-2 w-full text-sm text-destructive/70 hover:text-destructive hover:bg-destructive/5 transition-colors cursor-pointer",
+                          }, createElement(LogOut, { className: "size-4" }), "Sign Out"),
                         )
                       : null,
                   )
-                : createElement(Button, { onClick: this.handleLogin, size: "sm", className: "gap-1.5" },
-                    createElement(User, { className: "size-4" }), " Sign In",
-                  ),
-
-            // Theme toggle
-            createElement(ThemeToggle, { className: "hidden sm:inline-flex" }),
-
-            // GitHub
-            createElement("a", {
-              href: "https://github.com/TekkadanPlays",
-              target: "_blank",
-              rel: "noopener noreferrer",
-              className: "hidden sm:inline-flex items-center justify-center size-9 rounded-md border border-input bg-background text-foreground shadow-xs cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground",
-            },
-              createElement(Github, { className: "size-4" }),
-            ),
+                : createElement(Button, {
+                    onClick: this.handleLogin, size: "sm",
+                    className: "hidden md:inline-flex",
+                  }, "Sign In"),
 
             // Mobile menu button
-            createElement(Button, {
-              variant: "ghost", size: "icon", className: "md:hidden",
+            createElement("button", {
               onClick: () => this.setState({ mobileOpen: !mobileOpen }),
-            },
-              createElement(Menu, { className: "size-5" }),
-            ),
+              className: "md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer",
+            }, mobileOpen ? "\u2715" : "\u2630"),
           ),
         ),
       ),
