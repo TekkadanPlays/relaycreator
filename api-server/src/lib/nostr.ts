@@ -53,9 +53,10 @@ export function verifyLoginEvent(event: NostrEvent, expectedToken: string): stri
   // Check that the content matches the expected token
   if (event.content !== expectedToken) return null;
 
-  // Check event is not too old (within 120 seconds for login)
+  // Check event is not too old (within 10 minutes for login)
+  // Generous window for signers with audit prompts, delays, etc.
   const now = Math.floor(Date.now() / 1000);
-  if (Math.abs(now - event.created_at) > 120) return null;
+  if (Math.abs(now - event.created_at) > 600) return null;
 
   return event.pubkey;
 }

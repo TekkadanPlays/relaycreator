@@ -81,42 +81,54 @@ async function populateRelayProfiles(pubkey: string): Promise<void> {
   }
 }
 
+let loginInProgress = false;
+
 export async function login(): Promise<void> {
-  console.log("[auth] Starting login...");
-  const { token: loginToken } = await api.get<{ token: string }>("/auth/login-token");
-  console.log("[auth] Got login token:", loginToken.slice(0, 8) + "...");
-
-  const nostr = (window as any).nostr;
-  if (!nostr) {
-    throw new Error("No NIP-07 extension found. Install Alby, nos2x, or similar.");
+  if (loginInProgress) {
+    console.warn("[auth] Login already in progress, ignoring duplicate call");
+    return;
   }
+  loginInProgress = true;
 
-  const unsigned = {
-    kind: 27235,
-    created_at: Math.floor(Date.now() / 1000),
-    tags: [],
-    content: loginToken,
-  };
-  console.log("[auth] Requesting signature...");
-  const event = await nostr.signEvent(unsigned);
-  console.log("[auth] Signed event:", JSON.stringify({ id: event?.id, pubkey: event?.pubkey, kind: event?.kind, hasContent: !!event?.content, hasSig: !!event?.sig }));
+  try {
+    console.log("[auth] Starting login...");
+    const { token: loginToken } = await api.get<{ token: string }>("/auth/login-token");
+    console.log("[auth] Got login token:", loginToken.slice(0, 8) + "...");
 
-  if (!event || !event.id || !event.pubkey || !event.sig) {
-    throw new Error("Signer returned invalid event (missing id, pubkey, or sig)");
+    const nostr = (window as any).nostr;
+    if (!nostr) {
+      throw new Error("No NIP-07 extension found. Install Alby, nos2x, or similar.");
+    }
+
+    const unsigned = {
+      kind: 27235,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: loginToken,
+    };
+    console.log("[auth] Requesting signature...");
+    const event = await nostr.signEvent(unsigned);
+    console.log("[auth] Signed event:", JSON.stringify({ id: event?.id, pubkey: event?.pubkey, kind: event?.kind, hasContent: !!event?.content, hasSig: !!event?.sig }));
+
+    if (!event || !event.id || !event.pubkey || !event.sig) {
+      throw new Error("Signer returned invalid event (missing id, pubkey, or sig)");
+    }
+
+    console.log("[auth] POSTing to /auth/login...");
+    const { token, user } = await api.post<{ token: string; user: User }>("/auth/login", event);
+    console.log("[auth] Login success! User:", user.pubkey.slice(0, 8) + "...", "admin:", user.admin);
+
+    localStorage.setItem("token", token);
+    authStore.set({ user: { ...user, picture: user.picture || null, banner: null, about: null }, token, loading: false });
+
+    // Enrich with Nostr profile and NIP-65 relay list in background (non-blocking)
+    enrichUser(user).then((enriched) => {
+      authStore.set({ ...authStore.get(), user: enriched });
+    });
+    populateRelayProfiles(user.pubkey);
+  } finally {
+    loginInProgress = false;
   }
-
-  console.log("[auth] POSTing to /auth/login...");
-  const { token, user } = await api.post<{ token: string; user: User }>("/auth/login", event);
-  console.log("[auth] Login success! User:", user.pubkey.slice(0, 8) + "...", "admin:", user.admin);
-
-  localStorage.setItem("token", token);
-  authStore.set({ user: { ...user, picture: user.picture || null, banner: null, about: null }, token, loading: false });
-
-  // Enrich with Nostr profile and NIP-65 relay list in background (non-blocking)
-  enrichUser(user).then((enriched) => {
-    authStore.set({ ...authStore.get(), user: enriched });
-  });
-  populateRelayProfiles(user.pubkey);
 }
 
 export function logout(): void {

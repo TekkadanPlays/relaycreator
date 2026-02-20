@@ -50,10 +50,10 @@ router.get("/login-token", async (_req: Request, res: Response) => {
     data: { token, created_at },
   });
 
-  // Clean up tokens older than 5 minutes
-  const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+  // Clean up tokens older than 15 minutes
+  const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
   await prisma.loginToken.deleteMany({
-    where: { created_at: { lt: fiveMinAgo } },
+    where: { created_at: { lt: fifteenMinAgo } },
   });
 
   res.json({ token });
@@ -83,14 +83,18 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
   });
 
   if (!tokenRecord) {
-    res.status(401).json({ error: "Invalid or expired login token" });
+    console.warn(`[auth] Login failed: token not found (content: ${event.content.slice(0, 8)}...)`);
+    res.status(401).json({ error: "Invalid or expired login token. Please try again." });
     return;
   }
 
   // Verify the signed event
   const pubkey = verifyLoginEvent(event, event.content);
   if (!pubkey) {
-    res.status(401).json({ error: "Invalid event signature" });
+    const now = Math.floor(Date.now() / 1000);
+    const age = Math.abs(now - event.created_at);
+    console.warn(`[auth] Login failed: event verification failed (kind: ${event.kind}, age: ${age}s, pubkey: ${event.pubkey?.slice(0, 8)}...)`);
+    res.status(401).json({ error: `Invalid event signature or event too old (${age}s). Please try again.` });
     return;
   }
 
