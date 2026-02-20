@@ -317,6 +317,7 @@ export function SidebarContent({ className, children }: SlotProps) {
 }
 
 export function SidebarSeparator({ className }: { className?: string }) {
+  if (!_sidebarState.open) return null;
   return createElement(Separator, {
     'data-slot': 'sidebar-separator',
     className: cn('mx-2 w-auto', className),
@@ -343,18 +344,20 @@ export function SidebarGroup({ className, children }: SlotProps) {
 }
 
 export function SidebarGroupLabel({ className, children }: SlotProps) {
+  const collapsed = !_sidebarState.open;
   return createElement('div', {
     'data-slot': 'sidebar-group-label',
     className: cn(
       'text-muted-foreground h-8 rounded-md px-2 text-xs font-medium flex shrink-0 items-center',
       'transition-[margin,opacity] duration-200 ease-linear',
-      'group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0',
+      collapsed && '-mt-8 opacity-0',
       className,
     ),
   }, children);
 }
 
 export function SidebarGroupAction({ className, children, onClick }: SlotProps & { onClick?: (e: Event) => void }) {
+  const collapsed = !_sidebarState.open;
   return createElement('button', {
     'data-slot': 'sidebar-group-action',
     type: 'button',
@@ -362,7 +365,8 @@ export function SidebarGroupAction({ className, children, onClick }: SlotProps &
     className: cn(
       'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
       'absolute top-3.5 right-3 w-5 rounded-md p-0 flex aspect-square items-center justify-center',
-      'group-data-[collapsible=icon]:hidden cursor-pointer',
+      collapsed && 'hidden',
+      'cursor-pointer',
       className,
     ),
   }, children);
@@ -411,7 +415,24 @@ export function SidebarMenuButton({
   className, isActive = false, size = 'default', variant = 'default',
   tooltip, onClick, children,
 }: SidebarMenuButtonProps) {
-  const sizeClass = size === 'sm' ? 'h-7 text-xs' : size === 'lg' ? 'h-12 text-sm' : 'h-8 text-sm';
+  const collapsed = !_sidebarState.open;
+  const sizeClass = collapsed
+    ? 'size-8 p-2'
+    : (size === 'sm' ? 'h-7 text-xs' : size === 'lg' ? 'h-12 text-sm' : 'h-8 text-sm');
+
+  // When collapsed, filter children to only show SVG icons
+  let renderedChildren = children;
+  if (collapsed && Array.isArray(children)) {
+    renderedChildren = children.filter((c: any) => {
+      if (!c || typeof c === 'string') return false;
+      // Keep SVG icon components (they render as <svg>)
+      if (c && c.type && typeof c.type === 'function') return true;
+      if (c && c.tag === 'svg') return true;
+      return false;
+    });
+    // If nothing survived the filter, show first child (icon)
+    if (renderedChildren.length === 0 && children.length > 0) renderedChildren = [children[0]];
+  }
 
   const btn = createElement('button', {
     'data-slot': 'sidebar-menu-button',
@@ -420,19 +441,18 @@ export function SidebarMenuButton({
     type: 'button',
     onClick,
     className: cn(
-      'hover:bg-accent hover:text-accent-foreground gap-2 rounded-md p-2 text-left transition-[width,height,padding]',
-      'group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2',
+      'hover:bg-accent hover:text-accent-foreground gap-2 rounded-md p-2 text-left',
       'flex w-full items-center overflow-hidden outline-none cursor-pointer',
       'data-[active]:bg-accent data-[active]:text-accent-foreground data-[active]:font-medium',
       '[&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
-      '[&>span]:group-data-[collapsible=icon]:hidden [&>div]:group-data-[collapsible=icon]:hidden',
+      collapsed && 'justify-center',
       variant === 'outline' && 'bg-background shadow-[0_0_0_1px_var(--border)]',
       sizeClass,
       className,
     ),
-  }, children);
+  }, renderedChildren);
 
-  if (tooltip) {
+  if (tooltip && collapsed) {
     return createElement(Tooltip, { content: tooltip, side: 'right' }, btn);
   }
 
@@ -451,6 +471,8 @@ interface SidebarMenuActionProps {
 }
 
 export function SidebarMenuAction({ className, showOnHover = false, onClick, children }: SidebarMenuActionProps) {
+  const collapsed = !_sidebarState.open;
+  if (collapsed) return null;
   return createElement('button', {
     'data-slot': 'sidebar-menu-action',
     type: 'button',
@@ -458,7 +480,7 @@ export function SidebarMenuAction({ className, showOnHover = false, onClick, chi
     className: cn(
       'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
       'absolute top-1.5 right-1 aspect-square w-5 rounded-md p-0 flex items-center justify-center',
-      'group-data-[collapsible=icon]:hidden cursor-pointer',
+      'cursor-pointer',
       showOnHover && 'group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 md:opacity-0',
       className,
     ),
@@ -470,11 +492,11 @@ export function SidebarMenuAction({ className, showOnHover = false, onClick, chi
 // ---------------------------------------------------------------------------
 
 export function SidebarMenuBadge({ className, children }: SlotProps) {
+  if (!_sidebarState.open) return null;
   return createElement('div', {
     'data-slot': 'sidebar-menu-badge',
     className: cn(
       'text-muted-foreground pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium tabular-nums select-none',
-      'group-data-[collapsible=icon]:hidden',
       className,
     ),
   }, children);
@@ -500,11 +522,11 @@ export function SidebarMenuSkeleton({ className, showIcon = false }: { className
 // ---------------------------------------------------------------------------
 
 export function SidebarMenuSub({ className, children }: SlotProps) {
+  if (!_sidebarState.open) return null;
   return createElement('ul', {
     'data-slot': 'sidebar-menu-sub',
     className: cn(
       'border-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5',
-      'group-data-[collapsible=icon]:hidden',
       className,
     ),
   }, children);
@@ -527,6 +549,7 @@ interface SidebarMenuSubButtonProps {
 }
 
 export function SidebarMenuSubButton({ className, size = 'md', isActive = false, href, onClick, children }: SidebarMenuSubButtonProps) {
+  if (!_sidebarState.open) return null;
   return createElement(href ? 'a' : 'button', {
     'data-slot': 'sidebar-menu-sub-button',
     'data-active': isActive || undefined,
@@ -538,7 +561,6 @@ export function SidebarMenuSubButton({ className, size = 'md', isActive = false,
       'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
       'data-[active]:bg-accent data-[active]:text-accent-foreground',
       'h-7 gap-2 rounded-md px-2 flex min-w-0 items-center overflow-hidden outline-none cursor-pointer',
-      'group-data-[collapsible=icon]:hidden',
       '[&>span:last-child]:truncate [&_svg]:size-4 [&_svg]:shrink-0',
       size === 'sm' ? 'text-xs' : 'text-sm',
       className,
