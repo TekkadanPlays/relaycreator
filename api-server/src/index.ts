@@ -16,6 +16,7 @@ import walletRoutes from "./routes/wallet.js";
 import adminRoutes from "./routes/admin.js";
 import permissionsRoutes from "./routes/permissions.js";
 import rstateRoutes from "./routes/rstate.js";
+import nostrFetchRoutes from "./routes/nostr-fetch.js";
 import influxStatsRoutes from "./routes/influx-stats.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -78,6 +79,9 @@ app.use("/api/wallet", walletRoutes);
 
 // Relay intelligence (rstate NIP-66 proxy)
 app.use("/api/rstate", rstateRoutes);
+
+// Server-side Nostr fetching (profile, relay lists via WSS to indexers)
+app.use("/api/nostr", nostrFetchRoutes);
 
 // InfluxDB relay statistics
 app.use("/api/admin/stats/influx", influxStatsRoutes);
