@@ -10,8 +10,7 @@ const router = Router();
 const RSTATE_TIMEOUT = 10000;
 
 function getRstateUrl(): string {
-  const env = getEnv();
-  return (env as any).RSTATE_URL || process.env.RSTATE_URL || "http://127.0.0.1:3100";
+  return getEnv().RSTATE_URL;
 }
 
 async function proxy(path: string, init?: RequestInit): Promise<globalThis.Response> {
