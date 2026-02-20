@@ -29,6 +29,10 @@ const envSchema = z.object({
   BITCOIN_RPC_PASS: z.string().default(""),
   RSTATE_URL: z.string().default("http://127.0.0.1:3100"),
   RSTATE_FALLBACK_URL: z.string().default("http://127.0.0.1:3000"),
+  INFLUXDB_URL: z.string().optional(),
+  INFLUXDB_TOKEN: z.string().optional(),
+  INFLUXDB_ORG: z.string().optional(),
+  INFLUXDB_BUCKET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

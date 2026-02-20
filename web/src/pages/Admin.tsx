@@ -4,10 +4,12 @@ import { Link } from "inferno-router";
 import { authStore, type User } from "../stores/auth";
 import { api } from "../lib/api";
 import { Badge } from "@/ui/Badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/ui/Tabs";
+import { Separator } from "@/ui/Separator";
 import {
-  Shield, Zap, Globe, Users, Play, BarChart3, Lock, KeyRound, Bitcoin, Loader2,
+  Shield, Zap, Globe, Users, BarChart3, Lock, KeyRound, Bitcoin,
+  Radio, Activity, Database, Menu,
 } from "@/lib/icons";
+import { cn } from "@/ui/utils";
 
 import type {
   TabId, OverviewData, AdminRelay, AdminUser, AdminOrder,
@@ -70,6 +72,12 @@ interface AdminState {
 
   demoRelays: { id: string; name: string; domain: string | null; status: string | null; description: string | null }[];
   demoLoading: boolean;
+
+  sidebarOpen: boolean;
+  influxPlatform: { available: boolean; events: any[]; connections: any[] } | null;
+  influxPlatformLoading: boolean;
+  influxRange: string;
+  influxTopRelays: { available: boolean; relays: any[] } | null;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -116,6 +124,10 @@ export default class Admin extends Component<{}, AdminState> {
       invCreated: null, invLookupId: "", invLookupLoading: false, invLookupResult: null,
 
       demoRelays: [], demoLoading: false,
+
+      sidebarOpen: false,
+      influxPlatform: null, influxPlatformLoading: false, influxRange: "24h",
+      influxTopRelays: null,
     };
   }
 
@@ -169,7 +181,7 @@ export default class Admin extends Component<{}, AdminState> {
 
   private async loadTabData(tab: TabId) {
     switch (tab) {
-      case "overview": return this.loadOverview();
+      case "overview": this.loadOverview(); this.loadInfluxPlatform(); this.loadCoinos(); return;
       case "relays": return this.loadRelays();
       case "myrelays": return this.loadMyRelays();
       case "users": return this.loadUsers();
@@ -251,6 +263,21 @@ export default class Admin extends Component<{}, AdminState> {
       this.coinosInterval = setInterval(() => { if (this.state.tab === "coinos") this.loadCoinos(); }, 30_000);
     }
   }
+
+  private async loadInfluxPlatform() {
+    this.setState({ influxPlatformLoading: true });
+    try {
+      const [platform, topRelays] = await Promise.all([
+        api.get<{ available: boolean; events: any[]; connections: any[] }>(`/admin/stats/influx/platform?range=${this.state.influxRange}`),
+        api.get<{ available: boolean; relays: any[] }>("/admin/stats/influx/top-relays"),
+      ]);
+      this.setState({ influxPlatform: platform, influxTopRelays: topRelays, influxPlatformLoading: false });
+    } catch { this.setState({ influxPlatformLoading: false }); }
+  }
+
+  private handleInfluxRangeChange = (range: string) => {
+    this.setState({ influxRange: range }, () => this.loadInfluxPlatform());
+  };
 
   private async loadDemo() {
     this.setState({ demoLoading: true });
@@ -497,84 +524,199 @@ export default class Admin extends Component<{}, AdminState> {
     );
   }
 
+  // ─── Sidebar nav item ────────────────────────────────────────────────────
+
+  private renderNavItem(id: TabId, label: string, Icon: any) {
+    const active = this.state.tab === id;
+    return createElement("button", {
+      key: id,
+      type: "button",
+      onClick: () => { this.switchTab(id); this.setState({ sidebarOpen: false }); },
+      className: cn(
+        "flex items-center gap-2.5 w-full rounded-md px-3 py-2 text-sm transition-colors cursor-pointer text-left",
+        active
+          ? "bg-primary/10 text-primary font-medium"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+      ),
+    },
+      createElement(Icon, { className: "size-4 shrink-0" }),
+      label,
+    );
+  }
+
+  // ─── Content router ─────────────────────────────────────────────────────
+
+  private renderContent() {
+    const { tab } = this.state;
+    switch (tab) {
+      case "overview":
+        return renderOverview(
+          this.state.overview, this.state.overviewLoading, this.state.fallbackDomain,
+          this.state.coinosStatus, this.state.coinosCredits, this.state.coinosStatusLoading,
+          this.state.influxPlatform, this.state.influxPlatformLoading, this.state.influxRange,
+          this.state.influxTopRelays,
+          this.handleInfluxRangeChange,
+        );
+      case "myrelays":
+        return renderMyRelays(this.state.user, this.state.myRelays, this.state.moderatedRelays, this.state.myRelaysLoading, this.state.myRelaysError, this.state.copiedRelayId, this.state.fallbackDomain, this.copyWss);
+      case "relays":
+        return renderRelays(this.state.relays, this.state.relaysLoading, this.state.relaySearch, this.state.fallbackDomain, (v) => this.setState({ relaySearch: v }), this.handleDeleteRelay);
+      case "users":
+        return renderUsers(this.state.users, this.state.usersLoading, this.state.userSearch, (v) => this.setState({ userSearch: v }), this.handleToggleAdmin);
+      case "orders":
+        return renderOrders(this.state.orders, this.state.ordersLoading);
+      case "permissions":
+        return renderPermissions(this.state.permFilter, this.state.permRequests, this.state.permRequestsLoading, this.state.permGrants, this.state.permGrantsLoading, this.state.permDeciding, this.state.permRevoking, this.handlePermFilterChange, this.handlePermDecide, this.handlePermRevoke);
+      case "coinos":
+        return this.renderCoinosTab();
+      case "access":
+        return renderRequestAccess(this.state.user, this.state.myPerms, this.state.myPermsLoading, this.state.permTypes, this.state.requestType, this.state.requestReason, this.state.requestSubmitting, this.state.requestError, (t) => this.setState({ requestType: t }), (r) => this.setState({ requestReason: r }), this.handleRequestAccess);
+      case "demo":
+        return this.renderDemo();
+      default:
+        return null;
+    }
+  }
+
+  // ─── Render ─────────────────────────────────────────────────────────────
+
   render() {
-    const { user, tab } = this.state;
+    const { user, tab, sidebarOpen } = this.state;
     const isAdmin = !!user?.admin;
 
-    const tabs: { id: TabId; label: string; icon: any; adminOnly?: boolean }[] = [
-      { id: "overview", label: "Overview", icon: Shield, adminOnly: true },
-      { id: "myrelays", label: "My Relays", icon: Globe },
-      { id: "relays", label: "All Relays", icon: Globe, adminOnly: true },
-      { id: "users", label: "Users", icon: Users, adminOnly: true },
-      { id: "orders", label: "Orders", icon: BarChart3, adminOnly: true },
-      { id: "permissions", label: "Permissions", icon: Lock, adminOnly: true },
-      { id: "coinos", label: "CoinOS", icon: Bitcoin },
-      { id: "access", label: "Request Access", icon: KeyRound },
-      { id: "demo", label: "Directory", icon: Play },
+    const navSections: { title?: string; items: { id: TabId; label: string; icon: any; adminOnly?: boolean }[] }[] = [
+      {
+        items: [
+          { id: "overview", label: "Overview", icon: Activity, adminOnly: true },
+          { id: "myrelays", label: "My Relays", icon: Radio },
+          { id: "demo", label: "Directory", icon: Globe },
+        ],
+      },
+      {
+        title: "Admin",
+        items: [
+          { id: "relays", label: "All Relays", icon: Database, adminOnly: true },
+          { id: "users", label: "Users", icon: Users, adminOnly: true },
+          { id: "orders", label: "Orders", icon: BarChart3, adminOnly: true },
+          { id: "permissions", label: "Permissions", icon: Lock, adminOnly: true },
+        ],
+      },
+      {
+        title: "Finance",
+        items: [
+          { id: "coinos", label: "CoinOS", icon: Bitcoin },
+        ],
+      },
+      {
+        items: [
+          { id: "access", label: "Request Access", icon: KeyRound },
+        ],
+      },
     ];
 
-    const visibleTabs = tabs.filter((t) => !t.adminOnly || isAdmin);
+    // Filter out admin-only items for non-admins, and empty sections
+    const visibleSections = navSections
+      .map((s) => ({ ...s, items: s.items.filter((i) => !i.adminOnly || isAdmin) }))
+      .filter((s) => s.items.length > 0);
 
-    return createElement("div", { className: "space-y-6 animate-in" },
-      // Header
-      createElement("div", { className: "flex items-start justify-between gap-4" },
-        createElement("div", null,
-          createElement("h1", { className: "text-2xl font-extrabold tracking-tight flex items-center gap-2.5" },
-            createElement(Shield, { className: "size-6 text-primary" }),
-            isAdmin ? "Admin Panel" : user ? "Dashboard" : "Relay Explorer",
-          ),
-          createElement("p", { className: "text-sm text-muted-foreground mt-1" },
-            isAdmin ? "Manage relays, users, orders, and platform settings"
-              : user ? "Manage your relays and account"
-              : "Browse the relay directory",
+    // Sidebar content (shared between desktop and mobile)
+    const sidebarContent = createElement("nav", { className: "flex flex-col gap-1 px-2" },
+      ...visibleSections.flatMap((section, si) => {
+        const els: any[] = [];
+        if (si > 0) els.push(createElement(Separator, { key: `sep-${si}`, className: "my-2" }));
+        if (section.title) {
+          els.push(createElement("p", { key: `title-${si}`, className: "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-2 pb-1" }, section.title));
+        }
+        section.items.forEach((item) => els.push(this.renderNavItem(item.id, item.label, item.icon)));
+        return els;
+      }),
+    );
+
+    // Page title for current tab
+    const tabTitles: Record<TabId, string> = {
+      overview: "Overview",
+      myrelays: "My Relays",
+      relays: "All Relays",
+      users: "Users",
+      orders: "Orders",
+      permissions: "Permissions",
+      coinos: "CoinOS",
+      access: "Request Access",
+      demo: "Directory",
+    };
+
+    return createElement("div", { className: "flex gap-0 -mx-4 sm:-mx-6 min-h-[calc(100vh-4rem)] animate-in" },
+
+      // ─── Desktop sidebar ──────────────────────────────────────────────
+      createElement("aside", { className: "hidden lg:flex flex-col w-56 shrink-0 border-r border-border/40 bg-muted/20 py-4" },
+        // Logo / title
+        createElement("div", { className: "px-4 mb-4" },
+          createElement("div", { className: "flex items-center gap-2" },
+            createElement("div", { className: "flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground" },
+              createElement(Shield, { className: "size-4" }),
+            ),
+            createElement("span", { className: "font-semibold text-sm" }, isAdmin ? "Admin" : "Dashboard"),
           ),
         ),
-        user ? createElement(Link, { to: "/signup", className: "inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0" },
-          createElement(Zap, { className: "size-4" }), "New Relay",
+        sidebarContent,
+        // Spacer
+        createElement("div", { className: "flex-1" }),
+        // New Relay CTA
+        user ? createElement("div", { className: "px-3 pt-4" },
+          createElement(Link, { to: "/signup", className: "flex items-center justify-center gap-1.5 w-full rounded-md text-xs font-medium h-8 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" },
+            createElement(Zap, { className: "size-3.5" }), "New Relay",
+          ),
         ) : null,
       ),
 
-      createElement(Tabs, { value: tab },
-        createElement(TabsList, { className: "flex-wrap h-auto gap-0.5 p-1" },
-          ...visibleTabs.map((t) =>
-            createElement(TabsTrigger, {
-              key: t.id, value: t.id, active: tab === t.id,
-              onClick: () => this.switchTab(t.id),
-              className: "gap-1.5 text-xs",
-            },
-              createElement(t.icon, { className: "size-3.5" }),
-              t.label,
+      // ─── Mobile sidebar overlay ───────────────────────────────────────
+      sidebarOpen ? createElement("div", { className: "lg:hidden fixed inset-0 z-50 flex" },
+        // Backdrop
+        createElement("div", {
+          className: "absolute inset-0 bg-black/50",
+          onClick: () => this.setState({ sidebarOpen: false }),
+        }),
+        // Drawer
+        createElement("div", { className: "relative w-64 bg-background border-r border-border py-4 flex flex-col" },
+          createElement("div", { className: "px-4 mb-4 flex items-center justify-between" },
+            createElement("div", { className: "flex items-center gap-2" },
+              createElement("div", { className: "flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground" },
+                createElement(Shield, { className: "size-4" }),
+              ),
+              createElement("span", { className: "font-semibold text-sm" }, isAdmin ? "Admin" : "Dashboard"),
             ),
+            createElement("button", {
+              type: "button",
+              onClick: () => this.setState({ sidebarOpen: false }),
+              className: "rounded-md p-1 text-muted-foreground hover:text-foreground cursor-pointer",
+            }, createElement("svg", { className: "size-5", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2" },
+              createElement("path", { d: "M6 18 18 6M6 6l12 12" }),
+            )),
           ),
+          sidebarContent,
         ),
+      ) : null,
 
-        createElement(TabsContent, { value: "overview", active: tab === "overview" },
-          renderOverview(this.state.overview, this.state.overviewLoading, this.state.fallbackDomain),
+      // ─── Main content ─────────────────────────────────────────────────
+      createElement("main", { className: "flex-1 min-w-0 px-4 sm:px-6 py-4" },
+        // Mobile header bar
+        createElement("div", { className: "lg:hidden flex items-center gap-3 mb-4" },
+          createElement("button", {
+            type: "button",
+            onClick: () => this.setState({ sidebarOpen: true }),
+            className: "rounded-md p-1.5 border border-input bg-background text-foreground hover:bg-accent cursor-pointer",
+          }, createElement(Menu, { className: "size-5" })),
+          createElement("h1", { className: "text-lg font-bold tracking-tight" }, tabTitles[tab] || "Dashboard"),
         ),
-        createElement(TabsContent, { value: "myrelays", active: tab === "myrelays" },
-          renderMyRelays(this.state.user, this.state.myRelays, this.state.moderatedRelays, this.state.myRelaysLoading, this.state.myRelaysError, this.state.copiedRelayId, this.state.fallbackDomain, this.copyWss),
+        // Desktop header
+        createElement("div", { className: "hidden lg:flex items-center justify-between mb-6" },
+          createElement("h1", { className: "text-xl font-bold tracking-tight" }, tabTitles[tab] || "Dashboard"),
+          user && tab !== "overview" ? createElement(Link, { to: "/signup", className: "inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-medium h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" },
+            createElement(Zap, { className: "size-3.5" }), "New Relay",
+          ) : null,
         ),
-        createElement(TabsContent, { value: "relays", active: tab === "relays" },
-          renderRelays(this.state.relays, this.state.relaysLoading, this.state.relaySearch, this.state.fallbackDomain, (v) => this.setState({ relaySearch: v }), this.handleDeleteRelay),
-        ),
-        createElement(TabsContent, { value: "users", active: tab === "users" },
-          renderUsers(this.state.users, this.state.usersLoading, this.state.userSearch, (v) => this.setState({ userSearch: v }), this.handleToggleAdmin),
-        ),
-        createElement(TabsContent, { value: "orders", active: tab === "orders" },
-          renderOrders(this.state.orders, this.state.ordersLoading),
-        ),
-        createElement(TabsContent, { value: "permissions", active: tab === "permissions" },
-          renderPermissions(this.state.permFilter, this.state.permRequests, this.state.permRequestsLoading, this.state.permGrants, this.state.permGrantsLoading, this.state.permDeciding, this.state.permRevoking, this.handlePermFilterChange, this.handlePermDecide, this.handlePermRevoke),
-        ),
-        createElement(TabsContent, { value: "coinos", active: tab === "coinos" },
-          this.renderCoinosTab(),
-        ),
-        createElement(TabsContent, { value: "access", active: tab === "access" },
-          renderRequestAccess(this.state.user, this.state.myPerms, this.state.myPermsLoading, this.state.permTypes, this.state.requestType, this.state.requestReason, this.state.requestSubmitting, this.state.requestError, (t) => this.setState({ requestType: t }), (r) => this.setState({ requestReason: r }), this.handleRequestAccess),
-        ),
-        createElement(TabsContent, { value: "demo", active: tab === "demo" },
-          this.renderDemo(),
-        ),
+        // Tab content
+        this.renderContent(),
       ),
     );
   }

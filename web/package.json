@@ -8,16 +8,17 @@
     "css": "bunx @tailwindcss/cli -i src/index.css -o dist/index.css --minify"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "hono": "^4.7.0",
     "inferno": "^8.2.3",
     "inferno-create-element": "^8.2.3",
     "inferno-router": "^8.2.3",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
+    "shiki": "^3.7.0",
     "tailwind-merge": "^3.4.0",
-    "date-fns": "^4.1.0",
-    "zod": "^4.3.6",
-    "hono": "^4.7.0",
-    "shiki": "^3.7.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.18",
