@@ -1,6 +1,6 @@
 import { createStore } from "../lib/store";
 import { api } from "../lib/api";
-import { fetchProfile, clearProfileCache } from "../lib/nostr";
+import { fetchProfile, fetchRelayList, clearProfileCache } from "../lib/nostr";
 
 export interface UserPermission {
   type: string;
@@ -47,6 +47,40 @@ async function enrichUser(user: User): Promise<User> {
   return user;
 }
 
+/** Fetch NIP-65 relay list and populate Relay Manager localStorage profiles */
+async function populateRelayProfiles(pubkey: string): Promise<void> {
+  try {
+    const relayList = await fetchRelayList(pubkey);
+    if (!relayList) return;
+
+    const STORAGE_KEY = "mycelium_relay_profiles";
+    let profiles: { id: string; name: string; relays: string[]; builtin: boolean }[] = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) profiles = JSON.parse(raw);
+    } catch { /* ignore */ }
+
+    // Update or create outbox/inbox profiles with NIP-65 data
+    const updateProfile = (id: string, name: string, relays: string[]) => {
+      if (relays.length === 0) return;
+      const idx = profiles.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        profiles[idx] = { ...profiles[idx], relays };
+      } else {
+        profiles.push({ id, name, relays, builtin: true });
+      }
+    };
+
+    updateProfile("outbox", "Outbox", relayList.outbox);
+    updateProfile("inbox", "Inbox", relayList.inbox);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+    console.log(`[auth] NIP-65 relay list populated: ${relayList.outbox.length} outbox, ${relayList.inbox.length} inbox`);
+  } catch (err) {
+    console.warn("[auth] Failed to fetch NIP-65 relay list:", err);
+  }
+}
+
 export async function login(): Promise<void> {
   const { token: loginToken } = await api.get<{ token: string }>("/auth/login-token");
 
@@ -67,10 +101,11 @@ export async function login(): Promise<void> {
   localStorage.setItem("token", token);
   authStore.set({ user: { ...user, picture: user.picture || null, banner: null, about: null }, token, loading: false });
 
-  // Enrich with Nostr profile in background (non-blocking)
+  // Enrich with Nostr profile and NIP-65 relay list in background (non-blocking)
   enrichUser(user).then((enriched) => {
     authStore.set({ ...authStore.get(), user: enriched });
   });
+  populateRelayProfiles(user.pubkey);
 }
 
 export function logout(): void {
@@ -89,10 +124,11 @@ export async function checkAuth(): Promise<void> {
     const { user } = await api.get<{ user: User }>("/auth/me");
     authStore.set({ user: { ...user, picture: user.picture || null, banner: null, about: null }, token, loading: false });
 
-    // Enrich with Nostr profile in background
+    // Enrich with Nostr profile and NIP-65 relay list in background
     enrichUser(user).then((enriched) => {
       authStore.set({ ...authStore.get(), user: enriched });
     });
+    populateRelayProfiles(user.pubkey);
   } catch {
     localStorage.removeItem("token");
     authStore.set({ user: null, token: null, loading: false });

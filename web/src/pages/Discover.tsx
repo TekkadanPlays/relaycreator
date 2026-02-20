@@ -56,7 +56,16 @@ function parseRstateRelay(raw: any): RelayInfo {
   // rtt.{open,read,write}.value, nips.list, geo.{lat,lon}, country.value,
   // lastSeenAt, lastOpenAt, observationCount, labels, updated_at
   const url = raw.relayUrl || raw.url || "";
-  const sw = raw.software?.family?.value || "";
+  let sw = raw.software?.family?.value || "";
+  // Strip git URLs to just the project name
+  // e.g. "https://github.com/hoytech/strfry" → "strfry"
+  // e.g. "git+https://example.com/foo/bar" → "bar"
+  // e.g. "git://example.com/nostr-rs-relay" → "nostr-rs-relay"
+  if (sw.includes("/") || sw.includes("://")) {
+    sw = sw.replace(/^git\+/, "").replace(/\.git$/, "");
+    const parts = sw.split("/").filter(Boolean);
+    sw = parts[parts.length - 1] || sw;
+  }
   const ver = raw.software?.version?.value || "";
   const nips: number[] = Array.isArray(raw.nips?.list) ? raw.nips.list : [];
   const countryCode = raw.country?.value || "";
