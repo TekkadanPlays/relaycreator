@@ -499,6 +499,11 @@ frontend secured
 	acl host_oni hdr(Host) -i live.${usethisdomain}
 	use_backend oni if host_oni
 
+	# --- Docs subdomain (docs.mycelium.social) ---
+	acl host_docs hdr(Host) -i docs.${usethisdomain}
+	http-request set-path /docs%[path] if host_docs !{ path_beg /docs } !{ path_beg /api }
+	use_backend main if host_docs
+
 	# --- CoinOS external API proxy ---
 	acl is_coinos path_beg /coinos
 	acl has_api_key req.hdr(x-api-key) -m found
