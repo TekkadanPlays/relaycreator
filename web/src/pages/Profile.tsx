@@ -4,10 +4,7 @@ import { authStore, type User } from "../stores/auth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/ui/Avatar";
 import { Card, CardContent } from "@/ui/Card";
 import { Badge } from "@/ui/Badge";
-import { Button } from "@/ui/Button";
-import { Separator } from "@/ui/Separator";
-import { User as UserIcon, Shield, Radio, Copy, CheckCircle2, ExternalLink } from "@/lib/icons";
-import { cn } from "@/ui/utils";
+import { User as UserIcon, Shield, Copy, CheckCircle2 } from "@/lib/icons";
 
 interface ProfileState {
   user: User | null;
@@ -99,30 +96,6 @@ export default class Profile extends Component<{}, ProfileState> {
         ),
       ),
 
-      // Quick links
-      createElement(Card, { className: "border-border/50" },
-        createElement(CardContent, { className: "p-4 space-y-1" },
-          createElement("h3", { className: "text-sm font-semibold mb-3" }, "Quick Links"),
-          createElement("a", {
-            href: `https://njump.me/${user.pubkey}`,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-          },
-            createElement(ExternalLink, { className: "size-4" }),
-            "View on njump.me",
-          ),
-          createElement("a", {
-            href: `https://primal.net/p/${user.pubkey}`,
-            target: "_blank",
-            rel: "noopener noreferrer",
-            className: "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-          },
-            createElement(ExternalLink, { className: "size-4" }),
-            "View on Primal",
-          ),
-        ),
-      ),
     );
   }
 }

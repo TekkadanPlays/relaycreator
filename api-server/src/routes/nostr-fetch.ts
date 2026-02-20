@@ -1,94 +1,64 @@
 import { Router, Request, Response } from "express";
 
-// Server-side Nostr event fetching via WebSocket
-// Uses Node 20+ native global WebSocket (browser-style API)
-// This avoids browser WSS connection issues (Firefox blocks, CSP, extensions, etc.)
+// Server-side Nostr event fetching via HTTP APIs
+// Uses relay HTTP endpoints (nostr.band, purplepag.es) which are far more
+// reliable than raw WebSocket connections from a server.
 
 const router = Router();
 
-const INDEXER_RELAYS = [
-  "wss://purplepag.es",
-  "wss://relay.damus.io",
-  "wss://relay.nostr.band",
-  "wss://nos.lol",
-  "wss://relay.primal.net",
-];
-
-const FETCH_TIMEOUT = 8000;
+const FETCH_TIMEOUT = 6000;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-interface FetchResult<T> {
-  data: T | null;
-  created_at: number;
-}
+/**
+ * Fetch Nostr events via relay HTTP API.
+ * Many relays support NIP-50 search or REQ-over-HTTP.
+ * We use nostr.band's API and purplepag.es' HTTP endpoint.
+ */
+async function fetchEventsHttp(
+  filter: { kinds: number[]; authors: string[] },
+): Promise<any[]> {
+  const events: any[] = [];
 
-function fetchEventFromRelay<T>(
-  relayUrl: string,
-  filter: Record<string, unknown>,
-  parseEvent: (event: any) => T,
-): Promise<FetchResult<T> | null> {
-  return new Promise((resolve) => {
-    let resolved = false;
-    const finish = (result: FetchResult<T> | null) => {
-      if (resolved) return;
-      resolved = true;
-      clearTimeout(timer);
-      try { ws.close(); } catch { /* ignore */ }
-      resolve(result);
-    };
-
-    let ws: InstanceType<typeof globalThis.WebSocket>;
-    try {
-      ws = new globalThis.WebSocket(relayUrl);
-    } catch {
-      resolve(null);
-      return;
-    }
-
-    const timer = setTimeout(() => finish(null), FETCH_TIMEOUT);
-    const subId = "sf_" + Math.random().toString(36).slice(2, 10);
-    let found: FetchResult<T> | null = null;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify(["REQ", subId, { ...filter, limit: 1 }]));
-    };
-
-    ws.onmessage = (msg: MessageEvent) => {
-      try {
-        const data = JSON.parse(typeof msg.data === "string" ? msg.data : msg.data.toString());
-        if (data[0] === "EVENT" && data[1] === subId && data[2]) {
-          const event = data[2];
-          const parsed = parseEvent(event);
-          if (parsed && (!found || event.created_at > found.created_at)) {
-            found = { data: parsed, created_at: event.created_at };
-          }
-        }
-        if (data[0] === "EOSE" && data[1] === subId) {
-          ws.send(JSON.stringify(["CLOSE", subId]));
-          finish(found);
-        }
-      } catch { /* ignore parse errors */ }
-    };
-
-    ws.onerror = () => finish(null);
-    ws.onclose = () => finish(found);
-  });
-}
-
-async function fetchFromIndexers<T>(
-  filter: Record<string, unknown>,
-  parseEvent: (event: any) => T,
-): Promise<T | null> {
-  const results = await Promise.all(
-    INDEXER_RELAYS.map((url) => fetchEventFromRelay(url, filter, parseEvent).catch(() => null)),
+  // Strategy 1: nostr.band API (supports profile and relay list lookups)
+  const nostrBandUrls = filter.kinds.map((kind) =>
+    `https://api.nostr.band/v0/events?kinds=${kind}&authors=${filter.authors[0]}&limit=1`
   );
 
-  const valid = results.filter((r): r is FetchResult<T> => r !== null && r.data !== null);
-  if (valid.length === 0) return null;
+  // Strategy 2: purplepag.es HTTP API (REQ-over-HTTP)
+  const purplePagesUrl = `https://purplepag.es/api/events?kinds=${filter.kinds.join(",")}&authors=${filter.authors[0]}&limit=1`;
 
-  valid.sort((a, b) => b.created_at - a.created_at);
-  return valid[0].data;
+  const fetchers: Promise<any[]>[] = [
+    // nostr.band
+    ...nostrBandUrls.map(async (url) => {
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+        if (!r.ok) return [];
+        const data: any = await r.json();
+        return Array.isArray(data.events) ? data.events : Array.isArray(data) ? data : [];
+      } catch { return []; }
+    }),
+    // purplepag.es
+    (async () => {
+      try {
+        const r = await fetch(purplePagesUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
+        if (!r.ok) return [];
+        const data: any = await r.json();
+        return Array.isArray(data) ? data : Array.isArray(data.events) ? data.events : [];
+      } catch { return []; }
+    })(),
+  ];
+
+  const results = await Promise.allSettled(fetchers);
+  for (const r of results) {
+    if (r.status === "fulfilled") events.push(...r.value);
+  }
+
+  // Deduplicate by id and sort by created_at descending
+  const seen = new Set<string>();
+  return events
+    .filter((e) => e && e.id && !seen.has(e.id) && seen.add(e.id))
+    .sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
 }
 
 // ─── GET /profile/:pubkey — Fetch kind-0 profile ────────────────────────────
@@ -111,16 +81,13 @@ router.get("/profile/:pubkey", async (req: Request, res: Response) => {
   }
 
   try {
-    const profile = await fetchFromIndexers<NostrProfile>(
-      { kinds: [0], authors: [pubkey] },
-      (event) => JSON.parse(event.content) as NostrProfile,
-    );
-
-    if (!profile) {
+    const events = await fetchEventsHttp({ kinds: [0], authors: [pubkey] });
+    if (events.length === 0) {
       res.status(404).json({ error: "Profile not found" });
       return;
     }
 
+    const profile = JSON.parse(events[0].content) as NostrProfile;
     res.json({ profile });
   } catch (err) {
     console.error("[nostr-fetch] Profile fetch error:", err);
@@ -144,32 +111,27 @@ router.get("/relaylist/:pubkey", async (req: Request, res: Response) => {
   }
 
   try {
-    const relayList = await fetchFromIndexers<Nip65RelayList>(
-      { kinds: [10002], authors: [pubkey] },
-      (event) => {
-        const outbox: string[] = [];
-        const inbox: string[] = [];
-        const both: string[] = [];
-
-        for (const tag of event.tags) {
-          if (tag[0] !== "r" || !tag[1]) continue;
-          const url = tag[1].replace(/\/$/, "");
-          const marker = tag[2];
-          if (marker === "read") inbox.push(url);
-          else if (marker === "write") outbox.push(url);
-          else { both.push(url); outbox.push(url); inbox.push(url); }
-        }
-
-        return { outbox, inbox, both };
-      },
-    );
-
-    if (!relayList) {
+    const events = await fetchEventsHttp({ kinds: [10002], authors: [pubkey] });
+    if (events.length === 0) {
       res.status(404).json({ error: "Relay list not found" });
       return;
     }
 
-    res.json({ relayList });
+    const event = events[0];
+    const outbox: string[] = [];
+    const inbox: string[] = [];
+    const both: string[] = [];
+
+    for (const tag of event.tags) {
+      if (tag[0] !== "r" || !tag[1]) continue;
+      const url = tag[1].replace(/\/$/, "");
+      const marker = tag[2];
+      if (marker === "read") inbox.push(url);
+      else if (marker === "write") outbox.push(url);
+      else { both.push(url); outbox.push(url); inbox.push(url); }
+    }
+
+    res.json({ relayList: { outbox, inbox, both } });
   } catch (err) {
     console.error("[nostr-fetch] Relay list fetch error:", err);
     res.status(502).json({ error: "Failed to fetch relay list from indexers" });
