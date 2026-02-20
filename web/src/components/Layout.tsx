@@ -37,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Home",         href: "/",          Icon: Radio,         group: "Relay Tools" },
   { label: "Directory",    href: "/directory",  Icon: Globe,         group: "Relay Tools" },
   { label: "Docs",         href: "/docs",       Icon: FileText,      group: "Relay Tools" },
+  { label: "Live",          href: "https://live.mycelium.social", Icon: Play,          group: "Mycelium", external: true },
   { label: "Social",       href: "https://app.mycelium.social",  Icon: User,          group: "Mycelium", external: true },
   { label: "Chat",         href: "https://chat.mycelium.social", Icon: MessageCircle, group: "Mycelium", external: true },
 ];
