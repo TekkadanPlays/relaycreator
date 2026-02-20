@@ -10,6 +10,14 @@ import {
   Radio, Activity, Database, Menu,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
+import {
+  SidebarProvider, Sidebar, SidebarHeader, SidebarContent as SidebarContentSlot, SidebarFooter,
+  SidebarGroup, SidebarGroupLabel, SidebarGroupContent,
+  SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuBadge,
+  SidebarSeparator, SidebarInset, SidebarTrigger, SidebarRail,
+} from "@/ui/Sidebar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/ui/Avatar";
+import { MushLogo } from "../components/MushLogo";
 
 import type {
   TabId, OverviewData, AdminRelay, AdminUser, AdminOrder,
@@ -593,10 +601,10 @@ export default class Admin extends Component<{}, AdminState> {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   render() {
-    const { user, tab, sidebarOpen } = this.state;
+    const { user, tab } = this.state;
     const isAdmin = !!user?.admin;
 
-    const navSections: { title?: string; items: { id: TabId; label: string; icon: any; adminOnly?: boolean }[] }[] = [
+    const navSections: { title?: string; items: { id: TabId; label: string; icon: any; adminOnly?: boolean; badge?: string }[] }[] = [
       {
         items: [
           { id: "overview", label: "Overview", icon: Activity, adminOnly: true },
@@ -607,8 +615,8 @@ export default class Admin extends Component<{}, AdminState> {
       {
         title: "Admin",
         items: [
-          { id: "relays", label: "All Relays", icon: Database, adminOnly: true },
-          { id: "users", label: "Users", icon: Users, adminOnly: true },
+          { id: "relays", label: "All Relays", icon: Database, adminOnly: true, badge: this.state.relays.length ? String(this.state.relays.length) : undefined },
+          { id: "users", label: "Users", icon: Users, adminOnly: true, badge: this.state.users.length ? String(this.state.users.length) : undefined },
           { id: "orders", label: "Orders", icon: BarChart3, adminOnly: true },
           { id: "permissions", label: "Permissions", icon: Lock, adminOnly: true },
         ],
@@ -626,25 +634,10 @@ export default class Admin extends Component<{}, AdminState> {
       },
     ];
 
-    // Filter out admin-only items for non-admins, and empty sections
     const visibleSections = navSections
       .map((s) => ({ ...s, items: s.items.filter((i) => !i.adminOnly || isAdmin) }))
       .filter((s) => s.items.length > 0);
 
-    // Sidebar content (shared between desktop and mobile)
-    const sidebarContent = createElement("nav", { className: "flex flex-col gap-1 px-2" },
-      ...visibleSections.flatMap((section, si) => {
-        const els: any[] = [];
-        if (si > 0) els.push(createElement(Separator, { key: `sep-${si}`, className: "my-2" }));
-        if (section.title) {
-          els.push(createElement("p", { key: `title-${si}`, className: "text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pt-2 pb-1" }, section.title));
-        }
-        section.items.forEach((item) => els.push(this.renderNavItem(item.id, item.label, item.icon)));
-        return els;
-      }),
-    );
-
-    // Page title for current tab
     const tabTitles: Record<TabId, string> = {
       overview: "Overview",
       myrelays: "My Relays",
@@ -657,78 +650,108 @@ export default class Admin extends Component<{}, AdminState> {
       demo: "Directory",
     };
 
-    return createElement("div", { className: "flex min-h-[calc(100vh-3.5rem)] animate-in" },
-
-      // ─── Desktop sidebar ──────────────────────────────────────────────
-      createElement("aside", { className: "hidden lg:flex flex-col w-56 shrink-0 border-r border-border/40 bg-muted/20 py-4" },
-        // Logo / title
-        createElement("div", { className: "px-4 mb-4" },
-          createElement("div", { className: "flex items-center gap-2" },
-            createElement("div", { className: "flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground" },
-              createElement(Shield, { className: "size-4" }),
-            ),
-            createElement("span", { className: "font-semibold text-sm" }, isAdmin ? "Admin" : "Dashboard"),
-          ),
-        ),
-        sidebarContent,
-        // Spacer
-        createElement("div", { className: "flex-1" }),
-        // New Relay CTA
-        user ? createElement("div", { className: "px-3 pt-4" },
-          createElement(Link, { to: "/signup", className: "flex items-center justify-center gap-1.5 w-full rounded-md text-xs font-medium h-8 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" },
-            createElement(Zap, { className: "size-3.5" }), "New Relay",
-          ),
-        ) : null,
-      ),
-
-      // ─── Mobile sidebar overlay ───────────────────────────────────────
-      sidebarOpen ? createElement("div", { className: "lg:hidden fixed inset-0 z-50 flex" },
-        // Backdrop
-        createElement("div", {
-          className: "absolute inset-0 bg-black/50",
-          onClick: () => this.setState({ sidebarOpen: false }),
-        }),
-        // Drawer
-        createElement("div", { className: "relative w-64 bg-background border-r border-border py-4 flex flex-col" },
-          createElement("div", { className: "px-4 mb-4 flex items-center justify-between" },
-            createElement("div", { className: "flex items-center gap-2" },
-              createElement("div", { className: "flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground" },
-                createElement(Shield, { className: "size-4" }),
+    // Build sidebar nav groups using blazecn Sidebar components
+    const sidebarGroups = visibleSections.map((section, si) =>
+      createElement(SidebarGroup, { key: `grp-${si}` },
+        section.title
+          ? createElement(SidebarGroupLabel, null, section.title)
+          : null,
+        createElement(SidebarGroupContent, null,
+          createElement(SidebarMenu, null,
+            ...section.items.map((item) =>
+              createElement(SidebarMenuItem, { key: item.id },
+                createElement(SidebarMenuButton, {
+                  isActive: tab === item.id,
+                  tooltip: item.label,
+                  onClick: () => { this.switchTab(item.id); },
+                },
+                  createElement(item.icon, null),
+                  createElement("span", null, item.label),
+                ),
+                item.badge ? createElement(SidebarMenuBadge, null, item.badge) : null,
               ),
-              createElement("span", { className: "font-semibold text-sm" }, isAdmin ? "Admin" : "Dashboard"),
             ),
-            createElement("button", {
-              type: "button",
-              onClick: () => this.setState({ sidebarOpen: false }),
-              className: "rounded-md p-1 text-muted-foreground hover:text-foreground cursor-pointer",
-            }, createElement("svg", { className: "size-5", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2" },
-              createElement("path", { d: "M6 18 18 6M6 6l12 12" }),
-            )),
           ),
-          sidebarContent,
         ),
-      ) : null,
+      ),
+    );
 
-      // ─── Main content ─────────────────────────────────────────────────
-      createElement("main", { className: "flex-1 min-w-0 px-4 sm:px-6 py-4" },
-        // Mobile header bar
-        createElement("div", { className: "lg:hidden flex items-center gap-3 mb-4" },
-          createElement("button", {
-            type: "button",
-            onClick: () => this.setState({ sidebarOpen: true }),
-            className: "rounded-md p-1.5 border border-input bg-background text-foreground hover:bg-accent cursor-pointer",
-          }, createElement(Menu, { className: "size-5" })),
-          createElement("h1", { className: "text-lg font-bold tracking-tight" }, tabTitles[tab] || "Dashboard"),
+    return createElement(SidebarProvider, { className: "min-h-[calc(100vh-3.5rem)]" },
+
+      // ─── Sidebar ─────────────────────────────────────────────────────
+      createElement(Sidebar, { collapsible: "icon" },
+
+        // Header: logo + title
+        createElement(SidebarHeader, null,
+          createElement(SidebarMenu, null,
+            createElement(SidebarMenuItem, null,
+              createElement(SidebarMenuButton, { size: "lg", tooltip: isAdmin ? "Admin Panel" : "Dashboard" },
+                createElement(MushLogo, { className: "size-5" }),
+                createElement("div", { className: "flex flex-col gap-0.5 leading-none" },
+                  createElement("span", { className: "font-semibold text-sm" }, "mycelium"),
+                  createElement("span", { className: "text-[10px] text-muted-foreground" }, isAdmin ? "Admin Panel" : "Dashboard"),
+                ),
+              ),
+            ),
+          ),
         ),
-        // Desktop header
-        createElement("div", { className: "hidden lg:flex items-center justify-between mb-6" },
-          createElement("h1", { className: "text-xl font-bold tracking-tight" }, tabTitles[tab] || "Dashboard"),
-          user && tab !== "overview" ? createElement(Link, { to: "/signup", className: "inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-medium h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" },
-            createElement(Zap, { className: "size-3.5" }), "New Relay",
+
+        // Nav content
+        createElement(SidebarContentSlot, null,
+          ...sidebarGroups,
+        ),
+
+        // Footer: user card + new relay CTA
+        createElement(SidebarFooter, null,
+          // New Relay button
+          user ? createElement(SidebarMenu, null,
+            createElement(SidebarMenuItem, null,
+              createElement(Link, { to: "/signup", className: "flex items-center justify-center gap-1.5 w-full rounded-md text-xs font-medium h-8 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" },
+                createElement(Zap, { className: "size-3.5" }), "New Relay",
+              ),
+            ),
+          ) : null,
+          // User card
+          user ? createElement(SidebarMenu, null,
+            createElement(SidebarMenuItem, null,
+              createElement(SidebarMenuButton, { size: "lg", tooltip: user.name || "Profile" },
+                createElement(Avatar, { className: "size-7" },
+                  user.picture
+                    ? createElement(AvatarImage, { src: user.picture, alt: user.name || "Profile" })
+                    : null,
+                  createElement(AvatarFallback, { className: "text-[10px]" },
+                    user.pubkey.slice(0, 2).toUpperCase(),
+                  ),
+                ),
+                createElement("div", { className: "flex flex-col gap-0.5 leading-none min-w-0" },
+                  createElement("span", { className: "text-sm font-medium truncate" }, user.name || user.pubkey.slice(0, 8) + "..."),
+                  createElement("span", { className: "text-[10px] text-muted-foreground font-mono truncate" }, user.pubkey.slice(0, 16) + "..."),
+                ),
+              ),
+            ),
           ) : null,
         ),
-        // Tab content
-        this.renderContent(),
+
+        // Rail for collapse toggle
+        createElement(SidebarRail, null),
+      ),
+
+      // ─── Main content ─────────────────────────────────────────────────
+      createElement(SidebarInset, null,
+        // Header bar with trigger + breadcrumb
+        createElement("header", { className: "flex h-12 items-center gap-2 border-b border-border/40 px-4 sm:px-6" },
+          createElement(SidebarTrigger, { className: "-ml-1" }),
+          createElement(Separator, { orientation: "vertical", className: "mx-2 h-4" } as any),
+          createElement("h1", { className: "text-sm font-semibold tracking-tight" }, tabTitles[tab] || "Dashboard"),
+          createElement("div", { className: "flex-1" }),
+          user && tab !== "overview" ? createElement(Link, { to: "/signup", className: "inline-flex items-center justify-center gap-1.5 rounded-md text-xs font-medium h-7 px-3 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" },
+            createElement(Zap, { className: "size-3" }), "New Relay",
+          ) : null,
+        ),
+        // Content area
+        createElement("div", { className: "flex-1 p-4 sm:p-6" },
+          this.renderContent(),
+        ),
       ),
     );
   }

@@ -12,6 +12,7 @@ import Directory from "./pages/Directory";
 import FAQ from "./pages/FAQ";
 import Wallet from "./pages/Wallet";
 import Admin from "./pages/Admin";
+import Profile from "./pages/Profile";
 import Discover from "./pages/Discover";
 import RelayManager from "./pages/RelayManager";
 import { Docs } from "./pages/docs/DocsRouter";
@@ -48,6 +49,7 @@ export default class App extends Component<{}, AuthState> {
           createElement(Route, { path: "/directory", component: Directory }),
           createElement(Route, { path: "/faq", component: FAQ }),
           createElement(Route, { path: "/wallet", component: Wallet }),
+          createElement(Route, { path: "/profile", component: Profile }),
           createElement(Route, { path: "/admin", component: Admin }),
           createElement(Route, { path: "/discover", component: Discover }),
           createElement(Route, { exact: true, path: "/relays", component: RelayManager }),

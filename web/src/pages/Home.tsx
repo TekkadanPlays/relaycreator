@@ -71,7 +71,7 @@ export default function Home() {
     ),
 
     // ─── How it works ───────────────────────────────────────────────────
-    createElement("section", { className: "-mx-4 sm:-mx-6 px-4 sm:px-6 py-16 bg-muted/30 border-y border-border/20" },
+    createElement("section", { className: "relative left-[50%] right-[50%] ml-[-50vw] mr-[-50vw] w-screen px-4 sm:px-6 py-16 bg-muted/30 border-y border-border/20" },
       createElement("div", { className: "mx-auto max-w-4xl" },
         createElement("div", { className: "text-center mb-10" },
           createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary mb-2" }, "How it works"),
@@ -115,7 +115,7 @@ export default function Home() {
     ),
 
     // ─── Popular configurations + Discover ──────────────────────────────
-    createElement("section", { className: "-mx-4 sm:-mx-6 px-4 sm:px-6 py-16 bg-muted/30 border-y border-border/20" },
+    createElement("section", { className: "relative left-[50%] right-[50%] ml-[-50vw] mr-[-50vw] w-screen px-4 sm:px-6 py-16 bg-muted/30 border-y border-border/20" },
       createElement("div", { className: "mx-auto max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8" },
 
         // Configs

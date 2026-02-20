@@ -264,34 +264,70 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
                     // Dropdown menu
                     userMenuOpen
                       ? createElement("div", {
-                          className: "absolute right-0 top-full mt-2 w-52 bg-popover border border-border rounded-lg shadow-lg py-1 z-50",
+                          className: "absolute right-0 top-full mt-2 w-72 bg-popover border border-border rounded-xl shadow-xl overflow-hidden z-50",
                         },
-                          createElement("div", { className: "px-3 py-2 border-b border-border" },
-                            createElement("p", { className: "font-mono text-xs text-muted-foreground truncate" }, user.pubkey.slice(0, 20) + "..."),
+                          // ─── Profile card with banner + avatar overlay ───
+                          createElement("div", { className: "relative" },
+                            // Banner
+                            createElement("div", {
+                              className: "h-20 bg-gradient-to-br from-primary/30 via-primary/10 to-muted/50",
+                              style: user.banner ? { backgroundImage: `url(${user.banner})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined,
+                            }),
+                            // Avatar overlapping banner
+                            createElement("div", { className: "absolute -bottom-5 left-4" },
+                              createElement(Avatar, { className: "size-10 ring-2 ring-popover" },
+                                user.picture
+                                  ? createElement(AvatarImage, { src: user.picture, alt: user.name || "Profile" })
+                                  : null,
+                                createElement(AvatarFallback, { className: "text-xs font-bold" },
+                                  user.pubkey.slice(0, 2).toUpperCase(),
+                                ),
+                              ),
+                            ),
                           ),
-                          createElement(Link, { to: "/admin", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
-                            createElement(Shield, { className: "size-4" }), "Admin Panel",
+                          // Name + pubkey
+                          createElement("div", { className: "pt-7 pb-3 px-4" },
+                            createElement("p", { className: "text-sm font-semibold truncate" }, user.name || user.pubkey.slice(0, 12) + "..."),
+                            createElement("p", { className: "font-mono text-[10px] text-muted-foreground truncate" }, user.pubkey.slice(0, 24) + "..."),
                           ),
-                          createElement(Link, { to: "/wallet", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
-                            createElement(Wallet, { className: "size-4" }), "Wallet",
+                          createElement("div", { className: "border-t border-border" }),
+                          // ─── Admin section (if admin) ───
+                          user.admin ? createElement("div", { className: "py-1" },
+                            createElement(Link, { to: "/admin", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                              createElement(Shield, { className: "size-4" }), "Admin Panel",
+                            ),
+                            createElement(Link, { to: "/wallet", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                              createElement(Wallet, { className: "size-4" }), "Wallet",
+                            ),
+                          ) : null,
+                          user.admin ? createElement("div", { className: "border-t border-border" }) : null,
+                          // ─── User section ───
+                          createElement("div", { className: "py-1" },
+                            createElement(Link, { to: "/profile", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                              createElement(User, { className: "size-4" }), "Profile",
+                            ),
+                            createElement(Link, { to: "/relays", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                              createElement(Radio, { className: "size-4" }), "Relay Manager",
+                            ),
+                            createElement(Link, { to: "/signup", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                              createElement(Zap, { className: "size-4" }), "Create Relay",
+                            ),
                           ),
-                          createElement(Link, { to: "/signup", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
-                            createElement(Zap, { className: "size-4" }), "Create Relay",
+                          createElement("div", { className: "border-t border-border" }),
+                          // ─── Help ───
+                          createElement("div", { className: "py-1" },
+                            createElement(Link, { to: "/faq", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                              createElement(HelpCircle, { className: "size-4" }), "FAQ",
+                            ),
                           ),
-                          createElement(Link, { to: "/discover", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
-                            createElement(Globe, { className: "size-4" }), "Discover Relays",
+                          createElement("div", { className: "border-t border-border" }),
+                          // ─── Sign out ───
+                          createElement("div", { className: "py-1" },
+                            createElement("button", {
+                              onClick: () => { this.handleLogout(); this.setState({ userMenuOpen: false }); },
+                              className: "flex items-center gap-2.5 px-4 py-2 w-full text-sm text-destructive/70 hover:text-destructive hover:bg-destructive/5 transition-colors cursor-pointer",
+                            }, createElement(LogOut, { className: "size-4" }), "Sign Out"),
                           ),
-                          createElement(Link, { to: "/relays", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
-                            createElement(Radio, { className: "size-4" }), "Relay Manager",
-                          ),
-                          createElement(Link, { to: "/faq", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
-                            createElement(HelpCircle, { className: "size-4" }), "FAQ",
-                          ),
-                          createElement("div", { className: "border-t border-border my-1" }),
-                          createElement("button", {
-                            onClick: () => { this.handleLogout(); this.setState({ userMenuOpen: false }); },
-                            className: "flex items-center gap-2 px-3 py-2 w-full text-sm text-destructive/70 hover:text-destructive hover:bg-destructive/5 transition-colors cursor-pointer",
-                          }, createElement(LogOut, { className: "size-4" }), "Sign Out"),
                         )
                       : null,
                   )
