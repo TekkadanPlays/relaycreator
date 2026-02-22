@@ -37,6 +37,10 @@ import { renderRequestAccess } from "./admin/RequestAccessTab";
 import { renderCoinosGate, renderCoinosDashboard, renderCoinosFunds, renderCoinosInvoices } from "./admin/CoinosTab";
 import { renderLoading } from "./admin/helpers";
 import { renderNip05, type Nip05Entry } from "./admin/Nip05Tab";
+import {
+  renderRelaySettingsPanel, initialRelaySettingsState, populateFromRelay,
+  type RelaySettingsFull, type RelaySettingsTabState,
+} from "./admin/RelaySettingsTab";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -86,6 +90,11 @@ interface AdminState {
   nip05Entries: Nip05Entry[]; nip05Loading: boolean; nip05Search: string;
   nip05NewName: string; nip05NewPubkey: string; nip05NewRelays: string; nip05Adding: boolean;
   nip05CopiedId: string | null;
+
+  // Inline relay settings
+  editingRelaySlug: string | null;
+  relaySettings: RelaySettingsTabState;
+  relaySettingsToast: string;
 
   sidebarOpen: boolean;
   influxPlatform: { available: boolean; events: any[]; connections: any[] } | null;
@@ -142,6 +151,10 @@ export default class Admin extends Component<{}, AdminState> {
       nip05Entries: [], nip05Loading: false, nip05Search: "",
       nip05NewName: "", nip05NewPubkey: "", nip05NewRelays: "", nip05Adding: false,
       nip05CopiedId: null,
+
+      editingRelaySlug: null,
+      relaySettings: initialRelaySettingsState(),
+      relaySettingsToast: "",
 
       sidebarOpen: false,
       influxPlatform: null, influxPlatformLoading: false, influxRange: "24h",
@@ -373,6 +386,48 @@ export default class Admin extends Component<{}, AdminState> {
     navigator.clipboard.writeText(text);
     this.setState({ nip05CopiedId: id });
     setTimeout(() => this.setState({ nip05CopiedId: null }), 2000);
+  };
+
+  // ─── Inline Relay Settings ──────────────────────────────────────────────
+
+  private openRelaySettings = (slug: string) => {
+    this.setState({
+      editingRelaySlug: slug,
+      relaySettings: { ...initialRelaySettingsState(), loading: true },
+    });
+    this.loadRelaySettings(slug);
+  };
+
+  private async loadRelaySettings(slug: string) {
+    try {
+      const data = await api.get<{ relay: RelaySettingsFull }>(`/relays/by-name/${slug}`);
+      this.setState((s) => ({
+        relaySettings: { ...s.relaySettings, ...populateFromRelay(data.relay) },
+      }));
+    } catch (err: any) {
+      this.setState((s) => ({
+        relaySettings: { ...s.relaySettings, loading: false, error: err.message || "Failed to load relay" },
+      }));
+    }
+  }
+
+  private closeRelaySettings = () => {
+    this.setState({ editingRelaySlug: null, relaySettings: initialRelaySettingsState() });
+    this.loadMyRelays();
+  };
+
+  private setRelaySettingsState = (partial: Partial<RelaySettingsTabState>) => {
+    this.setState((s) => ({ relaySettings: { ...s.relaySettings, ...partial } }));
+  };
+
+  private reloadRelaySettings = () => {
+    const slug = this.state.editingRelaySlug;
+    if (slug) this.loadRelaySettings(slug);
+  };
+
+  private showRelaySettingsToast = (msg: string) => {
+    this.setState({ relaySettingsToast: msg });
+    setTimeout(() => this.setState({ relaySettingsToast: "" }), 3000);
   };
 
   private async loadDemo() {
@@ -655,7 +710,21 @@ export default class Admin extends Component<{}, AdminState> {
           this.handleInfluxRangeChange,
         );
       case "myrelays":
-        return renderMyRelays(this.state.user, this.state.myRelays, this.state.moderatedRelays, this.state.myRelaysLoading, this.state.myRelaysError, this.state.copiedRelayId, this.state.fallbackDomain, this.copyWss);
+        if (this.state.editingRelaySlug) {
+          return createElement("div", null,
+            this.state.relaySettingsToast
+              ? createElement("div", { className: "fixed top-4 right-4 z-50 bg-foreground text-background px-4 py-2 rounded-md text-sm shadow-lg" }, this.state.relaySettingsToast)
+              : null,
+            renderRelaySettingsPanel(
+              this.state.relaySettings,
+              this.closeRelaySettings,
+              this.setRelaySettingsState,
+              this.reloadRelaySettings,
+              this.showRelaySettingsToast,
+            ),
+          );
+        }
+        return renderMyRelays(this.state.user, this.state.myRelays, this.state.moderatedRelays, this.state.myRelaysLoading, this.state.myRelaysError, this.state.copiedRelayId, this.state.fallbackDomain, this.copyWss, this.openRelaySettings);
       case "relays":
         return renderRelays(this.state.relays, this.state.relaysLoading, this.state.relaySearch, this.state.fallbackDomain, (v) => this.setState({ relaySearch: v }), this.handleDeleteRelay);
       case "users":

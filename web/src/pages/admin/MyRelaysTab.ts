@@ -18,6 +18,7 @@ export function renderMyRelays(
   copiedRelayId: string | null,
   fallbackDomain: string,
   onCopyWss: (relay: MyRelay) => void,
+  onOpenSettings?: (slug: string) => void,
 ) {
   if (!user) {
     return createElement("div", { className: "flex flex-col items-center justify-center py-24 text-center" },
@@ -98,9 +99,16 @@ export function renderMyRelays(
                 createElement(Link, { to: `/relays/${relay.name}`, className: "inline-flex items-center gap-1.5 rounded-md text-xs h-8 px-3 hover:bg-accent transition-colors" },
                   createElement(ExternalLink, { className: "size-3.5" }), "View",
                 ),
-                createElement(Link, { to: `/relays/${relay.name}/settings`, className: "inline-flex items-center gap-1.5 rounded-md border border-input text-xs h-8 px-3 hover:bg-accent transition-colors" },
-                  createElement(Settings, { className: "size-3.5" }), "Settings",
-                ),
+                onOpenSettings
+                  ? createElement("button", {
+                      onClick: () => onOpenSettings(relay.name),
+                      className: "inline-flex items-center gap-1.5 rounded-md border border-input text-xs h-8 px-3 hover:bg-accent transition-colors cursor-pointer",
+                    },
+                      createElement(Settings, { className: "size-3.5" }), "Settings",
+                    )
+                  : createElement(Link, { to: `/relays/${relay.name}/settings`, className: "inline-flex items-center gap-1.5 rounded-md border border-input text-xs h-8 px-3 hover:bg-accent transition-colors" },
+                      createElement(Settings, { className: "size-3.5" }), "Settings",
+                    ),
               ),
             ),
           ),
