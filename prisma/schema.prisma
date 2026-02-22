@@ -284,6 +284,8 @@ model Permission {
   disclaimer_accepted_at DateTime?
   revoked_at          DateTime?
   notes               String?   @db.Text
+  relay_quota         Int?      // max relays this operator can create (null = use default)
+  nip05_quota         Int?      // max NIP-05 identities this operator can distribute (null = use default)
 
   @@unique([userId, type])
   @@index([userId])

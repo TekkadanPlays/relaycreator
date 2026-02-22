@@ -8,7 +8,7 @@ import { Label } from "@/ui/Label";
 import { Button } from "@/ui/Button";
 import { Badge } from "@/ui/Badge";
 import { Separator } from "@/ui/Separator";
-import { Loader2, Check, Zap, AlertCircle, Radio, Shield, Globe, User } from "@/lib/icons";
+import { Loader2, Check, Zap, AlertCircle, Radio, Shield, Globe, User, KeyRound, Clock } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 
 type Plan = "standard" | "premium";
@@ -21,6 +21,15 @@ interface SiteConfig {
   invoice_premium_amount: number;
 }
 
+interface Eligibility {
+  eligible: boolean;
+  reason?: string;
+  relaysOwned: number;
+  relayQuota: number | null;
+  canRequest: boolean;
+  hasPendingRequest?: boolean;
+}
+
 interface CreateRelayState extends AuthState {
   step: Step;
   plan: Plan;
@@ -28,6 +37,10 @@ interface CreateRelayState extends AuthState {
   loading: boolean;
   error: string;
   config: SiteConfig | null;
+  eligibility: Eligibility | null;
+  eligibilityLoading: boolean;
+  requestingAccess: boolean;
+  requestSent: boolean;
 }
 
 export default class CreateRelay extends Component<{}, CreateRelayState> {
@@ -40,12 +53,21 @@ export default class CreateRelay extends Component<{}, CreateRelayState> {
       ...authStore.get(),
       step: "pricing", plan: "standard", name: "",
       loading: false, error: "", config: null,
+      eligibility: null, eligibilityLoading: false,
+      requestingAccess: false, requestSent: false,
     };
   }
 
   componentDidMount() {
-    this.unsub = authStore.subscribe((s) => this.setState(s as any));
+    this.unsub = authStore.subscribe((s) => {
+      this.setState(s as any);
+      // Check eligibility when user signs in
+      if (s.user && !this.state.eligibility && !this.state.eligibilityLoading) {
+        this.checkEligibility();
+      }
+    });
     this.loadConfig();
+    if (authStore.get().user) this.checkEligibility();
   }
 
   componentWillUnmount() { this.unsub?.(); }
@@ -56,6 +78,30 @@ export default class CreateRelay extends Component<{}, CreateRelayState> {
       this.setState({ config });
     } catch { /* ignore */ }
   }
+
+  private async checkEligibility() {
+    this.setState({ eligibilityLoading: true });
+    try {
+      const elig = await api.get<Eligibility>("/permissions/relay-eligibility");
+      this.setState({ eligibility: elig, eligibilityLoading: false });
+    } catch {
+      this.setState({ eligibilityLoading: false });
+    }
+  }
+
+  private requestOperatorAccess = async () => {
+    this.setState({ requestingAccess: true });
+    try {
+      await api.post("/permissions/request", {
+        type: "operator",
+        reason: "I would like to operate relays on mycelium.",
+      });
+      this.setState({ requestSent: true, requestingAccess: false });
+      this.checkEligibility();
+    } catch (err: any) {
+      this.setState({ error: err.message || "Failed to submit request", requestingAccess: false });
+    }
+  };
 
   private selectPlan = (plan: Plan) => {
     this.setState({ plan, step: "configure", error: "" });
@@ -80,6 +126,8 @@ export default class CreateRelay extends Component<{}, CreateRelayState> {
     const standardPrice = config?.invoice_amount ?? 21;
     const premiumPrice = config?.invoice_premium_amount ?? 2100;
 
+    const { eligibility, eligibilityLoading, requestingAccess, requestSent } = this.state;
+
     // Not signed in
     if (!user) {
       return createElement("div", { className: "flex flex-col items-center justify-center py-20 text-center space-y-4" },
@@ -88,6 +136,86 @@ export default class CreateRelay extends Component<{}, CreateRelayState> {
         createElement("p", { className: "text-muted-foreground max-w-md" }, "Sign in with your Nostr identity to create and manage your own relay."),
         createElement(Button, { onClick: () => login(), size: "lg", className: "gap-2 mt-2" },
           createElement(User, { className: "size-4" }), "Sign In",
+        ),
+      );
+    }
+
+    // Loading eligibility
+    if (eligibilityLoading || !eligibility) {
+      return createElement("div", { className: "flex flex-col items-center justify-center py-20" },
+        createElement(Loader2, { className: "size-8 animate-spin text-muted-foreground" }),
+      );
+    }
+
+    // Not eligible — no operator permission
+    if (!eligibility.eligible) {
+      return createElement("div", { className: "max-w-lg mx-auto text-center py-16 space-y-6 animate-in" },
+        createElement("div", { className: "size-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto" },
+          createElement(Shield, { className: "size-8 text-primary" }),
+        ),
+        createElement("h1", { className: "text-2xl font-bold" }, "Operator Access Required"),
+        createElement("p", { className: "text-muted-foreground max-w-md mx-auto leading-relaxed" },
+          eligibility.reason,
+        ),
+
+        // Quota info if they have permission but hit the limit
+        eligibility.relayQuota !== null && eligibility.relayQuota > 0
+          ? createElement("div", { className: "rounded-lg border border-border/50 p-4 text-sm" },
+              createElement("div", { className: "flex justify-between" },
+                createElement("span", { className: "text-muted-foreground" }, "Relays owned"),
+                createElement("span", { className: "font-semibold" }, String(eligibility.relaysOwned)),
+              ),
+              createElement("div", { className: "flex justify-between mt-1" },
+                createElement("span", { className: "text-muted-foreground" }, "Relay quota"),
+                createElement("span", { className: "font-semibold" }, String(eligibility.relayQuota)),
+              ),
+            )
+          : null,
+
+        // Pending request notice
+        eligibility.hasPendingRequest
+          ? createElement("div", { className: "flex items-center justify-center gap-2 text-sm text-amber-400" },
+              createElement(Clock, { className: "size-4" }),
+              "Your operator request is pending review.",
+            )
+          : null,
+
+        // Request access button
+        eligibility.canRequest && !requestSent
+          ? createElement(Card, { className: "text-left" },
+              createElement(CardContent, { className: "p-5 space-y-3" },
+                createElement("h3", { className: "font-semibold text-sm" }, "Request Operator Access"),
+                createElement("p", { className: "text-xs text-muted-foreground" },
+                  "Submit a request to the platform administrator. Once approved, you'll be able to create and manage your own relays.",
+                ),
+                error ? createElement("p", { className: "text-xs text-destructive" }, error) : null,
+                createElement(Button, {
+                  onClick: this.requestOperatorAccess,
+                  disabled: requestingAccess,
+                  className: "w-full gap-2",
+                },
+                  requestingAccess
+                    ? createElement(Loader2, { className: "size-4 animate-spin" })
+                    : createElement(KeyRound, { className: "size-4" }),
+                  "Request Access",
+                ),
+              ),
+            )
+          : null,
+
+        // Request sent confirmation
+        requestSent
+          ? createElement("div", { className: "flex items-center justify-center gap-2 text-sm text-emerald-400" },
+              createElement(Check, { className: "size-4" }),
+              "Request submitted! An administrator will review it shortly.",
+            )
+          : null,
+
+        createElement(Button, {
+          variant: "outline", className: "gap-2",
+          onClick: () => { window.location.href = "/admin"; },
+        },
+          createElement(Shield, { className: "size-4" }), "Go to Admin Panel",
         ),
       );
     }

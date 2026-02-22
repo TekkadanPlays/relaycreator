@@ -5,8 +5,12 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 
 // ─── Valid permission types ──────────────────────────────────────────────────
-const PERMISSION_TYPES = ["admin", "coinos_admin", "operator"] as const;
+const PERMISSION_TYPES = ["admin", "coinos_admin", "operator", "nip05_operator"] as const;
 type PermissionType = (typeof PERMISSION_TYPES)[number];
+
+// Default quotas when none specified
+const DEFAULT_RELAY_QUOTA = 5;
+const DEFAULT_NIP05_QUOTA = 5;
 
 function isValidType(t: string): t is PermissionType {
   return PERMISSION_TYPES.includes(t as PermissionType);
@@ -27,9 +31,14 @@ const DISCLAIMERS: Record<PermissionType, string> = {
     "and agree to exercise extreme caution with all monetary operations.",
   operator:
     "You are being granted relay operator privileges. " +
-    "This includes the ability to manage relay settings, access controls, moderation tools, " +
-    "and streaming configuration for relays assigned to you. " +
+    "This includes the ability to create and manage relays, configure access controls, moderation tools, " +
+    "and streaming configuration. Your relay creation quota is set by the administrator. " +
     "By accepting, you agree to operate relays in accordance with platform policies.",
+  nip05_operator:
+    "You are being granted NIP-05 identity distribution privileges. " +
+    "This allows you to manage NIP-05 identities for users on your relays, " +
+    "within the quota set by the administrator. " +
+    "By accepting, you agree to manage identities responsibly.",
 };
 
 // ─── Helper: check admin ─────────────────────────────────────────────────────
@@ -242,7 +251,7 @@ router.get("/requests", requireAuth, async (req: Request, res: Response) => {
 router.post("/grant", requireAuth, async (req: Request, res: Response) => {
   if (!(await ensureAdmin(req, res))) return;
 
-  const { userId, type, notes } = req.body;
+  const { userId, type, notes, relay_quota, nip05_quota } = req.body;
 
   if (!userId || !type || !isValidType(type)) {
     res.status(400).json({ error: "userId and valid type required" });
@@ -265,6 +274,8 @@ router.post("/grant", requireAuth, async (req: Request, res: Response) => {
       type,
       granted_by: admin?.pubkey || null,
       notes: notes || null,
+      relay_quota: type === "operator" ? (relay_quota ?? DEFAULT_RELAY_QUOTA) : null,
+      nip05_quota: (type === "operator" || type === "nip05_operator") ? (nip05_quota ?? DEFAULT_NIP05_QUOTA) : null,
     },
     update: {
       revoked_at: null,
@@ -273,6 +284,8 @@ router.post("/grant", requireAuth, async (req: Request, res: Response) => {
       disclaimer_accepted: false,
       disclaimer_accepted_at: null,
       notes: notes || null,
+      relay_quota: type === "operator" ? (relay_quota ?? undefined) : undefined,
+      nip05_quota: (type === "operator" || type === "nip05_operator") ? (nip05_quota ?? undefined) : undefined,
     },
   });
 
@@ -362,6 +375,7 @@ router.post("/requests/:id/decide", requireAuth, async (req: Request, res: Respo
   // If approved, grant the permission
   if (decision === "approved") {
     const admin = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
+    const { relay_quota: rq, nip05_quota: nq } = req.body;
 
     await prisma.permission.upsert({
       where: { userId_type: { userId: permReq.userId, type: permReq.type } },
@@ -369,6 +383,8 @@ router.post("/requests/:id/decide", requireAuth, async (req: Request, res: Respo
         userId: permReq.userId,
         type: permReq.type,
         granted_by: admin?.pubkey || null,
+        relay_quota: permReq.type === "operator" ? (rq ?? DEFAULT_RELAY_QUOTA) : null,
+        nip05_quota: (permReq.type === "operator" || permReq.type === "nip05_operator") ? (nq ?? DEFAULT_NIP05_QUOTA) : null,
       },
       update: {
         revoked_at: null,
@@ -376,6 +392,8 @@ router.post("/requests/:id/decide", requireAuth, async (req: Request, res: Respo
         granted_by: admin?.pubkey || null,
         disclaimer_accepted: false,
         disclaimer_accepted_at: null,
+        relay_quota: permReq.type === "operator" ? (rq ?? undefined) : undefined,
+        nip05_quota: (permReq.type === "operator" || permReq.type === "nip05_operator") ? (nq ?? undefined) : undefined,
       },
     });
 
@@ -386,6 +404,164 @@ router.post("/requests/:id/decide", requireAuth, async (req: Request, res: Respo
   }
 
   res.json({ success: true, decision });
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ELIGIBILITY CHECKS (used by relay creation, NIP-05 requests, etc.)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * GET /permissions/relay-eligibility
+ * Check if the current user can create a relay. Returns:
+ * { eligible, reason?, relaysOwned, relayQuota, canRequest }
+ */
+router.get("/relay-eligibility", requireAuth, async (req: Request, res: Response) => {
+  const userId = req.auth!.userId;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+    // Admins always eligible
+    if (user.admin) {
+      const owned = await prisma.relay.count({ where: { ownerId: userId, NOT: { status: "deleting" } } });
+      res.json({ eligible: true, relaysOwned: owned, relayQuota: null, canRequest: false });
+      return;
+    }
+
+    // Check for active operator permission
+    const operatorPerm = await prisma.permission.findUnique({
+      where: { userId_type: { userId, type: "operator" } },
+    });
+
+    if (!operatorPerm || operatorPerm.revoked_at) {
+      // No operator permission — check if they have a pending request
+      const pending = await prisma.permissionRequest.findFirst({
+        where: { userId, type: "operator", status: "pending" },
+      });
+      res.json({
+        eligible: false,
+        reason: "You need operator privileges to create relays on this platform.",
+        relaysOwned: 0,
+        relayQuota: 0,
+        canRequest: !pending,
+        hasPendingRequest: !!pending,
+      });
+      return;
+    }
+
+    // Has operator permission — check quota
+    const quota = operatorPerm.relay_quota ?? DEFAULT_RELAY_QUOTA;
+    const owned = await prisma.relay.count({ where: { ownerId: userId, NOT: { status: "deleting" } } });
+
+    if (owned >= quota) {
+      res.json({
+        eligible: false,
+        reason: `You've reached your relay limit (${owned}/${quota}). Contact an administrator to increase your quota.`,
+        relaysOwned: owned,
+        relayQuota: quota,
+        canRequest: false,
+      });
+      return;
+    }
+
+    res.json({ eligible: true, relaysOwned: owned, relayQuota: quota, canRequest: false });
+  } catch (err: any) {
+    console.error("[permissions] relay-eligibility error:", err.message);
+    res.status(500).json({ error: "Failed to check eligibility" });
+  }
+});
+
+/**
+ * GET /permissions/nip05-eligibility
+ * Check if the current user can request/create NIP-05 identities.
+ */
+router.get("/nip05-eligibility", requireAuth, async (req: Request, res: Response) => {
+  const userId = req.auth!.userId;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+    // Admins always eligible
+    if (user.admin) {
+      res.json({ eligible: true, canCreate: true, nip05Quota: null, nip05Used: 0, canRequest: false });
+      return;
+    }
+
+    // Check for nip05_operator or operator with nip05_quota
+    const [operatorPerm, nip05Perm] = await Promise.all([
+      prisma.permission.findUnique({ where: { userId_type: { userId, type: "operator" } } }),
+      prisma.permission.findUnique({ where: { userId_type: { userId, type: "nip05_operator" } } }),
+    ]);
+
+    const activePerm = (nip05Perm && !nip05Perm.revoked_at) ? nip05Perm
+      : (operatorPerm && !operatorPerm.revoked_at && operatorPerm.nip05_quota) ? operatorPerm
+      : null;
+
+    if (!activePerm) {
+      // Regular user — can only request NIP-05 from admin/operator
+      const pending = await prisma.permissionRequest.findFirst({
+        where: { userId, type: "nip05_operator", status: "pending" },
+      });
+      res.json({
+        eligible: false,
+        canCreate: false,
+        nip05Quota: 0,
+        nip05Used: 0,
+        canRequest: !pending,
+        hasPendingRequest: !!pending,
+      });
+      return;
+    }
+
+    const quota = activePerm.nip05_quota ?? DEFAULT_NIP05_QUOTA;
+    // Count NIP-05 entries created by this user's pubkey
+    const used = await prisma.nip05.count({ where: { pubkey: user.pubkey } });
+
+    res.json({
+      eligible: true,
+      canCreate: used < quota,
+      nip05Quota: quota,
+      nip05Used: used,
+      canRequest: false,
+    });
+  } catch (err: any) {
+    console.error("[permissions] nip05-eligibility error:", err.message);
+    res.status(500).json({ error: "Failed to check eligibility" });
+  }
+});
+
+/**
+ * PATCH /permissions/quota
+ * Update quotas for an existing permission. Admin only.
+ * Body: { userId, type, relay_quota?, nip05_quota? }
+ */
+router.patch("/quota", requireAuth, async (req: Request, res: Response) => {
+  if (!(await ensureAdmin(req, res))) return;
+
+  const { userId, type, relay_quota, nip05_quota } = req.body;
+  if (!userId || !type) {
+    res.status(400).json({ error: "userId and type required" });
+    return;
+  }
+
+  const permission = await prisma.permission.findUnique({
+    where: { userId_type: { userId, type } },
+  });
+  if (!permission || permission.revoked_at) {
+    res.status(404).json({ error: "Active permission not found" });
+    return;
+  }
+
+  const data: any = {};
+  if (relay_quota !== undefined) data.relay_quota = relay_quota;
+  if (nip05_quota !== undefined) data.nip05_quota = nip05_quota;
+
+  const updated = await prisma.permission.update({
+    where: { id: permission.id },
+    data,
+  });
+
+  res.json({ permission: updated });
 });
 
 export default router;

@@ -31,6 +31,42 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
       return;
     }
 
+    // ─── Permission + quota check ───────────────────────────────────
+    if (!user.admin) {
+      const operatorPerm = await prisma.permission.findFirst({
+        where: { userId: user.id, type: "operator", revoked_at: null },
+      });
+
+      if (!operatorPerm) {
+        const pending = await prisma.permissionRequest.findFirst({
+          where: { userId: user.id, type: "operator", status: "pending" },
+        });
+        res.status(403).json({
+          error: "operator_required",
+          message: "You need operator privileges to create relays. Request access from the admin panel.",
+          canRequest: !pending,
+          hasPendingRequest: !!pending,
+        });
+        return;
+      }
+
+      const DEFAULT_RELAY_QUOTA = 5;
+      const quota = (operatorPerm as any).relay_quota ?? DEFAULT_RELAY_QUOTA;
+      const owned = await prisma.relay.count({
+        where: { ownerId: user.id, NOT: { status: "deleting" } },
+      });
+
+      if (owned >= quota) {
+        res.status(403).json({
+          error: "quota_exceeded",
+          message: `You've reached your relay limit (${owned}/${quota}). Contact an administrator to increase your quota.`,
+          relaysOwned: owned,
+          relayQuota: quota,
+        });
+        return;
+      }
+    }
+
     // Validate relay name format
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}$/.test(relayname)) {
       res.status(400).json({ error: "name must be a valid hostname" });

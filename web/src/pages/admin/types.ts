@@ -57,6 +57,8 @@ export interface PermissionItem {
   granted_by: string | null;
   disclaimer_accepted: boolean;
   revoked_at: string | null;
+  relay_quota: number | null;
+  nip05_quota: number | null;
   user: { id: string; pubkey: string; name: string | null; admin: boolean };
 }
 

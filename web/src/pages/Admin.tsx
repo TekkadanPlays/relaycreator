@@ -59,6 +59,7 @@ interface AdminState {
   permRequests: PermissionRequestItem[]; permRequestsLoading: boolean;
   permGrants: PermissionItem[]; permGrantsLoading: boolean;
   permDeciding: boolean; permRevoking: boolean;
+  approvalQuotas: Record<string, { relay_quota: number; nip05_quota: number }>;
 
   myPerms: MyPermissionsData | null; myPermsLoading: boolean;
   permTypes: PermissionTypeInfo[];
@@ -126,6 +127,7 @@ export default class Admin extends Component<{}, AdminState> {
 
       permFilter: "pending", permRequests: [], permRequestsLoading: false,
       permGrants: [], permGrantsLoading: false, permDeciding: false, permRevoking: false,
+      approvalQuotas: {},
 
       myPerms: null, myPermsLoading: false, permTypes: [],
       requestType: "", requestReason: "", requestSubmitting: false, requestError: "",
@@ -450,11 +452,16 @@ export default class Admin extends Component<{}, AdminState> {
     catch (e: any) { alert(e.message || "Failed to update"); }
   };
 
-  private handlePermDecide = async (id: string, decision: "approved" | "denied") => {
+  private handlePermDecide = async (id: string, decision: "approved" | "denied", quotas?: { relay_quota?: number; nip05_quota?: number }) => {
     const note = decision === "denied" ? prompt("Reason for denial (optional):") : undefined;
     this.setState({ permDeciding: true });
-    try { await api.post(`/permissions/requests/${id}/decide`, { decision, note: note || undefined }); this.loadPermissions(); }
-    catch (e: any) { alert(e.message || "Failed"); }
+    try {
+      await api.post(`/permissions/requests/${id}/decide`, {
+        decision, note: note || undefined,
+        ...(quotas || {}),
+      });
+      this.loadPermissions();
+    } catch (e: any) { alert(e.message || "Failed"); }
     this.setState({ permDeciding: false });
   };
 
@@ -470,6 +477,21 @@ export default class Admin extends Component<{}, AdminState> {
     this.setState({ permFilter: filter }, () => {
       api.get<{ requests: PermissionRequestItem[] }>(`/permissions/requests?status=${filter}`)
         .then((d) => this.setState({ permRequests: d?.requests || [] })).catch(() => {});
+    });
+  };
+
+  private handleQuotaUpdate = async (userId: string, type: string, relay_quota?: number, nip05_quota?: number) => {
+    try {
+      await api.patch("/permissions/quota", { userId, type, relay_quota, nip05_quota });
+      this.loadPermissions();
+    } catch (e: any) { alert(e.message || "Failed to update quota"); }
+  };
+
+  private handleApprovalQuotaChange = (requestId: string, field: string, value: number) => {
+    this.setState((s) => {
+      const prev = s.approvalQuotas[requestId] || { relay_quota: 5, nip05_quota: 5 };
+      const next = { ...prev, [field]: value };
+      return { approvalQuotas: { ...s.approvalQuotas, [requestId]: next } };
     });
   };
 
@@ -732,7 +754,12 @@ export default class Admin extends Component<{}, AdminState> {
       case "orders":
         return renderOrders(this.state.orders, this.state.ordersLoading);
       case "permissions":
-        return renderPermissions(this.state.permFilter, this.state.permRequests, this.state.permRequestsLoading, this.state.permGrants, this.state.permGrantsLoading, this.state.permDeciding, this.state.permRevoking, this.handlePermFilterChange, this.handlePermDecide, this.handlePermRevoke);
+        return renderPermissions(
+          this.state.permFilter, this.state.permRequests, this.state.permRequestsLoading,
+          this.state.permGrants, this.state.permGrantsLoading, this.state.permDeciding, this.state.permRevoking,
+          this.handlePermFilterChange, this.handlePermDecide, this.handlePermRevoke,
+          this.handleQuotaUpdate, this.state.approvalQuotas, this.handleApprovalQuotaChange,
+        );
       case "coinos":
         return this.renderCoinosTab();
       case "nip05":
