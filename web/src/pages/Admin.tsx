@@ -8,7 +8,7 @@ import { Badge } from "@/ui/Badge";
 import { Separator } from "@/ui/Separator";
 import {
   Shield, Zap, Globe, Users, BarChart3, Lock, KeyRound, Bitcoin,
-  Radio, Activity, Database, Menu,
+  Radio, Activity, Database, Menu, Fingerprint,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 import {
@@ -36,6 +36,7 @@ import { renderPermissions } from "./admin/PermissionsTab";
 import { renderRequestAccess } from "./admin/RequestAccessTab";
 import { renderCoinosGate, renderCoinosDashboard, renderCoinosFunds, renderCoinosInvoices } from "./admin/CoinosTab";
 import { renderLoading } from "./admin/helpers";
+import { renderNip05, type Nip05Entry } from "./admin/Nip05Tab";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,10 @@ interface AdminState {
 
   demoRelays: { id: string; name: string; domain: string | null; status: string | null; description: string | null }[];
   demoLoading: boolean;
+
+  nip05Entries: Nip05Entry[]; nip05Loading: boolean; nip05Search: string;
+  nip05NewName: string; nip05NewPubkey: string; nip05NewRelays: string; nip05Adding: boolean;
+  nip05CopiedId: string | null;
 
   sidebarOpen: boolean;
   influxPlatform: { available: boolean; events: any[]; connections: any[] } | null;
@@ -133,6 +138,10 @@ export default class Admin extends Component<{}, AdminState> {
       invCreated: null, invLookupId: "", invLookupLoading: false, invLookupResult: null,
 
       demoRelays: [], demoLoading: false,
+
+      nip05Entries: [], nip05Loading: false, nip05Search: "",
+      nip05NewName: "", nip05NewPubkey: "", nip05NewRelays: "", nip05Adding: false,
+      nip05CopiedId: null,
 
       sidebarOpen: false,
       influxPlatform: null, influxPlatformLoading: false, influxRange: "24h",
@@ -197,6 +206,7 @@ export default class Admin extends Component<{}, AdminState> {
       case "orders": return this.loadOrders();
       case "permissions": return this.loadPermissions();
       case "coinos": return this.loadCoinos();
+      case "nip05": return this.loadNip05();
       case "demo": return this.loadDemo();
       case "access": return this.loadMyPerms();
     }
@@ -328,6 +338,41 @@ export default class Admin extends Component<{}, AdminState> {
 
   private handleInfluxRangeChange = (range: string) => {
     this.setState({ influxRange: range }, () => this.loadInfluxPlatform());
+  };
+
+  private async loadNip05() {
+    this.setState({ nip05Loading: true });
+    try {
+      const d = await api.get<{ entries: Nip05Entry[] }>("/nip05/entries");
+      this.setState({ nip05Entries: d?.entries || [], nip05Loading: false });
+    } catch { this.setState({ nip05Loading: false }); }
+  }
+
+  private handleNip05Add = async () => {
+    const { nip05NewName, nip05NewPubkey, nip05NewRelays } = this.state;
+    if (!nip05NewName.trim() || !nip05NewPubkey.trim()) return;
+    this.setState({ nip05Adding: true });
+    try {
+      const relays = nip05NewRelays.trim()
+        ? nip05NewRelays.split(",").map((s) => s.trim()).filter(Boolean)
+        : [];
+      await api.post("/nip05/entries", { name: nip05NewName.trim(), pubkey: nip05NewPubkey.trim(), relays });
+      this.setState({ nip05NewName: "", nip05NewPubkey: "", nip05NewRelays: "" });
+      this.loadNip05();
+    } catch (e: any) { alert(e.message || "Failed to add"); }
+    this.setState({ nip05Adding: false });
+  };
+
+  private handleNip05Delete = async (id: string, label: string) => {
+    if (!confirm(`Delete NIP-05 identity "${label}"?`)) return;
+    try { await api.delete(`/nip05/entries/${id}`); this.loadNip05(); }
+    catch (e: any) { alert(e.message || "Failed to delete"); }
+  };
+
+  private handleNip05Copy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    this.setState({ nip05CopiedId: id });
+    setTimeout(() => this.setState({ nip05CopiedId: null }), 2000);
   };
 
   private async loadDemo() {
@@ -621,6 +666,17 @@ export default class Admin extends Component<{}, AdminState> {
         return renderPermissions(this.state.permFilter, this.state.permRequests, this.state.permRequestsLoading, this.state.permGrants, this.state.permGrantsLoading, this.state.permDeciding, this.state.permRevoking, this.handlePermFilterChange, this.handlePermDecide, this.handlePermRevoke);
       case "coinos":
         return this.renderCoinosTab();
+      case "nip05":
+        return renderNip05(
+          this.state.nip05Entries, this.state.nip05Loading, this.state.nip05Search,
+          this.state.nip05NewName, this.state.nip05NewPubkey, this.state.nip05NewRelays, this.state.nip05Adding,
+          this.state.nip05CopiedId,
+          (v) => this.setState({ nip05Search: v }),
+          (v) => this.setState({ nip05NewName: v }),
+          (v) => this.setState({ nip05NewPubkey: v }),
+          (v) => this.setState({ nip05NewRelays: v }),
+          this.handleNip05Add, this.handleNip05Delete, this.handleNip05Copy,
+        );
       case "access":
         return renderRequestAccess(this.state.user, this.state.myPerms, this.state.myPermsLoading, this.state.permTypes, this.state.requestType, this.state.requestReason, this.state.requestSubmitting, this.state.requestError, (t) => this.setState({ requestType: t }), (r) => this.setState({ requestReason: r }), this.handleRequestAccess);
       case "demo":
@@ -651,6 +707,7 @@ export default class Admin extends Component<{}, AdminState> {
           { id: "users", label: "Users", icon: Users, adminOnly: true, badge: this.state.users.length ? String(this.state.users.length) : undefined },
           { id: "orders", label: "Orders", icon: BarChart3, adminOnly: true },
           { id: "permissions", label: "Permissions", icon: Lock, adminOnly: true },
+          { id: "nip05", label: "NIP-05", icon: Fingerprint, adminOnly: true },
         ],
       },
       {
@@ -677,6 +734,7 @@ export default class Admin extends Component<{}, AdminState> {
       users: "Users",
       orders: "Orders",
       permissions: "Permissions",
+      nip05: "NIP-05 Identities",
       coinos: "CoinOS",
       access: "Request Access",
       demo: "Directory",

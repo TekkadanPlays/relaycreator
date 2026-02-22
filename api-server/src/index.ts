@@ -18,6 +18,7 @@ import permissionsRoutes from "./routes/permissions.js";
 import rstateRoutes from "./routes/rstate.js";
 import nostrFetchRoutes from "./routes/nostr-fetch.js";
 import influxStatsRoutes from "./routes/influx-stats.js";
+import nip05Routes, { buildNostrJson } from "./routes/nip05.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,6 +87,23 @@ app.use("/api/nostr", nostrFetchRoutes);
 // InfluxDB relay statistics
 app.use("/api/admin/stats/influx", influxStatsRoutes);
 
+// NIP-05 identity verification
+app.get("/.well-known/nostr.json", async (req, res) => {
+  try {
+    const name = req.query.name as string | undefined;
+    const host = req.hostname || env.CREATOR_DOMAIN;
+    const domain = env.CREATOR_DOMAIN;
+    const result = await buildNostrJson(domain, name);
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+    res.json(result);
+  } catch (err) {
+    console.error("[nip05] nostr.json error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+app.use("/api/nip05", nip05Routes);
+
 // NIP-86 relay management (used by Nostr clients)
 app.use("/api/86", nip86Routes);
 app.use("/86", nip86Routes);
@@ -99,7 +117,7 @@ app.use(express.static(spaDistPath));
 // Express 5 uses path-to-regexp v8 which requires named wildcards
 app.get("/{*splat}", (_req, res, next) => {
   // Don't serve index.html for API routes
-  if (_req.path.startsWith("/api/") || _req.path.startsWith("/sconfig/") || _req.path.startsWith("/auth/") || _req.path === "/health") {
+  if (_req.path.startsWith("/api/") || _req.path.startsWith("/sconfig/") || _req.path.startsWith("/auth/") || _req.path.startsWith("/.well-known/") || _req.path === "/health") {
     next();
     return;
   }

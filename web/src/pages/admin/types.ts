@@ -162,4 +162,4 @@ export interface FundManagerItem {
   picture?: string;
 }
 
-export type TabId = "overview" | "myrelays" | "relays" | "users" | "orders" | "permissions" | "coinos" | "demo" | "access";
+export type TabId = "overview" | "myrelays" | "relays" | "users" | "orders" | "permissions" | "nip05" | "coinos" | "demo" | "access";
