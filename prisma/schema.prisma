@@ -1,337 +1,669 @@
 // This is your Prisma schema file,
+
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
+
+
 generator client {
+
   provider = "prisma-client-js"
+
 }
+
+
 
 datasource db {
+
   provider = "mysql"
+
   url      = env("DATABASE_URL")
+
 }
+
+
 
 model User {
+
   id        String      @id @default(cuid())
+
   pubkey    String      @unique
+
   name      String?
+
   orders    Order[]
+
   // these are relay the user owns vs. is a moderator for
+
   relays    Relay[]
+
   moderator Moderator[]
+
   admin     Boolean @default(false)
+
   nip05Orders Nip05Order[]
+
   permissions          Permission[]
+
   permissionRequests   PermissionRequest[]  @relation("requester")
+
   permissionDecisions  PermissionRequest[]  @relation("decider")
 
+
+
   @@index([id])
+
 }
+
+
 
 model Order {
+
   id           String    @id @default(cuid())
+
   user         User      @relation(fields: [userId], references: [id])
+
   userId       String
+
   relay        Relay     @relation(fields: [relayId], references: [id])
+
   relayId      String
+
   status       String    @db.VarChar(255)
+
   paid         Boolean   @default(false)
+
   payment_hash String    @db.VarChar(64)
+
   lnurl        String    @db.VarChar(1024)
+
   expires_at   DateTime?
+
   paid_at      DateTime?
+
   amount       Int       @default(21000)
+
   order_type   String    @default("standard") @db.VarChar(50)
 
+
+
   @@index([userId])
+
 }
+
+
 
 model ClientOrder {
+
   id           String    @id @default(cuid())
+
   relay        Relay     @relation(fields: [relayId], references: [id])
+
   relayId      String
+
   pubkey       String    @db.VarChar(255)
+
   paid         Boolean   @default(false)
+
   payment_hash String    @db.VarChar(64)
+
   lnurl        String    @db.VarChar(1024)
+
   expires_at   DateTime?
+
   paid_at      DateTime?
+
   amount       Int       @default(21)
+
   order_type   String    @default("standard") @db.VarChar(50)
 
+
+
   @@index([relayId])
+
 }
+
+
 
 // Track plan changes over time for accurate billing calculations
+
 model PlanChange {
+
   id           String    @id @default(cuid())
+
   relay        Relay     @relation(fields: [relayId], references: [id])
+
   relayId      String
+
   pubkey       String    @db.VarChar(255)
+
   plan_type    String    @db.VarChar(50) // "standard", "premium", "custom"
+
   amount_paid  Int       // Amount paid for this plan period
+
   started_at   DateTime  // When this plan period started
+
   ended_at     DateTime? // When this plan period ended (null for current plan)
+
   created_at   DateTime  @default(now())
+
   
+
   // Reference to the ClientOrder that triggered this plan change
+
   clientOrderId String?
+
   
+
   @@index([relayId, pubkey])
+
   @@index([pubkey, started_at])
+
 }
+
+
 
 // Track relay owner plan changes over time for accurate billing calculations
+
 model RelayPlanChange {
+
   id           String    @id @default(cuid())
+
   relay        Relay     @relation(fields: [relayId], references: [id])
+
   relayId      String
+
   plan_type    String    @db.VarChar(50) // "standard", "premium", "custom"
+
   amount_paid  Int       // Amount paid for this plan period
+
   started_at   DateTime  // When this plan period started
+
   ended_at     DateTime? // When this plan period ended (null for current plan)
+
   created_at   DateTime  @default(now())
+
   
+
   // Reference to the Order that triggered this plan change
+
   orderId      String?
+
   
+
   @@index([relayId])
+
   @@index([relayId, started_at])
+
 }
+
+
 
 model Nip05 {
+
     id  String  @id @default(cuid())
+
     pubkey String
+
     name String
+
     domain String
+
     relayUrls RelayUrl[]
+
     nip05Orders Nip05Order[]
+
 }
+
+
 
 // used by nip05
+
 model RelayUrl {
+
     id  String  @id @default(cuid())
+
     nip05   Nip05  @relation(fields: nip05Id, references: [id], onDelete: Cascade)
+
     nip05Id String
+
     url String
 
+
+
     @@index([nip05Id])
+
 }
+
+
 
 model Nip05Order {
+
   id           String    @id @default(cuid())
+
   user         User      @relation(fields: [userId], references: [id])
+
   userId       String
+
   status       String    @db.VarChar(255)
+
   paid         Boolean   @default(false)
+
   payment_hash String    @db.VarChar(64)
+
   lnurl        String    @db.VarChar(1024)
+
   expires_at   DateTime?
+
   paid_at      DateTime?
+
   amount       Int       @default(21000)
+
   nip05        Nip05  @relation(fields: [nip05Id], references: [id], onDelete: Cascade)
+
   nip05Id      String
+
 }
+
+
 
 model Relay {
+
   id                     String        @id @default(cuid())
+
   name                   String        @db.VarChar(255)
+
   ownerId                String
+
   status                 String?       @db.VarChar(255)
+
   owner                  User          @relation(fields: [ownerId], references: [id])
+
   moderators             Moderator[]
+
   Order                  Order[]
+
   ClientOrder            ClientOrder[]
+
   PlanChange             PlanChange[]
+
   RelayPlanChange        RelayPlanChange[]
+
   streams                Stream[]
+
   acl_sources            AclSource[]
+
   allow_list             AllowList?
+
   block_list             BlockList?
+
   details                String?       @db.Text
+
   domain                 String?       @db.VarChar(255)
+
   default_message_policy Boolean       @default(false)
+
   listed_in_directory    Boolean       @default(false)
+
   payment_required       Boolean       @default(false)
+
   payment_amount         Int           @default(21)
+
   payment_premium_amount Int           @default(2100)
+
   nip05_payment_amount   Int           @default(21)
+
   ip                     String?       @db.VarChar(255)
+
   capacity               Int?
+
   port                   Int?
+
   created_at             DateTime?
+
   profile_image          String?       @db.VarChar(2048)
+
   banner_image           String?       @db.VarChar(2048)
+
   is_external            Boolean       @default(false)
+
   is_proxied            Boolean       @default(false)
+
   allow_giftwrap             Boolean       @default(true)
+
   allow_tagged          Boolean       @default(false)
+
   auth_required          Boolean       @default(false)
+
   // false is keyword -or- pubkey, true is keyword -and- pubkey. default to false.
+
   allow_keyword_pubkey   Boolean       @default(false)
+
   relay_kind_description String       @db.VarChar(255) @default("")
+
   referrer               String?       @db.VarChar(255) @default("")
+
   request_payment       Boolean       @default(false)
+
   request_payment_amount Int           @default(1000)
+
   jobs                  Job[]
 
+
+
   @@index([ownerId])
+
 }
+
+
 
 model AclSource {
+
   id String @id @default(cuid())
+
   relayId String
+
   relay Relay @relation(fields: [relayId], references: [id])
+
   url String @db.VarChar(1024)
+
   aclType String @db.VarChar(128)
+
 }
+
+
 
 model Server {
+
     id           String    @id @default(cuid())
+
     ip           String    @db.VarChar(255)
+
     available    Boolean   @default(true)
+
 }
+
+
 
 model Stream {
+
     id           String    @id @default(cuid())
+
     relayId      String
+
     relay        Relay     @relation(fields: [relayId], references: [id])
+
     url          String    @db.VarChar(1024)
+
     direction    String    @db.VarChar(255)
+
     internal     Boolean   @default(false)
+
     sync       Boolean   @default(false)
+
     status       String    @db.VarChar(1024)
+
 }
+
+
 
 model Moderator {
+
   id      String @id @default(cuid())
+
   relay   Relay  @relation(fields: relayId, references: [id])
+
   relayId String
+
   user    User   @relation(fields: userId, references: [id])
+
   userId  String
+
 }
+
+
 
 model AllowList {
+
   id            String             @id @default(cuid())
+
   relay         Relay              @relation(fields: [relayId], references: [id])
+
   relayId       String             @unique
+
   list_keywords ListEntryKeyword[]
+
   list_pubkeys  ListEntryPubkey[]
+
   list_kinds    ListEntryKind[]
+
 }
+
+
 
 model BlockList {
+
   id            String             @id @default(cuid())
+
   relay         Relay              @relation(fields: [relayId], references: [id])
+
   relayId       String             @unique
+
   list_keywords ListEntryKeyword[]
+
   list_pubkeys  ListEntryPubkey[]
+
   list_kinds    ListEntryKind[]
+
 }
+
+
 
 model GlobalBlockList {
+
   id            String             @id @default(cuid())
+
   list_pubkeys  ListEntryPubkey[]
+
 }
+
+
 
 model ListEntryPubkey {
+
   id          String     @id @default(cuid())
+
   AllowList   AllowList? @relation(fields: [AllowListId], references: [id])
+
   AllowListId String?
+
   BlockList   BlockList? @relation(fields: [BlockListId], references: [id])
+
   BlockListId String?
+
   GlobalBlockList   GlobalBlockList? @relation(fields: [GlobalBlockListId], references: [id])
+
   GlobalBlockListId String?
+
   pubkey      String     @db.VarChar(255)
+
   reason      String?    @db.VarChar(255)
+
   expires_at  DateTime?
+
 }
+
+
 
 model ListEntryKeyword {
+
   id          String     @id @default(cuid())
+
   AllowList   AllowList? @relation(fields: [AllowListId], references: [id])
+
   AllowListId String?
+
   BlockList   BlockList? @relation(fields: [BlockListId], references: [id])
+
   BlockListId String?
+
   keyword     String     @db.VarChar(255)
+
   reason      String?    @db.VarChar(255)
+
   expires_at  DateTime?
+
 }
+
+
 
 model ListEntryKind {
+
     id          String     @id @default(cuid())
+
     AllowList   AllowList? @relation(fields: [AllowListId], references: [id])
+
     AllowListId String?
+
     BlockList   BlockList? @relation(fields: [BlockListId], references: [id])
+
     BlockListId String?
+
     kind        Int        @db.Int
+
     reason      String?    @db.VarChar(255)
+
 }
+
+
 
 model LoginToken {
+
   id         String   @id @default(cuid())
+
   token      String   @unique
+
   created_at DateTime
+
 }
+
+
 
 model Permission {
+
   id                  String    @id @default(cuid())
+
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   userId              String
+
   type                String    @db.VarChar(50)   // e.g. "admin", "coinos_admin", "operator"
+
   granted_at          DateTime  @default(now())
+
   granted_by          String?   @db.VarChar(255)  // pubkey of the admin who granted
+
   disclaimer_accepted Boolean   @default(false)
+
   disclaimer_accepted_at DateTime?
+
   revoked_at          DateTime?
+
   notes               String?   @db.Text
-  relay_quota         Int?      // max relays this operator can create (null = use default)
-  nip05_quota         Int?      // max NIP-05 identities this operator can distribute (null = use default)
+
+
 
   @@unique([userId, type])
+
   @@index([userId])
+
   @@index([type])
+
 }
+
+
 
 model PermissionRequest {
+
   id            String    @id @default(cuid())
+
   user          User      @relation("requester", fields: [userId], references: [id], onDelete: Cascade)
+
   userId        String
+
   type          String    @db.VarChar(50)   // permission type being requested
+
   status        String    @db.VarChar(20)   @default("pending") // "pending", "approved", "denied"
+
   reason        String?   @db.Text          // user's reason for requesting
+
   decided_by    User?     @relation("decider", fields: [decidedById], references: [id])
+
   decidedById   String?
+
   decision_note String?   @db.Text          // admin's note on approval/denial
+
   created_at    DateTime  @default(now())
+
   decided_at    DateTime?
 
+
+
   @@index([userId])
+
   @@index([status])
+
   @@index([type, status])
+
 }
 
+
+
 model Job {
+
   id         String   @id @default(cuid())
+
   relay      Relay    @relation(fields: [relayId], references: [id], onDelete: Cascade)
+
   relayId    String
+
   kind       String   @db.VarChar(50)  // e.g., "sync", "event_query", "cleanup"
+
   status     String   @db.VarChar(20)  // e.g., "pending", "running", "completed", "failed"
+
   created_at DateTime @default(now())
+
   updated_at DateTime @updatedAt
+
   error_msg  String?  @db.Text         // Store error details if failed
+
   output     String?  @db.Text
 
+
+
   // The technique for jobs here is to retain flexibility, while also not over complicating the storage format.
+
   // Sacrificing that we may have empty fields below vs. complexity.
+
   // TODO: other fields?
+
   pubkey    String?   @db.VarChar(255)
+
   eventId    String?   @db.VarChar(255)
+
   
+
   // sync related
+
   syncHost String?   @db.VarChar(255)
+
   syncDirection String?   @db.VarChar(12)
 
+
+
   @@index([relayId])
+
   @@index([status])
+
   @@index([kind])
+
 }

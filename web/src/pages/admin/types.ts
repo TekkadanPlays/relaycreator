@@ -57,8 +57,6 @@ export interface PermissionItem {
   granted_by: string | null;
   disclaimer_accepted: boolean;
   revoked_at: string | null;
-  relay_quota: number | null;
-  nip05_quota: number | null;
   user: { id: string; pubkey: string; name: string | null; admin: boolean };
 }
 
@@ -164,4 +162,4 @@ export interface FundManagerItem {
   picture?: string;
 }
 
-export type TabId = "overview" | "myrelays" | "relays" | "users" | "orders" | "permissions" | "nip05" | "coinos" | "demo" | "access";
+export type TabId = "overview" | "myrelays" | "relays" | "users" | "orders" | "permissions" | "coinos" | "demo" | "access";

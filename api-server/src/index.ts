@@ -1,139 +1,242 @@
 import "dotenv/config";
+
 import express from "express";
+
 import cors from "cors";
+
 import helmet from "helmet";
+
 import path from "path";
+
 import { fileURLToPath } from "url";
+
 import { loadEnv } from "./lib/env.js";
+
 import authRoutes from "./routes/auth.js";
+
 import invoiceRoutes from "./routes/invoices.js";
+
 import relayRoutes from "./routes/relays.js";
+
 import sconfigRoutes from "./routes/sconfig.js";
+
 import nip86Routes from "./routes/nip86.js";
+
 import { startPaymentChecker } from "./lib/paymentChecker.js";
+
 import coinosRoutes from "./routes/coinos.js";
+
 import walletRoutes from "./routes/wallet.js";
+
 import adminRoutes from "./routes/admin.js";
+
 import permissionsRoutes from "./routes/permissions.js";
+
 import rstateRoutes from "./routes/rstate.js";
+
 import nostrFetchRoutes from "./routes/nostr-fetch.js";
+
 import influxStatsRoutes from "./routes/influx-stats.js";
-import nip05Routes, { buildNostrJson } from "./routes/nip05.js";
+
+
 
 const __filename = fileURLToPath(import.meta.url);
+
 const __dirname = path.dirname(__filename);
+
+
 
 const env = loadEnv();
 
+
+
 const app = express();
 
+
+
 // Security middleware — relax CSP for SPA static assets
+
 app.use(helmet({
+
   contentSecurityPolicy: false,
+
 }));
+
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
+
 app.use(express.json());
+
 app.use(express.text({ type: "application/nostr+json+rpc" }));
 
+
+
 // Health check
+
 app.get("/health", (_req, res) => {
+
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+
 });
+
+
 
 // Public config endpoint (non-sensitive settings for the frontend)
+
 app.get("/api/config", (_req, res) => {
+
   res.json({
+
     domain: env.CREATOR_DOMAIN,
+
     payments_enabled: env.PAYMENTS_ENABLED === "true",
+
     coinos_enabled: env.COINOS_ENABLED === "true",
+
     wallet_enabled: env.WALLET_ENABLED === "true",
+
     invoice_amount: env.INVOICE_AMOUNT,
+
     invoice_premium_amount: env.INVOICE_PREMIUM_AMOUNT,
+
   });
+
 });
+
+
 
 // API routes (prefixed with /api in production)
+
 app.use("/api/auth", authRoutes);
+
 app.use("/api/invoices", invoiceRoutes);
+
 app.use("/api/relays", relayRoutes);
+
 app.use("/api/sconfig", sconfigRoutes);
 
+
+
 // Also mount without /api prefix for backward compatibility with sconfig daemons
+
 app.use("/auth", authRoutes);
+
 app.use("/sconfig", sconfigRoutes);
 
+
+
 // Mount sconfig relay sub-routes at /api/relay for cookiecutter daemon compatibility
+
 // cookiecutter calls: PUT /api/relay/:id/status, GET /api/relay/:id/strfry, GET /api/relay/:id/nostrjson
+
 app.use("/api", sconfigRoutes);
 
+
+
 // Admin panel API
+
 app.use("/api/admin", adminRoutes);
 
+
+
 // Permissions system
+
 app.use("/api/permissions", permissionsRoutes);
 
+
+
 // CoinOS wallet proxy (optional - legacy)
+
 app.use("/api/coinos", coinosRoutes);
 
+
+
 // New wallet service (Rust + SQLite)
+
 app.use("/api/wallet", walletRoutes);
 
+
+
 // Relay intelligence (rstate NIP-66 proxy)
+
 app.use("/api/rstate", rstateRoutes);
 
+
+
 // Server-side Nostr fetching (profile, relay lists via WSS to indexers)
+
 app.use("/api/nostr", nostrFetchRoutes);
 
+
+
 // InfluxDB relay statistics
+
 app.use("/api/admin/stats/influx", influxStatsRoutes);
 
-// NIP-05 identity verification
-app.get("/.well-known/nostr.json", async (req, res) => {
-  try {
-    const name = req.query.name as string | undefined;
-    const host = req.hostname || env.CREATOR_DOMAIN;
-    const domain = env.CREATOR_DOMAIN;
-    const result = await buildNostrJson(domain, name);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Content-Type", "application/json");
-    res.json(result);
-  } catch (err) {
-    console.error("[nip05] nostr.json error:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-app.use("/api/nip05", nip05Routes);
+
 
 // NIP-86 relay management (used by Nostr clients)
+
 app.use("/api/86", nip86Routes);
+
 app.use("/86", nip86Routes);
 
+
+
 // Serve SPA static files in production
+
 const spaDistPath = path.resolve(__dirname, "../../web/dist");
+
 app.use("/rc", express.static(spaDistPath));
+
 app.use(express.static(spaDistPath));
 
+
+
 // SPA fallback: any non-API route serves index.html for client-side routing
+
 // Express 5 uses path-to-regexp v8 which requires named wildcards
+
 app.get("/{*splat}", (_req, res, next) => {
+
   // Don't serve index.html for API routes
-  if (_req.path.startsWith("/api/") || _req.path.startsWith("/sconfig/") || _req.path.startsWith("/auth/") || _req.path.startsWith("/.well-known/") || _req.path === "/health") {
+
+  if (_req.path.startsWith("/api/") || _req.path.startsWith("/sconfig/") || _req.path.startsWith("/auth/") || _req.path === "/health") {
+
     next();
+
     return;
+
   }
+
   res.sendFile(path.join(spaDistPath, "index.html"));
+
 });
+
+
 
 // Global error handler
+
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+
   console.error("Unhandled error:", err);
+
   res.status(500).json({ error: "Internal server error" });
+
 });
+
+
 
 app.listen(env.PORT, () => {
+
   console.log(`relaycreator-api listening on port ${env.PORT}`);
+
   console.log(`Serving SPA from ${spaDistPath}`);
+
   startPaymentChecker();
+
 });
 
+
+
 export default app;
+
