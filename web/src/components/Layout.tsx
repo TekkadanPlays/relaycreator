@@ -37,12 +37,8 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Home",         href: "/",          Icon: Radio,         group: "Relay Tools" },
   { label: "Directory",    href: "/directory",  Icon: Globe,         group: "Relay Tools" },
-  { label: "Discover",     href: "/discover",   Icon: Search,        group: "Relay Tools" },
   { label: "Relays",       href: "/relays",     Icon: Radio,         group: "Relay Tools" },
   { label: "Docs",         href: "/docs",       Icon: FileText,      group: "Relay Tools" },
-  { label: "Live",          href: "https://live.mycelium.social", Icon: Play,          group: "Mycelium", external: true },
-  { label: "Social",       href: "https://app.mycelium.social",  Icon: User,          group: "Mycelium", external: true },
-  { label: "Chat",         href: "https://chat.mycelium.social", Icon: MessageCircle, group: "Mycelium", external: true },
 ];
 
 interface LayoutProps {
@@ -314,9 +310,6 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
                             createElement(Link, { to: "/admin", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
                               createElement(Shield, { className: "size-4" }), "Admin Panel",
                             ),
-                            createElement(Link, { to: "/wallet", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
-                              createElement(Wallet, { className: "size-4" }), "Wallet",
-                            ),
                           ) : null,
                           user.admin ? createElement("div", { className: "border-t border-border" }) : null,
                           // ─── User section ───
@@ -445,7 +438,6 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
             ),
             createElement("div", { className: "flex items-center gap-4" },
               createElement(Link, { to: "/directory", className: "text-xs hover:text-foreground transition-colors" }, "Directory"),
-              createElement(Link, { to: "/discover", className: "text-xs hover:text-foreground transition-colors" }, "Discover"),
               createElement(Link, { to: "/relays", className: "text-xs hover:text-foreground transition-colors" }, "Relays"),
               createElement(Link, { to: "/faq", className: "text-xs hover:text-foreground transition-colors" }, "FAQ"),
               createElement(Link, { to: "/signup", className: "text-xs hover:text-foreground transition-colors" }, "Create Relay"),

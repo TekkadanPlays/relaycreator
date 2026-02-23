@@ -7,13 +7,10 @@ import Home from "./pages/Home";
 import CreateRelay from "./pages/CreateRelay";
 import RelayDetail from "./pages/RelayDetail";
 import RelaySettings from "./pages/RelaySettings";
-import Invoices from "./pages/Invoices";
 import Directory from "./pages/Directory";
 import FAQ from "./pages/FAQ";
-import Wallet from "./pages/Wallet";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
-import Discover from "./pages/Discover";
 import RelayManager from "./pages/RelayManager";
 import { Docs } from "./pages/docs/DocsRouter";
 import { Toaster } from "@/ui/Toast";
@@ -45,13 +42,10 @@ export default class App extends Component<{}, AuthState> {
           createElement(Route, { path: "/relays/myrelays", render: () => createElement(Redirect, { to: "/admin" }) }),
           createElement(Route, { path: "/relays/:slug/settings", component: RelaySettings }),
           createElement(Route, { path: "/relays/:slug", component: RelayDetail }),
-          createElement(Route, { path: "/invoices", component: Invoices }),
           createElement(Route, { path: "/directory", component: Directory }),
           createElement(Route, { path: "/faq", component: FAQ }),
-          createElement(Route, { path: "/wallet", component: Wallet }),
           createElement(Route, { path: "/profile", component: Profile }),
           createElement(Route, { path: "/admin", component: Admin }),
-          createElement(Route, { path: "/discover", component: Discover }),
           createElement(Route, { exact: true, path: "/relays", component: RelayManager }),
           createElement(Route, { path: "/docs/:rest*", component: Docs }),
           createElement(Route, { path: "/docs", component: Docs }),
