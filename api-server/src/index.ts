@@ -24,6 +24,8 @@ import nip86Routes from "./routes/nip86.js";
 
 import adminRoutes from "./routes/admin.js";
 
+import healthRoutes from "./routes/health.js";
+
 import permissionsRoutes from "./routes/permissions.js";
 
 
@@ -126,6 +128,8 @@ app.use("/api", sconfigRoutes);
 // Admin panel API
 
 app.use("/api/admin", adminRoutes);
+
+app.use("/api/admin", healthRoutes);
 
 
 

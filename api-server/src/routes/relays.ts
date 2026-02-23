@@ -148,7 +148,7 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
     let useStatus: string | null = null;
 
-    if (env.PAYMENTS_ENABLED !== "true") useStatus = "provision";
+    if (env.PAYMENTS_ENABLED !== "true") useStatus = "running";
 
 
 

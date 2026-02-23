@@ -74,6 +74,8 @@ import { renderCoinosGate, renderCoinosDashboard, renderCoinosFunds, renderCoino
 
 import { renderLoading } from "./admin/helpers";
 
+import { renderDebug, type HealthData } from "./admin/DebugTab";
+
 
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -176,6 +178,8 @@ interface AdminState {
 
   influxTopRelays: { available: boolean; relays: any[] } | null;
 
+  healthData: HealthData | null; healthLoading: boolean; provisionLoading: boolean;
+
 }
 
 
@@ -275,6 +279,8 @@ export default class Admin extends Component<{}, AdminState> {
       influxPlatform: null, influxPlatformLoading: false, influxRange: "24h",
 
       influxTopRelays: null,
+
+      healthData: null, healthLoading: false, provisionLoading: false,
 
     };
 
@@ -400,11 +406,34 @@ export default class Admin extends Component<{}, AdminState> {
 
       case "access": return this.loadMyPerms();
 
+      case "debug": return this.loadHealth();
+
     }
 
   }
 
 
+
+  // ─── Health / Debug ──────────────────────────────────────────────────────
+
+  private async loadHealth() {
+    this.setState({ healthLoading: true });
+    try {
+      const data = await api.get<HealthData>("/admin/health");
+      this.setState({ healthData: data, healthLoading: false });
+    } catch {
+      this.setState({ healthLoading: false });
+    }
+  }
+
+  private handleProvisionStuck = async () => {
+    this.setState({ provisionLoading: true });
+    try {
+      await api.post("/admin/health/provision-stuck", {});
+      await this.loadHealth();
+    } catch { /* ignore */ }
+    this.setState({ provisionLoading: false });
+  };
 
   // ─── Data Loaders ────────────────────────────────────────────────────────
 
@@ -1248,6 +1277,10 @@ export default class Admin extends Component<{}, AdminState> {
 
         return renderRequestAccess(this.state.user, this.state.myPerms, this.state.myPermsLoading, this.state.permTypes, this.state.requestType, this.state.requestReason, this.state.requestSubmitting, this.state.requestError, (t) => this.setState({ requestType: t }), (r) => this.setState({ requestReason: r }), this.handleRequestAccess);
 
+      case "debug":
+
+        return renderDebug(this.state.healthData, this.state.healthLoading, this.state.provisionLoading, () => this.loadHealth(), this.handleProvisionStuck);
+
       case "demo":
 
         return this.renderDemo();
@@ -1303,6 +1336,8 @@ export default class Admin extends Component<{}, AdminState> {
           { id: "orders", label: "Orders", icon: BarChart3, adminOnly: true },
 
           { id: "permissions", label: "Permissions", icon: Lock, adminOnly: true },
+
+          { id: "debug", label: "System Health", icon: Shield, adminOnly: true },
 
         ],
 
@@ -1361,6 +1396,8 @@ export default class Admin extends Component<{}, AdminState> {
       access: "Request Access",
 
       demo: "Directory",
+
+      debug: "System Health",
 
     };
 
