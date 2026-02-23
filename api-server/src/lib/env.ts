@@ -33,6 +33,7 @@ const envSchema = z.object({
   INFLUXDB_TOKEN: z.string().optional(),
   INFLUXDB_ORG: z.string().optional(),
   INFLUXDB_BUCKET: z.string().optional(),
+  ADMIN_PUBKEYS: z.string().default(""),
 });
 
 export type Env = z.infer<typeof envSchema>;

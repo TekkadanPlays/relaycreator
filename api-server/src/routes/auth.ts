@@ -5,6 +5,7 @@ import { verifyLoginEvent, type NostrEvent } from "../lib/nostr.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { z } from "zod";
 import { validateBody } from "../middleware/validate.js";
+import { getEnv } from "../lib/env.js";
 
 const router = Router();
 
@@ -105,6 +106,13 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
   let user = await prisma.user.findUnique({ where: { pubkey } });
   if (!user) {
     user = await prisma.user.create({ data: { pubkey } });
+  }
+
+  // Auto-promote admin pubkeys from env
+  const adminPubkeys = getEnv().ADMIN_PUBKEYS.split(",").map((s) => s.trim()).filter(Boolean);
+  if (adminPubkeys.includes(pubkey) && !user.admin) {
+    user = await prisma.user.update({ where: { id: user.id }, data: { admin: true } });
+    console.log(`[auth] Auto-promoted ${pubkey.slice(0, 8)}... to admin via ADMIN_PUBKEYS`);
   }
 
   // Fetch active permissions
