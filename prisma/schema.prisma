@@ -570,7 +570,9 @@ model Permission {
 
   notes               String?   @db.Text
 
+  created_at          DateTime  @default(now())
 
+  updated_at          DateTime  @updatedAt
 
   @@unique([userId, type])
 
@@ -603,6 +605,8 @@ model PermissionRequest {
   decision_note String?   @db.Text          // admin's note on approval/denial
 
   created_at    DateTime  @default(now())
+
+  updated_at    DateTime  @updatedAt
 
   decided_at    DateTime?
 
