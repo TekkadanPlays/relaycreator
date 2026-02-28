@@ -387,7 +387,6 @@ defaults
 	mode	http
 	option	httplog
 	option	dontlognull
-	option	http-server-close
 	timeout connect 5s
 	timeout client  30s
 	timeout server  30s
@@ -537,7 +536,6 @@ backend interceptor
 	mode		http
 	option		redispatch
 	balance		source
-	no option http-server-close
 	timeout server 3600s
 	timeout tunnel 3600s
 	option forwardfor except 127.0.0.1 header x-real-ip
