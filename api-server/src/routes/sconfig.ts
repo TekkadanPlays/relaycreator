@@ -440,7 +440,6 @@ frontend secured
 	acl is_live_subdomain hdr(host) -i live.${usethisdomain}
 	acl is_bare_domain hdr(host) -i ${usethisdomain}
 	acl is_relay_subdomain hdr(host) -m reg -i ^[a-z0-9][a-z0-9-]+\\.${usethisdomain.replace(/\./g, "\\.")}$
-	acl not_known_subdomain !is_app_subdomain !is_chat_subdomain !is_live_subdomain !is_bare_domain
 
 	# --- rstate direct routing (NIP-66 relay discovery API) ---
 	acl is_relays path_beg /relays
@@ -461,7 +460,7 @@ frontend secured
 	use_backend mycelium-live if is_live_subdomain { srv_is_up(mycelium-live/live-001) }
 
 	# --- Wildcard relay subdomains -> interceptor (strfry WebSocket proxy) ---
-	use_backend interceptor if is_relay_subdomain not_known_subdomain { srv_is_up(interceptor/interceptor-001) }
+	use_backend interceptor if is_relay_subdomain !is_app_subdomain !is_chat_subdomain !is_live_subdomain !is_bare_domain { srv_is_up(interceptor/interceptor-001) }
 ${deleted_domains}
 ${paused_domains}
 
