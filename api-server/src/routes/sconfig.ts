@@ -537,6 +537,7 @@ backend interceptor
 	mode		http
 	option		redispatch
 	balance		source
+	no option http-server-close
 	timeout server 3600s
 	timeout tunnel 3600s
 	option forwardfor except 127.0.0.1 header x-real-ip
