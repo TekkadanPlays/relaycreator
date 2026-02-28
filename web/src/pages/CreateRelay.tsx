@@ -186,6 +186,36 @@ export default class CreateRelay extends Component<{}, CreateRelayState> {
 
 
 
+    // Permission check: must be admin or have operator permission
+
+    const hasOperator = user.admin || user.permissions?.some((p) => p.type === "operator");
+
+    if (!hasOperator) {
+
+      return createElement("div", { className: "flex flex-col items-center justify-center py-20 text-center space-y-4" },
+
+        createElement(Shield, { className: "size-12 text-muted-foreground" }),
+
+        createElement("h1", { className: "text-2xl font-bold" }, "Operator Access Required"),
+
+        createElement("p", { className: "text-muted-foreground max-w-md" },
+
+          "Creating relays requires operator privileges. Request operator access from the admin panel.",
+
+        ),
+
+        createElement(Button, { onClick: () => { window.location.href = "/admin"; }, variant: "outline", className: "gap-2 mt-2" },
+
+          createElement(Shield, { className: "size-4" }), "Go to Admin Panel",
+
+        ),
+
+      );
+
+    }
+
+
+
     // Success
 
     if (step === "success") {

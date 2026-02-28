@@ -64,6 +64,28 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
 
 
+    // Only admins or users with 'operator' permission can create relays
+
+    if (!user.admin) {
+
+      const operatorPerm = await prisma.permission.findUnique({
+
+        where: { userId_type: { userId: user.id, type: "operator" } },
+
+      });
+
+      if (!operatorPerm || operatorPerm.revoked_at) {
+
+        res.status(403).json({ error: "Operator or admin permission required to create relays" });
+
+        return;
+
+      }
+
+    }
+
+
+
     // Validate relay name format
 
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}$/.test(relayname)) {
