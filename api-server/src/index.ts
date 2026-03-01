@@ -31,6 +31,8 @@ import permissionsRoutes from "./routes/permissions.js";
 
 import nostrFetchRoutes from "./routes/nostr-fetch.js";
 
+import nip05Routes from "./routes/nip05.js";
+
 
 
 
@@ -63,6 +65,60 @@ app.use(express.json());
 app.use(express.text({ type: "application/nostr+json+rpc" }));
 
 
+
+// ─── Subdomain resolution middleware ─────────────────────────────────────────
+// Detects subdomains like coracle.mycelium.social and rewrites to /relays/coracle
+import prisma from "./lib/prisma.js";
+
+app.use(async (req, _res, next) => {
+  const host = req.hostname?.toLowerCase();
+  const domain = env.CREATOR_DOMAIN.toLowerCase();
+
+  if (!host || host === domain || host === "localhost" || host.match(/^(127\.|10\.|192\.168\.|0\.0\.0\.0)/)) {
+    return next();
+  }
+
+  // Extract subdomain: "coracle.mycelium.social" → "coracle"
+  if (host.endsWith(`.${domain}`)) {
+    const subdomain = host.slice(0, -(domain.length + 1));
+    if (subdomain && !subdomain.includes(".")) {
+      // Attach subdomain info for downstream handlers
+      (req as any).relaySubdomain = subdomain;
+      (req as any).relayHost = host;
+    }
+  }
+  next();
+});
+
+// ─── .well-known/nostr.json (NIP-05) ────────────────────────────────────────
+app.get("/.well-known/nostr.json", async (req, res) => {
+  const host = ((req as any).relayHost || req.hostname || env.CREATOR_DOMAIN).toLowerCase();
+  const name = req.query.name as string | undefined;
+
+  try {
+    const where: any = { domain: host };
+    if (name) where.name = name;
+
+    const nip05s = await prisma.nip05.findMany({
+      where,
+      include: { relayUrls: true },
+    });
+
+    const names: Record<string, string> = {};
+    const relays: Record<string, string[]> = {};
+
+    for (const entry of nip05s) {
+      names[entry.name] = entry.pubkey;
+      relays[entry.pubkey] = entry.relayUrls.map((r) => r.url);
+    }
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.json({ names, relays });
+  } catch (err) {
+    console.error("[nip05] .well-known/nostr.json error:", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
 
 // Health check
 
@@ -146,6 +202,9 @@ app.use("/api/permissions", permissionsRoutes);
 
 app.use("/api/nostr", nostrFetchRoutes);
 
+// NIP-05 identity management
+app.use("/api/nip05", nip05Routes);
+
 
 
 // NIP-86 relay management (used by Nostr clients)
@@ -172,14 +231,21 @@ app.use(express.static(spaDistPath));
 
 app.get("/{*splat}", (_req, res, next) => {
 
-  // Don't serve index.html for API routes
+  // Don't serve index.html for API routes or .well-known
 
-  if (_req.path.startsWith("/api/") || _req.path.startsWith("/sconfig/") || _req.path.startsWith("/auth/") || _req.path === "/health") {
+  if (_req.path.startsWith("/api/") || _req.path.startsWith("/sconfig/") || _req.path.startsWith("/auth/") || _req.path.startsWith("/.well-known/") || _req.path === "/health") {
 
     next();
 
     return;
 
+  }
+
+  // Subdomain resolution: redirect coracle.mycelium.social → /relays/coracle
+  const subdomain = (_req as any).relaySubdomain;
+  if (subdomain && _req.path === "/") {
+    res.redirect(301, `/relays/${subdomain}`);
+    return;
   }
 
   res.sendFile(path.join(spaDistPath, "index.html"));

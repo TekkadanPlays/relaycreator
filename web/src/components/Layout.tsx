@@ -18,7 +18,7 @@ import {
 import {
   Radio, LogOut, Menu, Zap, Globe, User, Loader2, X,
   HelpCircle, Github, Wallet, Shield, Play, ChevronDown,
-  MessageCircle, ExternalLink, FileText, Search,
+  MessageCircle, ExternalLink, FileText, Search, AtSign,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 import type { IconComponent } from "@/lib/icon";
@@ -322,6 +322,9 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
                             ),
                             createElement(Link, { to: "/signup", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
                               createElement(Zap, { className: "size-4" }), "Create Relay",
+                            ),
+                            createElement(Link, { to: "/nip05", onClick: () => this.setState({ userMenuOpen: false }), className: "flex items-center gap-2.5 px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" },
+                              createElement(AtSign, { className: "size-4" }), "NIP-05 Identity",
                             ),
                           ),
                           createElement("div", { className: "border-t border-border" }),

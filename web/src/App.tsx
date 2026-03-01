@@ -11,6 +11,7 @@ import Directory from "./pages/Directory";
 import FAQ from "./pages/FAQ";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
+import Nip05 from "./pages/Nip05";
 import RelayManager from "./pages/RelayManager";
 import { Docs } from "./pages/docs/DocsRouter";
 import { Toaster } from "@/ui/Toast";
@@ -44,6 +45,7 @@ export default class App extends Component<{}, AuthState> {
           createElement(Route, { path: "/relays/:slug", component: RelayDetail }),
           createElement(Route, { path: "/directory", component: Directory }),
           createElement(Route, { path: "/faq", component: FAQ }),
+          createElement(Route, { path: "/nip05", component: Nip05 }),
           createElement(Route, { path: "/profile", component: Profile }),
           createElement(Route, { path: "/admin", component: Admin }),
           createElement(Route, { exact: true, path: "/relays", component: RelayManager }),
