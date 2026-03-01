@@ -39,7 +39,7 @@ export default class Directory extends Component<{}, DirectoryState> {
 
   private async loadRelays() {
     try {
-      const data = await api.get<{ relays: Relay[] }>("/relays");
+      const data = await api.get<{ relays: Relay[] }>("/relays/public");
       this.setState({ relays: data.relays || [], loading: false });
     } catch (err: any) {
       this.setState({ error: err.message, loading: false });
