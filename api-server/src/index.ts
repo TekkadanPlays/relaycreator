@@ -14,7 +14,6 @@ import { loadEnv } from "./lib/env.js";
 
 import authRoutes from "./routes/auth.js";
 
-import invoiceRoutes from "./routes/invoices.js";
 
 import relayRoutes from "./routes/relays.js";
 
@@ -22,21 +21,16 @@ import sconfigRoutes from "./routes/sconfig.js";
 
 import nip86Routes from "./routes/nip86.js";
 
-import { startPaymentChecker } from "./lib/paymentChecker.js";
-
-import coinosRoutes from "./routes/coinos.js";
-
-import walletRoutes from "./routes/wallet.js";
 
 import adminRoutes from "./routes/admin.js";
 
+import healthRoutes from "./routes/health.js";
+
 import permissionsRoutes from "./routes/permissions.js";
 
-import rstateRoutes from "./routes/rstate.js";
 
 import nostrFetchRoutes from "./routes/nostr-fetch.js";
 
-import influxStatsRoutes from "./routes/influx-stats.js";
 
 
 
@@ -108,7 +102,6 @@ app.get("/api/config", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 
-app.use("/api/invoices", invoiceRoutes);
 
 app.use("/api/relays", relayRoutes);
 
@@ -136,6 +129,8 @@ app.use("/api", sconfigRoutes);
 
 app.use("/api/admin", adminRoutes);
 
+app.use("/api/admin", healthRoutes);
+
 
 
 // Permissions system
@@ -144,33 +139,12 @@ app.use("/api/permissions", permissionsRoutes);
 
 
 
-// CoinOS wallet proxy (optional - legacy)
-
-app.use("/api/coinos", coinosRoutes);
-
-
-
-// New wallet service (Rust + SQLite)
-
-app.use("/api/wallet", walletRoutes);
-
-
-
-// Relay intelligence (rstate NIP-66 proxy)
-
-app.use("/api/rstate", rstateRoutes);
 
 
 
 // Server-side Nostr fetching (profile, relay lists via WSS to indexers)
 
 app.use("/api/nostr", nostrFetchRoutes);
-
-
-
-// InfluxDB relay statistics
-
-app.use("/api/admin/stats/influx", influxStatsRoutes);
 
 
 
@@ -232,7 +206,7 @@ app.listen(env.PORT, () => {
 
   console.log(`Serving SPA from ${spaDistPath}`);
 
-  startPaymentChecker();
+  console.log("[local mode] Payments disabled");
 
 });
 

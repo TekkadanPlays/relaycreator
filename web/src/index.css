@@ -761,6 +761,17 @@
 ::-webkit-scrollbar-thumb { background: oklch(0.22 0.012 260 / 0.5); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.35 0.02 260 / 0.6); }
 
+/* Shiki dual-theme: use CSS variables for light/dark switching */
+.shiki-wrapper .shiki,
+.shiki-wrapper .shiki span {
+  color: var(--shiki-light) !important;
+  background-color: transparent !important;
+}
+.dark .shiki-wrapper .shiki,
+.dark .shiki-wrapper .shiki span {
+  color: var(--shiki-dark) !important;
+}
+
 /* Selection */
 ::selection {
   background: oklch(from var(--primary) l c h / 0.3);

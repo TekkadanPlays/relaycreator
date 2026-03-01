@@ -64,6 +64,28 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
 
 
+    // Only admins or users with 'operator' permission can create relays
+
+    if (!user.admin) {
+
+      const operatorPerm = await prisma.permission.findUnique({
+
+        where: { userId_type: { userId: user.id, type: "operator" } },
+
+      });
+
+      if (!operatorPerm || operatorPerm.revoked_at) {
+
+        res.status(403).json({ error: "Operator or admin permission required to create relays" });
+
+        return;
+
+      }
+
+    }
+
+
+
     // Validate relay name format
 
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}$/.test(relayname)) {
@@ -148,7 +170,7 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
     let useStatus: string | null = null;
 
-    if (env.PAYMENTS_ENABLED !== "true") useStatus = "provision";
+    if (env.PAYMENTS_ENABLED !== "true") useStatus = "running";
 
 
 
@@ -172,7 +194,9 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
         referrer: referrer || "",
 
-        default_message_policy: false,
+        default_message_policy: true,
+
+        listed_in_directory: true,
 
       },
 
@@ -182,7 +206,16 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
     await prisma.blockList.create({ data: { relayId: relayResult.id } });
 
-    await prisma.allowList.create({ data: { relayId: relayResult.id } });
+    const allowList = await prisma.allowList.create({ data: { relayId: relayResult.id } });
+
+    // Add the relay creator's pubkey to the allowlist so they can always write
+    await prisma.listEntryPubkey.create({
+      data: {
+        AllowListId: allowList.id,
+        pubkey: user.pubkey,
+        reason: "relay owner",
+      },
+    });
 
 
 

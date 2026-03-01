@@ -300,6 +300,11 @@ router.get("/relays/:id", (req: Request, res: Response) => {
  * GET /sconfig/haproxy/:id
  * Generate HAProxy config file dynamically from database.
  * Used by haproxy cookiecutter daemon.
+ *
+ * Uses wildcard interceptor routing: all relay subdomains are routed to the
+ * interceptor (port 9696) which resolves the correct strfry backend via the
+ * sconfig API. This eliminates per-relay ACLs/backends and handles new relays
+ * automatically without config regeneration.
  */
 router.get("/haproxy/:id", (req: Request, res: Response) => {
   if (!verifyDeployPubkey(req, res)) return;
@@ -331,19 +336,14 @@ router.get("/haproxy/:id", (req: Request, res: Response) => {
       let app_servers_cfg = ``;
       for (let i = 0; i < useApps.length; i++) {
         app_servers_cfg += `
-    server     app-${i} ${useApps[i]}:4000 maxconn 50000 weight 10 check`;
+	server main-${i} ${useApps[i]}:4000 maxconn 100000 weight 10 check inter 5s fall 3 rise 2`;
       }
 
-      const fetchDomain = await prisma.relay.findMany({
-        where: {
-          domain: usethisdomain,
-          OR: [{ status: "provision" }, { status: "running" }],
-        },
-      });
-
-      const fetchExternalDomain = await prisma.relay.findMany({
-        where: { is_external: true, status: "running" },
-      });
+      let interceptor_servers_cfg = ``;
+      for (let i = 0; i < useInterceptors.length; i++) {
+        interceptor_servers_cfg += `
+	server interceptor-${i} ${useInterceptors[i]}:${interceptorPort} maxconn 100000 weight 10 check inter 5s fall 3 rise 2`;
+      }
 
       const fetchDeletedDomains = await prisma.relay.findMany({
         where: { domain: usethisdomain, status: "deleted" },
@@ -353,156 +353,78 @@ router.get("/haproxy/:id", (req: Request, res: Response) => {
         where: { domain: usethisdomain, status: "paused" },
       });
 
-      let haproxy_subdomains_cfg = `
-		acl host_ws hdr_beg(Host) -i ws.
-		acl hdr_connection_upgrade hdr(Connection)  -i upgrade
-		acl hdr_upgrade_websocket  hdr(Upgrade)     -i websocket
-	
-	`;
-
-      let haproxy_backends_cfg = ``;
-
-      fetchDomain.forEach((element) => {
-        let usePort = element.port;
-        if (element.auth_required || element.request_payment) {
-          usePort = interceptorPort;
-        }
-        let useIP = "127.0.0.1";
-        if (element.ip) {
-          useIP = element.ip;
-        }
-        haproxy_subdomains_cfg += `
-		acl ${element.name + "_root"} path_beg -i /
-		acl ${element.name} hdr(Host) -i ${element.name}.${element.domain}
-		acl ${element.name + "_nostrjson"} req.hdr(Accept) -i application/nostr+json
-		acl ${element.name + "_nostrjsonrpc"} req.hdr(Accept) -i application/nostr+json+rpc
-		use_backend ${element.name} if host_ws ${element.name}
-		use_backend ${element.name} if hdr_connection_upgrade hdr_upgrade_websocket ${element.name} 
-		http-request set-path /api/relay/${element.id}/nostrjson if ${element.name} ${element.name + "_root"} ${element.name + "_nostrjson"}
-		http-request set-path /api/86/${element.id} if ${element.name} ${element.name + "_root"} ${element.name + "_nostrjsonrpc"}
-		`;
-
-        haproxy_backends_cfg += `
-backend ${element.name}
-	mode  		        http
-	option 		        redispatch
-	balance 	        roundrobin
-	option forwardfor except 127.0.0.1 header x-real-ip`;
-
-        if (element.auth_required || element.request_payment) {
-          for (let i = 0; i < useInterceptors.length; i++) {
-            haproxy_backends_cfg += `
-    server     interceptor-${i} ${useInterceptors[i]}:${interceptorPort} maxconn 50000 weight 10 check`;
-          }
-        } else {
-          haproxy_backends_cfg += `
-    server     websocket-001 ${useIP}:${usePort} maxconn 50000 weight 10 check`;
-        }
-      });
-
-      fetchExternalDomain.forEach((element) => {
-        let useSSLVerify = "";
-        if (element.port === 443) {
-          useSSLVerify = "ssl verify none";
-        }
-
-        haproxy_subdomains_cfg += `
-		acl ${element.name + "_root"} path_beg -i /
-		acl ${element.name} hdr(Host) -i ${element.domain}
-		acl ${element.name + "_nostrjson"} req.hdr(Accept) -i application/nostr+json
-		use_backend ${element.name} if host_ws ${element.name}
-		use_backend ${element.name} if hdr_connection_upgrade hdr_upgrade_websocket ${element.name} 
-		http-request set-path /api/relay/${element.id}/nostrjson if ${element.name} ${element.name + "_root"} ${element.name + "_nostrjson"}
-		`;
-
-        haproxy_backends_cfg += `
-backend ${element.name}
-	mode  		        http
-	option 		        redispatch
-	balance 	        roundrobin
-	option forwardfor except 127.0.0.1 header x-real-ip
-	server     ${element.name} ${element.ip}:${element.port} ${useSSLVerify} maxconn 50000 weight 10 check
-	`;
-      });
-
       let deleted_domains = ``;
       fetchDeletedDomains.forEach((element) => {
         deleted_domains += `
-        http-request return content-type text/html status 410 file /etc/haproxy/static/410.http if { hdr(Host) -i ${element.name}.${element.domain} }
-        `;
+	http-request return content-type text/html status 410 file /etc/haproxy/static/410.http if { hdr(Host) -i ${element.name}.${element.domain} }`;
       });
 
       let paused_domains = ``;
       fetchPausedDomains.forEach((element) => {
         paused_domains += `
-        http-request return content-type text/html status 402 file /etc/haproxy/static/402.http if { hdr(Host) -i ${element.name}.${element.domain} }
-        `;
+	http-request return content-type text/html status 402 file /etc/haproxy/static/402.http if { hdr(Host) -i ${element.name}.${element.domain} }`;
       });
 
-      const haproxy_cfg = `
-global
+      const haproxy_cfg = `global
 	log /dev/log	local0
 	log /dev/log	local1 notice
 	stats socket /tmp/admin.sock mode 660 level admin
-    stats socket /etc/haproxy/haproxy.sock mode 660 level user
 	stats timeout 30s
 	user haproxy
 	group haproxy
 	daemon
+	maxconn 200000
 	ca-base /etc/ssl/certs
 	crt-base /etc/ssl/private
 	ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
 	ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
 	ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
-    hard-stop-after 120s
+	tune.ssl.default-dh-param 2048
+	tune.bufsize 32768
 
 defaults
 	log	global
 	mode	http
 	option	httplog
 	option	dontlognull
-    timeout connect 20s
-    timeout client  20s
-    timeout server  60s
-	timeout tunnel 300s
+	timeout connect 5s
+	timeout client  30s
+	timeout server  30s
+	timeout tunnel  3600s
+	timeout http-keep-alive 60s
+	timeout http-request 10s
+	timeout queue 30s
 	errorfile 400 /etc/haproxy/errors/400.http
 	errorfile 403 /etc/haproxy/errors/403.http
 	errorfile 408 /etc/haproxy/errors/408.http
+	errorfile 429 /etc/haproxy/errors/429.http
 	errorfile 500 /etc/haproxy/errors/500.http
 	errorfile 502 /etc/haproxy/errors/502.http
 	errorfile 503 /etc/haproxy/errors/503.http
 	errorfile 504 /etc/haproxy/errors/504.http
 
-frontend unsecured
-	maxconn 10000
-	bind 0.0.0.0:80 name http
-	mode 		        http
-    acl is_acme_challenge path_beg /.well-known/acme-challenge/
-    use_backend certbot_server if is_acme_challenge
-    http-request allow if is_acme_challenge
-    redirect scheme https code 301 if !is_acme_challenge !{ ssl_fc }
+backend rate_limit_tracking
+	stick-table type ip size 200k expire 30s store http_req_rate(10s),conn_cur
+
+frontend http
+	bind 0.0.0.0:80
+	mode http
+	acl is_acme path_beg /.well-known/acme-challenge/
+	http-request redirect scheme https code 301 unless is_acme
+	default_backend acme_backend
+
+backend acme_backend
+	mode http
+	server acme 127.0.0.1:8080
 
 frontend secured
-	bind			0.0.0.0:443 ssl crt /etc/haproxy/certs/${pemName}
+	bind 0.0.0.0:443 ssl crt /etc/haproxy/certs/${pemName} alpn h2,http/1.1
 
 	mode			http
-	backlog			4096
-	maxconn			60000      
-	default_backend		main	
-	http-request del-header x-real-ip
-	option forwardfor except 127.0.0.1 header x-real-ip
-
-    http-request set-header host %[hdr(host),field(1,:)]
-    capture request header Host len 30
-
-	# --- Oni streaming server (live.mycelium.social) ---
-	acl host_oni hdr(Host) -i live.${usethisdomain}
-	use_backend oni if host_oni
-
-	# --- Docs subdomain (docs.mycelium.social) ---
-	acl host_docs hdr(Host) -i docs.${usethisdomain}
-	http-request set-path /docs%[path] if host_docs !{ path_beg /docs } !{ path_beg /api }
-	use_backend main if host_docs
+	timeout			client 3600s
+	backlog			8192
+	maxconn			200000
+	default_backend		main
 
 	# --- CoinOS external API proxy ---
 	acl is_coinos path_beg /coinos
@@ -511,34 +433,75 @@ frontend secured
 	http-request set-path %[path,regsub(^/coinos,,)] if is_coinos
 	use_backend coinos if is_coinos
 
-	# --- Ribbit frontend routing ---
-	acl is_api path_beg /api
-	acl is_wellknown path_beg /.well-known
-	acl is_admin path_beg /admin
-	acl is_rc path_beg /rc
-	use_backend ribbit if !is_api !is_wellknown !is_admin !is_rc { srv_is_up(ribbit/ribbit-001) }
+	# --- Hostname-based routing ---
+	acl is_app_subdomain hdr(host) -i app.${usethisdomain}
+	acl is_chat_subdomain hdr(host) -i chat.${usethisdomain}
+	acl is_live_subdomain hdr(host) -i live.${usethisdomain}
+	acl is_bare_domain hdr(host) -i ${usethisdomain}
+	acl is_relay_subdomain hdr(host) -m reg -i ^[a-z0-9][a-z0-9-]+\\.${usethisdomain.replace(/\./g, "\\.")}$
 
-	http-request return content-type image/x-icon file /etc/haproxy/static/favicon.ico if { path /favicon.ico }
-	http-request return content-type image/png file /etc/haproxy/static/favicon-32x32.png if { path /favicon-32x32.png }
-	http-request return content-type image/png file /etc/haproxy/static/favicon-16x16.png if { path /favicon-16x16.png }
-	http-request return content-type image/png file /etc/haproxy/static/apple-touch-icon.png if { path /apple-touch-icon.png }
-	http-request return content-type application/json file /etc/haproxy/static/apple-touch-icon.png if { path /site.webmanifest }
+	# --- rstate direct routing (NIP-66 relay discovery API) ---
+	acl is_relays path_beg /relays
+	acl is_monitors path_beg /monitors
+	acl is_rstate_health path /health/ping
+	use_backend rstate if is_relays { srv_is_up(rstate/rstate-001) }
+	use_backend rstate if is_monitors { srv_is_up(rstate/rstate-001) }
+	use_backend rstate if is_rstate_health { srv_is_up(rstate/rstate-001) }
 
-    ${deleted_domains}
+	# --- app subdomain -> social client frontend ---
+	use_backend mycelium if is_app_subdomain { srv_is_up(mycelium/mycelium-001) }
+	use_backend ribbit if is_app_subdomain { srv_is_up(ribbit/ribbit-001) }
 
-    ${paused_domains}
+	# --- chat subdomain -> hyphae IRC web client ---
+	use_backend hyphae if is_chat_subdomain { srv_is_up(hyphae/hyphae-001) }
 
-	${haproxy_subdomains_cfg}
+	# --- live subdomain -> mycelium-live (Bun + OME) ---
+	use_backend mycelium-live if is_live_subdomain { srv_is_up(mycelium-live/live-001) }
 
-backend main
-	mode  		        http
-	option 		        redispatch
-	balance 	        source
+	# --- Wildcard relay subdomains -> interceptor (strfry WebSocket proxy) ---
+	use_backend interceptor if is_relay_subdomain !is_app_subdomain !is_chat_subdomain !is_live_subdomain !is_bare_domain { srv_is_up(interceptor/interceptor-001) }
+${deleted_domains}
+${paused_domains}
+
+	# Security headers
+	http-request del-header x-real-ip
 	option forwardfor except 127.0.0.1 header x-real-ip
-    ${app_servers_cfg}
+	http-response set-header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+	http-response set-header X-Content-Type-Options "nosniff"
+	http-response set-header X-Frame-Options "SAMEORIGIN"
 
-	${haproxy_backends_cfg}
+	# Rate limiting
+	http-request track-sc0 src table rate_limit_tracking
+	http-request deny deny_status 429 if { sc_http_req_rate(0) gt 100 }
+	http-request deny deny_status 429 if { sc_conn_cur(0) gt 50 }
 
+# --- Stats dashboard ---
+frontend stats
+	bind 0.0.0.0:8404
+	mode http
+	stats enable
+	stats uri /stats
+	stats refresh 10s
+	stats show-legends
+	stats auth ${haproxyStatsUser}:${haproxyStatsPass}
+
+# --- Main backend (relaycreator API + admin) ---
+backend main
+	mode		http
+	option		redispatch
+	balance		source
+	option forwardfor except 127.0.0.1 header x-real-ip
+${app_servers_cfg}
+
+# --- Mycelium frontend backend (Bun/Hono on port 3000) ---
+backend mycelium
+	mode		http
+	option		redispatch
+	balance		source
+	option forwardfor except 127.0.0.1 header x-real-ip
+	server mycelium-001 127.0.0.1:3000 maxconn 100000 weight 10 check inter 5s fall 3 rise 2
+
+# --- Ribbit frontend backend (legacy, Bun/Hono on port 3000) ---
 backend ribbit
 	mode		http
 	option		redispatch
@@ -546,41 +509,43 @@ backend ribbit
 	option forwardfor except 127.0.0.1 header x-real-ip
 	server ribbit-001 127.0.0.1:3000 maxconn 100000 weight 10 check inter 5s fall 3 rise 2
 
-backend oni
+# --- rstate backend (NIP-66 relay discovery API on port 3100) ---
+backend rstate
+	mode		http
+	option forwardfor except 127.0.0.1 header x-real-ip
+	server rstate-001 127.0.0.1:3100 maxconn 50000 weight 10 check inter 5s fall 3 rise 2
+
+# --- Hyphae backend (IRC web client on port 5173) ---
+backend hyphae
 	mode		http
 	option		redispatch
 	balance		source
 	option forwardfor except 127.0.0.1 header x-real-ip
-	timeout tunnel 300s
-	timeout server 300s
-	server oni-001 127.0.0.1:8085 maxconn 10000 weight 10 check inter 5s fall 3 rise 2
+	server hyphae-001 127.0.0.1:5173 maxconn 50000 weight 10 check inter 5s fall 3 rise 2
 
+# --- Mycelium Live backend (Bun server on port 8085, OME on 3333) ---
+backend mycelium-live
+	mode		http
+	option		redispatch
+	balance		source
+	option forwardfor except 127.0.0.1 header x-real-ip
+	server live-001 127.0.0.1:8085 maxconn 50000 weight 10 check inter 5s fall 3 rise 2
+
+# --- Interceptor backend (strfry WebSocket proxy) ---
+backend interceptor
+	mode		http
+	option		redispatch
+	balance		source
+	timeout server 3600s
+	timeout tunnel 3600s
+	option forwardfor except 127.0.0.1 header x-real-ip
+${interceptor_servers_cfg}
+
+# --- CoinOS backend (coinos-server on port 3119) ---
 backend coinos
 	mode		http
 	option forwardfor except 127.0.0.1 header x-real-ip
 	server coinos-001 127.0.0.1:3119 maxconn 10000 weight 10 check inter 10s fall 3 rise 2
-
-backend certbot_server
-    server certbot 127.0.0.1:10000
-
-listen stats
-	bind 0.0.0.0:8888 ssl crt  /etc/haproxy/certs/${pemName}
-        mode            	http
-        stats           	enable
-        option          	httplog
-        stats           	show-legends
-        stats          		uri /haproxy
-        stats           	realm Haproxy\\ Statistics
-        stats           	refresh 5s
-        stats           	auth ${haproxyStatsUser}:${haproxyStatsPass}
-        timeout         	connect 5000ms
-        timeout         	client 50000ms
-        timeout         	server 50000ms
-
-backend backend_static_index
-	mode http
-	http-request set-log-level silent
-	errorfile 503 /etc/haproxy/static/index.static.html
 `;
 
       res.statusCode = 200;
