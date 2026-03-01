@@ -8,16 +8,55 @@ const router = Router();
 
 const FETCH_TIMEOUT = 6000;
 
+// ─── Server-side event cache (5 min TTL) ────────────────────────────────────
+
+interface CachedEvents {
+  events: any[];
+  expiresAt: number;
+}
+
+const eventCache = new Map<string, CachedEvents>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCacheKey(filter: { kinds: number[]; authors: string[] }): string {
+  return `${filter.kinds.join(",")}:${filter.authors.join(",")}`;
+}
+
+function getCached(filter: { kinds: number[]; authors: string[] }): any[] | null {
+  const key = getCacheKey(filter);
+  const entry = eventCache.get(key);
+  if (entry && entry.expiresAt > Date.now()) return entry.events;
+  if (entry) eventCache.delete(key);
+  return null;
+}
+
+function setCache(filter: { kinds: number[]; authors: string[] }, events: any[]): void {
+  const key = getCacheKey(filter);
+  eventCache.set(key, { events, expiresAt: Date.now() + CACHE_TTL });
+  // Prune old entries if cache gets large
+  if (eventCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of eventCache) {
+      if (v.expiresAt < now) eventCache.delete(k);
+    }
+  }
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * Fetch Nostr events via relay HTTP API.
- * Many relays support NIP-50 search or REQ-over-HTTP.
- * We use nostr.band's API and purplepag.es' HTTP endpoint.
+ * Fetch Nostr events via multiple HTTP API endpoints with fallbacks.
+ * Strategy 1: nostr.band HTTP API
+ * Strategy 2: purplepag.es HTTP API
+ * Strategy 3: user-search.nostr.band (fallback for profiles)
  */
 async function fetchEventsHttp(
   filter: { kinds: number[]; authors: string[] },
 ): Promise<any[]> {
+  // Check cache first
+  const cached = getCached(filter);
+  if (cached) return cached;
+
   const events: any[] = [];
 
   // Strategy 1: nostr.band API (supports profile and relay list lookups)
@@ -33,19 +72,31 @@ async function fetchEventsHttp(
     ...nostrBandUrls.map(async (url) => {
       try {
         const r = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
-        if (!r.ok) return [];
+        if (!r.ok) {
+          console.warn(`[nostr-fetch] nostr.band returned ${r.status} for ${url}`);
+          return [];
+        }
         const data: any = await r.json();
         return Array.isArray(data.events) ? data.events : Array.isArray(data) ? data : [];
-      } catch { return []; }
+      } catch (err) {
+        console.warn(`[nostr-fetch] nostr.band failed:`, (err as Error).message);
+        return [];
+      }
     }),
     // purplepag.es
     (async () => {
       try {
         const r = await fetch(purplePagesUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT) });
-        if (!r.ok) return [];
+        if (!r.ok) {
+          console.warn(`[nostr-fetch] purplepag.es returned ${r.status}`);
+          return [];
+        }
         const data: any = await r.json();
         return Array.isArray(data) ? data : Array.isArray(data.events) ? data.events : [];
-      } catch { return []; }
+      } catch (err) {
+        console.warn(`[nostr-fetch] purplepag.es failed:`, (err as Error).message);
+        return [];
+      }
     })(),
   ];
 
@@ -54,11 +105,56 @@ async function fetchEventsHttp(
     if (r.status === "fulfilled") events.push(...r.value);
   }
 
+  // Strategy 3: Additional HTTP fallbacks if primary APIs returned nothing
+  if (events.length === 0 && filter.kinds.includes(0)) {
+    console.log(`[nostr-fetch] Primary HTTP APIs returned 0 events for kinds=${filter.kinds} author=${filter.authors[0].slice(0, 8)}... — trying fallback APIs`);
+    const fallbackFetchers: Promise<any[]>[] = [
+      // user-search.nostr.band (profile-specific endpoint)
+      (async () => {
+        try {
+          const r = await fetch(
+            `https://user-search.nostr.band/v1/search?q=${filter.authors[0]}&limit=1`,
+            { signal: AbortSignal.timeout(FETCH_TIMEOUT) },
+          );
+          if (!r.ok) return [];
+          const data: any = await r.json();
+          return Array.isArray(data.events) ? data.events : [];
+        } catch { return []; }
+      })(),
+      // cache.nostr.band
+      (async () => {
+        try {
+          const r = await fetch(
+            `https://cache2.primal.net/v1`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(["cache", { kinds: filter.kinds, authors: filter.authors, limit: 1 }]),
+              signal: AbortSignal.timeout(FETCH_TIMEOUT),
+            },
+          );
+          if (!r.ok) return [];
+          const data: any = await r.json();
+          return Array.isArray(data) ? data.filter((e: any) => e?.kind === 0) : [];
+        } catch { return []; }
+      })(),
+    ];
+    const fallbackResults = await Promise.allSettled(fallbackFetchers);
+    for (const r of fallbackResults) {
+      if (r.status === "fulfilled") events.push(...r.value);
+    }
+  }
+
   // Deduplicate by id and sort by created_at descending
   const seen = new Set<string>();
-  return events
+  const deduped = events
     .filter((e) => e && e.id && !seen.has(e.id) && seen.add(e.id))
     .sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+
+  // Cache the result (even empty, to avoid hammering on not-found pubkeys)
+  if (deduped.length > 0) setCache(filter, deduped);
+
+  return deduped;
 }
 
 // ─── GET /profile/:pubkey — Fetch kind-0 profile ────────────────────────────

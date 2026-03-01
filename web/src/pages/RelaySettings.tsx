@@ -3,7 +3,6 @@ import { createElement } from "inferno-create-element";
 import { Link } from "inferno-router";
 import { api } from "../lib/api";
 import { authStore, type User } from "../stores/auth";
-import { Card, CardContent } from "@/ui/Card";
 import { Button } from "@/ui/Button";
 import { Badge } from "@/ui/Badge";
 import { Input } from "@/ui/Input";
@@ -11,11 +10,11 @@ import { Label } from "@/ui/Label";
 import { Textarea } from "@/ui/Textarea";
 import { Separator } from "@/ui/Separator";
 import { Switch } from "@/ui/Switch";
-import { Tabs, TabsList, TabsTrigger } from "@/ui/Tabs";
 import {
   Settings, Shield, Users, Zap, Plus, Trash2,
   Check, AlertCircle, Loader2, ArrowUpDown,
   KeyRound, Filter, Radio, ArrowLeft, X,
+  Copy, Lock, Image,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 
@@ -58,6 +57,7 @@ interface RelaySettingsState {
   error: string;
   success: string;
   tab: SettingsTab;
+  copiedUrl: boolean;
   // Editable fields
   details: string;
   listed_in_directory: boolean;
@@ -92,6 +92,19 @@ interface RelaySettingsState {
   deletingRelay: boolean;
 }
 
+// ─── Nav definition ─────────────────────────────────────────────────────────
+
+const NAV_SECTIONS: { id: SettingsTab; label: string; desc: string; icon: any; group: string }[] = [
+  { id: "general",    label: "General",    desc: "Profile & description",    icon: Settings,    group: "Configuration" },
+  { id: "access",     label: "Access",     desc: "Write policy & auth",      icon: Shield,      group: "Configuration" },
+  { id: "payments",   label: "Payments",   desc: "Lightning fees",           icon: Zap,         group: "Configuration" },
+  { id: "allowlist",  label: "Allowlist",  desc: "Permitted pubkeys & kinds", icon: Check,      group: "Moderation" },
+  { id: "blocklist",  label: "Blocklist",  desc: "Blocked pubkeys & kinds",  icon: X,           group: "Moderation" },
+  { id: "moderators", label: "Moderators", desc: "Manage team access",       icon: Users,       group: "Moderation" },
+  { id: "streams",    label: "Streams",    desc: "Relay sync & mirroring",   icon: ArrowUpDown, group: "Infrastructure" },
+  { id: "danger",     label: "Danger Zone",desc: "Destructive actions",      icon: AlertCircle, group: "Infrastructure" },
+];
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default class RelaySettings extends Component<RelaySettingsProps, RelaySettingsState> {
@@ -102,7 +115,7 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
     super(props);
     this.state = {
       user: authStore.get().user, relay: null, loading: true, saving: false,
-      error: "", success: "", tab: "general",
+      error: "", success: "", tab: "general", copiedUrl: false,
       details: "", listed_in_directory: true, default_message_policy: true,
       auth_required: false, allow_giftwrap: true, allow_tagged: false,
       allow_keyword_pubkey: false, relay_kind_description: "",
@@ -179,6 +192,15 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
     } catch (err: any) {
       this.setState({ saving: false, error: err.message || "Failed to save" });
     }
+  };
+
+  private copyWssUrl = () => {
+    const { relay } = this.state;
+    if (!relay) return;
+    const domain = relay.domain || "mycelium.social";
+    navigator.clipboard?.writeText(`wss://${relay.name}.${domain}`);
+    this.setState({ copiedUrl: true });
+    setTimeout(() => this.setState({ copiedUrl: false }), 2000);
   };
 
   // ─── ACL CRUD ─────────────────────────────────────────────────────────────
@@ -308,11 +330,262 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
 
   private settingRow(label: string, description: string, control: any) {
     return createElement("div", { className: "flex items-center justify-between gap-4 py-3" },
-      createElement("div", { className: "space-y-0.5" },
+      createElement("div", { className: "space-y-0.5 min-w-0" },
         createElement("p", { className: "text-sm font-medium" }, label),
-        createElement("p", { className: "text-xs text-muted-foreground" }, description),
+        createElement("p", { className: "text-xs text-muted-foreground leading-relaxed" }, description),
       ),
-      control,
+      createElement("div", { className: "shrink-0" }, control),
+    );
+  }
+
+  private sectionCard(title: string, description: string, icon: any, content: any, footer?: any) {
+    return createElement("div", { className: "rounded-xl border border-border/50 bg-card overflow-hidden" },
+      createElement("div", { className: "px-5 py-4 border-b border-border/30" },
+        createElement("div", { className: "flex items-center gap-2.5" },
+          createElement(icon, { className: "size-4 text-primary shrink-0" }),
+          createElement("div", null,
+            createElement("h3", { className: "text-sm font-semibold" }, title),
+            createElement("p", { className: "text-xs text-muted-foreground mt-0.5" }, description),
+          ),
+        ),
+      ),
+      createElement("div", { className: "p-5" }, content),
+      footer ? createElement("div", { className: "px-5 py-3 border-t border-border/30 bg-muted/30 flex justify-end" }, footer) : null,
+    );
+  }
+
+  private saveButton() {
+    const { saving } = this.state;
+    return createElement(Button, {
+      onClick: this.saveSettings, disabled: saving, size: "sm", className: "gap-2 min-w-[120px]",
+    },
+      saving ? createElement(Loader2, { className: "size-3.5 animate-spin" }) : createElement(Check, { className: "size-3.5" }),
+      saving ? "Saving..." : "Save Changes",
+    );
+  }
+
+  // ─── Relay identity card ──────────────────────────────────────────────────
+
+  private renderIdentityCard() {
+    const { relay, copiedUrl } = this.state;
+    if (!relay) return null;
+    const domain = relay.domain || "mycelium.social";
+    const fqdn = `${relay.name}.${domain}`;
+    const wssUrl = `wss://${fqdn}`;
+    const isRunning = relay.status === "running";
+
+    return createElement("div", { className: "rounded-xl border border-border/50 bg-card overflow-hidden" },
+      // Banner area
+      relay.banner_image
+        ? createElement("div", { className: "h-28 sm:h-36 relative" },
+            createElement("img", { src: relay.banner_image, className: "w-full h-full object-cover" }),
+            createElement("div", { className: "absolute inset-0 bg-gradient-to-t from-card/80 to-transparent" }),
+          )
+        : createElement("div", { className: "h-16 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent" }),
+
+      // Identity row
+      createElement("div", { className: cn("px-5 pb-4 flex items-start gap-4", relay.banner_image ? "-mt-8 relative" : "pt-4") },
+        // Profile image
+        relay.profile_image
+          ? createElement("img", { src: relay.profile_image, className: "size-14 sm:size-16 rounded-xl object-cover border-2 border-card shadow-lg shrink-0" })
+          : createElement("div", { className: "size-14 sm:size-16 rounded-xl bg-muted border-2 border-card shadow-lg shrink-0 flex items-center justify-center" },
+              createElement(Radio, { className: "size-6 text-muted-foreground" }),
+            ),
+        // Info
+        createElement("div", { className: "min-w-0 flex-1 pt-2" },
+          createElement("div", { className: "flex items-center gap-2 flex-wrap" },
+            createElement("h1", { className: "text-xl sm:text-2xl font-extrabold tracking-tight truncate" }, relay.name),
+            createElement(Badge, {
+              variant: isRunning ? "default" : "secondary",
+              className: cn("text-[10px] shrink-0", isRunning && "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"),
+            }, isRunning ? "Online" : (relay.status || "Unknown")),
+          ),
+          createElement("p", { className: "text-xs text-muted-foreground mt-0.5" }, fqdn),
+          // WSS URL copy row
+          createElement("div", { className: "mt-2 flex items-center gap-1.5" },
+            createElement("code", { className: "text-[11px] font-mono text-muted-foreground bg-muted/50 rounded px-2 py-0.5 truncate" }, wssUrl),
+            createElement("button", {
+              onClick: this.copyWssUrl,
+              className: "p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer",
+            }, copiedUrl
+              ? createElement(Check, { className: "size-3 text-emerald-400" })
+              : createElement(Copy, { className: "size-3" }),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Sidebar nav ──────────────────────────────────────────────────────────
+
+  private renderNav() {
+    const { tab } = this.state;
+    const groups = [...new Set(NAV_SECTIONS.map((n) => n.group))];
+
+    return createElement("div", { className: "space-y-1" },
+      // Desktop: vertical nav
+      createElement("nav", { className: "hidden lg:block space-y-4" },
+        ...groups.map((group) =>
+          createElement("div", { key: group },
+            createElement("p", { className: "text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-3 mb-1" }, group),
+            ...NAV_SECTIONS.filter((n) => n.group === group).map((n) =>
+              createElement("button", {
+                key: n.id,
+                onClick: () => this.setState({ tab: n.id }),
+                className: cn(
+                  "w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors text-left cursor-pointer",
+                  tab === n.id
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  n.id === "danger" && tab === n.id && "bg-destructive/10 text-destructive",
+                  n.id === "danger" && tab !== n.id && "hover:text-destructive",
+                ),
+              },
+                createElement(n.icon, { className: "size-4 shrink-0" }),
+                createElement("div", { className: "min-w-0" },
+                  createElement("span", { className: "block text-[13px]" }, n.label),
+                  createElement("span", { className: "block text-[10px] opacity-60 leading-tight" }, n.desc),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+
+      // Mobile/tablet: horizontal scrollable pills
+      createElement("div", { className: "lg:hidden overflow-x-auto -mx-4 px-4 pb-2" },
+        createElement("div", { className: "flex gap-1 min-w-max" },
+          ...NAV_SECTIONS.map((n) =>
+            createElement("button", {
+              key: n.id,
+              onClick: () => this.setState({ tab: n.id }),
+              className: cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer",
+                tab === n.id
+                  ? "bg-primary/10 text-primary"
+                  : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted",
+                n.id === "danger" && tab === n.id && "bg-destructive/10 text-destructive",
+              ),
+            },
+              createElement(n.icon, { className: "size-3" }),
+              n.label,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Tab content renderers ────────────────────────────────────────────────
+
+  private renderGeneral() {
+    const { relay } = this.state;
+    if (!relay) return null;
+
+    return createElement("div", { className: "space-y-5" },
+      // Description & Kind in one card
+      this.sectionCard("Relay Profile", "How your relay appears to others in directory listings and NIP-11.", Settings,
+        createElement("div", { className: "space-y-5" },
+          createElement("div", { className: "space-y-2" },
+            createElement(Label, { className: "text-xs font-medium" }, "Description"),
+            createElement(Textarea, {
+              placeholder: "Describe what your relay is about, who it's for, and any policies...",
+              value: this.state.details,
+              rows: 4,
+              className: "resize-none",
+              onInput: (e: Event) => this.setState({ details: (e.target as HTMLTextAreaElement).value }),
+            }),
+            createElement("p", { className: "text-[10px] text-muted-foreground" }, "Appears in the NIP-11 relay information document."),
+          ),
+          createElement("div", { className: "space-y-2" },
+            createElement(Label, { className: "text-xs font-medium" }, "Relay Kind"),
+            createElement(Input, {
+              placeholder: "e.g. community, personal, paid...",
+              value: this.state.relay_kind_description,
+              onInput: (e: Event) => this.setState({ relay_kind_description: (e.target as HTMLInputElement).value }),
+            }),
+            createElement("p", { className: "text-[10px] text-muted-foreground" }, "Helps users understand the purpose of your relay."),
+          ),
+          this.settingRow("Listed in Directory", "Make your relay discoverable in the public relay directory.",
+            createElement(Switch, { checked: this.state.listed_in_directory, onChange: (v: boolean) => this.setState({ listed_in_directory: v }) }),
+          ),
+        ),
+        this.saveButton(),
+      ),
+
+      // Images card
+      this.sectionCard("Appearance", "Customize your relay's visual identity.", Image,
+        createElement("div", { className: "grid gap-5 sm:grid-cols-2" },
+          createElement("div", { className: "space-y-2" },
+            createElement(Label, { className: "text-xs font-medium" }, "Profile Image"),
+            createElement(Input, {
+              placeholder: "https://...", value: this.state.profile_image,
+              onInput: (e: Event) => this.setState({ profile_image: (e.target as HTMLInputElement).value }),
+            }),
+            this.state.profile_image
+              ? createElement("div", { className: "flex items-center gap-3 mt-1" },
+                  createElement("img", { src: this.state.profile_image, className: "size-12 rounded-lg object-cover border border-border/50" }),
+                  createElement("span", { className: "text-[10px] text-muted-foreground" }, "Preview"),
+                )
+              : createElement("div", { className: "size-12 rounded-lg bg-muted/50 border border-dashed border-border/50 flex items-center justify-center" },
+                  createElement(Radio, { className: "size-4 text-muted-foreground/40" }),
+                ),
+          ),
+          createElement("div", { className: "space-y-2" },
+            createElement(Label, { className: "text-xs font-medium" }, "Banner Image"),
+            createElement(Input, {
+              placeholder: "https://...", value: this.state.banner_image,
+              onInput: (e: Event) => this.setState({ banner_image: (e.target as HTMLInputElement).value }),
+            }),
+            this.state.banner_image
+              ? createElement("img", { src: this.state.banner_image, className: "w-full h-16 rounded-lg object-cover border border-border/50 mt-1" })
+              : createElement("div", { className: "w-full h-16 rounded-lg bg-muted/50 border border-dashed border-border/50 flex items-center justify-center" },
+                  createElement(Image, { className: "size-4 text-muted-foreground/40" }),
+                ),
+          ),
+        ),
+        this.saveButton(),
+      ),
+    );
+  }
+
+  private renderAccess() {
+    return createElement("div", { className: "space-y-5" },
+      this.sectionCard("Write Policy", "Control who can publish events to your relay.", Shield,
+        createElement("div", { className: "space-y-1" },
+          this.settingRow("Default Write Policy",
+            "Allow all pubkeys to write. Disable to restrict writes to the allowlist only.",
+            createElement(Switch, { checked: this.state.default_message_policy, onChange: (v: boolean) => this.setState({ default_message_policy: v }) }),
+          ),
+          createElement(Separator, null),
+          this.settingRow("Allow Tagged Events",
+            "Accept events where the sender is tagged by an already-allowed pubkey.",
+            createElement(Switch, { checked: this.state.allow_tagged, onChange: (v: boolean) => this.setState({ allow_tagged: v }) }),
+          ),
+          createElement(Separator, null),
+          this.settingRow("Keyword → Pubkey Allow",
+            "When a keyword matches, also allowlist that event's pubkey for future events.",
+            createElement(Switch, { checked: this.state.allow_keyword_pubkey, onChange: (v: boolean) => this.setState({ allow_keyword_pubkey: v }) }),
+          ),
+        ),
+        this.saveButton(),
+      ),
+
+      this.sectionCard("Authentication & Privacy", "NIP-42 auth and gift-wrapped DM support.", Lock,
+        createElement("div", { className: "space-y-1" },
+          this.settingRow("NIP-42 Auth Required",
+            "Require clients to authenticate before reading or writing. Adds a layer of access control.",
+            createElement(Switch, { checked: this.state.auth_required, onChange: (v: boolean) => this.setState({ auth_required: v }) }),
+          ),
+          createElement(Separator, null),
+          this.settingRow("Allow Giftwrap (NIP-59)",
+            "Accept gift-wrapped events for encrypted DM compatibility.",
+            createElement(Switch, { checked: this.state.allow_giftwrap, onChange: (v: boolean) => this.setState({ allow_giftwrap: v }) }),
+          ),
+        ),
+        this.saveButton(),
+      ),
     );
   }
 
@@ -323,220 +596,130 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
     const { newPubkey, newPubkeyReason, newKeyword, newKeywordReason, newKind, newKindReason, addingPubkey, addingKeyword, addingKind } = this.state;
     const isAllow = listType === "allowlist";
     const label = isAllow ? "Allow" : "Block";
+    const totalEntries = pubkeys.length + keywords.length + kinds.length;
 
-    return createElement("div", { className: "space-y-6" },
+    return createElement("div", { className: "space-y-5" },
+      // Summary badge
+      totalEntries > 0
+        ? createElement("div", { className: "flex items-center gap-2 text-xs text-muted-foreground" },
+            createElement(isAllow ? Check : X, { className: "size-3.5" }),
+            `${totalEntries} ${isAllow ? "allowed" : "blocked"} ${totalEntries === 1 ? "entry" : "entries"} across pubkeys, keywords, and event kinds.`,
+          )
+        : null,
+
       // Pubkeys
-      createElement("div", null,
-        createElement("h3", { className: "text-sm font-semibold mb-3 flex items-center gap-2" },
-          createElement(KeyRound, { className: "size-4 text-primary" }),
-          `${label}ed Pubkeys`,
-          pubkeys.length > 0 ? createElement(Badge, { variant: "secondary", className: "text-[10px]" }, String(pubkeys.length)) : null,
-        ),
-        createElement("div", { className: "flex gap-2 mb-3" },
-          createElement(Input, {
-            placeholder: "Hex pubkey...", value: newPubkey, className: "flex-1 font-mono text-xs",
-            onInput: (e: Event) => this.setState({ newPubkey: (e.target as HTMLInputElement).value }),
-          }),
-          createElement(Input, {
-            placeholder: "Reason (optional)", value: newPubkeyReason, className: "w-40",
-            onInput: (e: Event) => this.setState({ newPubkeyReason: (e.target as HTMLInputElement).value }),
-          }),
-          createElement(Button, {
-            size: "sm", disabled: addingPubkey || !newPubkey.trim(), className: "gap-1 shrink-0",
-            onClick: () => this.addPubkey(listType),
-          }, addingPubkey ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
-        ),
-        pubkeys.length > 0
-          ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
-              ...pubkeys.map((entry) =>
-                createElement("div", { key: entry.id, className: "flex items-center justify-between px-3 py-2 group" },
-                  createElement("div", { className: "min-w-0" },
-                    createElement("p", { className: "text-xs font-mono truncate" }, entry.pubkey),
-                    entry.reason ? createElement("p", { className: "text-[10px] text-muted-foreground" }, entry.reason) : null,
+      this.sectionCard(`${label}ed Pubkeys`, `Pubkeys that are ${isAllow ? "always allowed" : "permanently blocked"} on this relay.`, KeyRound,
+        createElement("div", { className: "space-y-3" },
+          createElement("div", { className: "flex gap-2" },
+            createElement(Input, {
+              placeholder: "Hex pubkey or npub...", value: newPubkey, className: "flex-1 font-mono text-xs",
+              onInput: (e: Event) => this.setState({ newPubkey: (e.target as HTMLInputElement).value }),
+            }),
+            createElement(Input, {
+              placeholder: "Reason (optional)", value: newPubkeyReason, className: "w-36 hidden sm:block",
+              onInput: (e: Event) => this.setState({ newPubkeyReason: (e.target as HTMLInputElement).value }),
+            }),
+            createElement(Button, {
+              size: "sm", disabled: addingPubkey || !newPubkey.trim(), className: "gap-1 shrink-0",
+              onClick: () => this.addPubkey(listType),
+            }, addingPubkey ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
+          ),
+          pubkeys.length > 0
+            ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
+                ...pubkeys.map((entry) =>
+                  createElement("div", { key: entry.id, className: "flex items-center justify-between px-3 py-2.5 group" },
+                    createElement("div", { className: "min-w-0" },
+                      createElement("p", { className: "text-xs font-mono truncate" }, entry.pubkey),
+                      entry.reason ? createElement("p", { className: "text-[10px] text-muted-foreground mt-0.5" }, entry.reason) : null,
+                    ),
+                    createElement(Button, {
+                      variant: "ghost", size: "sm", className: "size-7 p-0 opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive shrink-0",
+                      onClick: () => this.removePubkey(listType, entry.id),
+                    }, createElement(Trash2, { className: "size-3" })),
                   ),
-                  createElement(Button, {
-                    variant: "ghost", size: "sm", className: "size-7 p-0 opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive shrink-0",
-                    onClick: () => this.removePubkey(listType, entry.id),
-                  }, createElement(Trash2, { className: "size-3" })),
                 ),
+              )
+            : createElement("div", { className: "text-center py-6" },
+                createElement(KeyRound, { className: "size-5 text-muted-foreground/30 mx-auto mb-1.5" }),
+                createElement("p", { className: "text-xs text-muted-foreground" }, `No ${isAllow ? "allowed" : "blocked"} pubkeys yet.`),
               ),
-            )
-          : createElement("p", { className: "text-xs text-muted-foreground" }, `No ${listType === "allowlist" ? "allowed" : "blocked"} pubkeys.`),
+        ),
       ),
-
-      createElement(Separator, null),
 
       // Keywords
-      createElement("div", null,
-        createElement("h3", { className: "text-sm font-semibold mb-3 flex items-center gap-2" },
-          createElement(Filter, { className: "size-4 text-primary" }),
-          `${label}ed Keywords`,
-          keywords.length > 0 ? createElement(Badge, { variant: "secondary", className: "text-[10px]" }, String(keywords.length)) : null,
-        ),
-        createElement("div", { className: "flex gap-2 mb-3" },
-          createElement(Input, {
-            placeholder: "Keyword...", value: newKeyword, className: "flex-1",
-            onInput: (e: Event) => this.setState({ newKeyword: (e.target as HTMLInputElement).value }),
-          }),
-          createElement(Input, {
-            placeholder: "Reason (optional)", value: newKeywordReason, className: "w-40",
-            onInput: (e: Event) => this.setState({ newKeywordReason: (e.target as HTMLInputElement).value }),
-          }),
-          createElement(Button, {
-            size: "sm", disabled: addingKeyword || !newKeyword.trim(), className: "gap-1 shrink-0",
-            onClick: () => this.addKeyword(listType),
-          }, addingKeyword ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
-        ),
-        keywords.length > 0
-          ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
-              ...keywords.map((entry) =>
-                createElement("div", { key: entry.id, className: "flex items-center justify-between px-3 py-2 group" },
-                  createElement("div", { className: "min-w-0" },
-                    createElement("p", { className: "text-xs font-medium" }, entry.keyword),
-                    entry.reason ? createElement("p", { className: "text-[10px] text-muted-foreground" }, entry.reason) : null,
+      this.sectionCard(`${label}ed Keywords`, `Content ${isAllow ? "matching" : "containing"} these keywords will be ${isAllow ? "accepted" : "rejected"}.`, Filter,
+        createElement("div", { className: "space-y-3" },
+          createElement("div", { className: "flex gap-2" },
+            createElement(Input, {
+              placeholder: "Keyword or phrase...", value: newKeyword, className: "flex-1",
+              onInput: (e: Event) => this.setState({ newKeyword: (e.target as HTMLInputElement).value }),
+            }),
+            createElement(Input, {
+              placeholder: "Reason (optional)", value: newKeywordReason, className: "w-36 hidden sm:block",
+              onInput: (e: Event) => this.setState({ newKeywordReason: (e.target as HTMLInputElement).value }),
+            }),
+            createElement(Button, {
+              size: "sm", disabled: addingKeyword || !newKeyword.trim(), className: "gap-1 shrink-0",
+              onClick: () => this.addKeyword(listType),
+            }, addingKeyword ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
+          ),
+          keywords.length > 0
+            ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
+                ...keywords.map((entry) =>
+                  createElement("div", { key: entry.id, className: "flex items-center justify-between px-3 py-2.5 group" },
+                    createElement("div", { className: "min-w-0" },
+                      createElement("p", { className: "text-xs font-medium" }, entry.keyword),
+                      entry.reason ? createElement("p", { className: "text-[10px] text-muted-foreground mt-0.5" }, entry.reason) : null,
+                    ),
+                    createElement(Button, {
+                      variant: "ghost", size: "sm", className: "size-7 p-0 opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive shrink-0",
+                      onClick: () => this.removeKeyword(listType, entry.id),
+                    }, createElement(Trash2, { className: "size-3" })),
                   ),
-                  createElement(Button, {
-                    variant: "ghost", size: "sm", className: "size-7 p-0 opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive shrink-0",
-                    onClick: () => this.removeKeyword(listType, entry.id),
-                  }, createElement(Trash2, { className: "size-3" })),
                 ),
+              )
+            : createElement("div", { className: "text-center py-6" },
+                createElement(Filter, { className: "size-5 text-muted-foreground/30 mx-auto mb-1.5" }),
+                createElement("p", { className: "text-xs text-muted-foreground" }, `No ${isAllow ? "allowed" : "blocked"} keywords yet.`),
               ),
-            )
-          : createElement("p", { className: "text-xs text-muted-foreground" }, `No ${listType === "allowlist" ? "allowed" : "blocked"} keywords.`),
+        ),
       ),
 
-      createElement(Separator, null),
-
-      // Kinds
-      createElement("div", null,
-        createElement("h3", { className: "text-sm font-semibold mb-3 flex items-center gap-2" },
-          createElement(Radio, { className: "size-4 text-primary" }),
-          `${label}ed Event Kinds`,
-          kinds.length > 0 ? createElement(Badge, { variant: "secondary", className: "text-[10px]" }, String(kinds.length)) : null,
-        ),
-        createElement("div", { className: "flex gap-2 mb-3" },
-          createElement(Input, {
-            placeholder: "Kind number (e.g. 1)", value: newKind, type: "number", className: "w-32",
-            onInput: (e: Event) => this.setState({ newKind: (e.target as HTMLInputElement).value }),
-          }),
-          createElement(Input, {
-            placeholder: "Reason (optional)", value: newKindReason, className: "flex-1",
-            onInput: (e: Event) => this.setState({ newKindReason: (e.target as HTMLInputElement).value }),
-          }),
-          createElement(Button, {
-            size: "sm", disabled: addingKind || !newKind.trim(), className: "gap-1 shrink-0",
-            onClick: () => this.addKind(listType),
-          }, addingKind ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
-        ),
-        kinds.length > 0
-          ? createElement("div", { className: "flex flex-wrap gap-1.5" },
-              ...kinds.map((entry) =>
-                createElement("div", { key: entry.id, className: "inline-flex items-center gap-1 rounded-md border border-border/50 px-2 py-1 text-xs group" },
-                  createElement("span", { className: "font-mono font-medium" }, `Kind ${entry.kind}`),
-                  entry.reason ? createElement("span", { className: "text-muted-foreground" }, `(${entry.reason})`) : null,
-                  createElement("button", {
-                    onClick: () => this.removeKind(listType, entry.id),
-                    className: "ml-1 opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive cursor-pointer",
-                  }, createElement(X, { className: "size-3" })),
+      // Event Kinds
+      this.sectionCard(`${label}ed Event Kinds`, `Nostr event kinds that are explicitly ${isAllow ? "permitted" : "rejected"}.`, Radio,
+        createElement("div", { className: "space-y-3" },
+          createElement("div", { className: "flex gap-2" },
+            createElement(Input, {
+              placeholder: "Kind number (e.g. 1)", value: newKind, type: "number", className: "w-36",
+              onInput: (e: Event) => this.setState({ newKind: (e.target as HTMLInputElement).value }),
+            }),
+            createElement(Input, {
+              placeholder: "Reason (optional)", value: newKindReason, className: "flex-1",
+              onInput: (e: Event) => this.setState({ newKindReason: (e.target as HTMLInputElement).value }),
+            }),
+            createElement(Button, {
+              size: "sm", disabled: addingKind || !newKind.trim(), className: "gap-1 shrink-0",
+              onClick: () => this.addKind(listType),
+            }, addingKind ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
+          ),
+          kinds.length > 0
+            ? createElement("div", { className: "flex flex-wrap gap-1.5" },
+                ...kinds.map((entry) =>
+                  createElement("div", { key: entry.id, className: "inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-2.5 py-1 text-xs group" },
+                    createElement("span", { className: "font-mono font-medium" }, `Kind ${entry.kind}`),
+                    entry.reason ? createElement("span", { className: "text-muted-foreground" }, `· ${entry.reason}`) : null,
+                    createElement("button", {
+                      onClick: () => this.removeKind(listType, entry.id),
+                      className: "ml-0.5 opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive cursor-pointer transition-opacity",
+                    }, createElement(X, { className: "size-3" })),
+                  ),
                 ),
+              )
+            : createElement("div", { className: "text-center py-6" },
+                createElement(Radio, { className: "size-5 text-muted-foreground/30 mx-auto mb-1.5" }),
+                createElement("p", { className: "text-xs text-muted-foreground" }, `No ${isAllow ? "allowed" : "blocked"} event kinds yet.`),
               ),
-            )
-          : createElement("p", { className: "text-xs text-muted-foreground" }, `No ${listType === "allowlist" ? "allowed" : "blocked"} event kinds.`),
-      ),
-    );
-  }
-
-  // ─── Tab content renderers ────────────────────────────────────────────────
-
-  private renderGeneral() {
-    const { relay } = this.state;
-    if (!relay) return null;
-    return createElement("div", { className: "space-y-6" },
-      // NIP-11 Description
-      createElement("div", { className: "space-y-2" },
-        createElement(Label, null, "Description"),
-        createElement(Textarea, {
-          placeholder: "Describe your relay...",
-          value: this.state.details,
-          rows: 4,
-          onInput: (e: Event) => this.setState({ details: (e.target as HTMLTextAreaElement).value }),
-        }),
-        createElement("p", { className: "text-[10px] text-muted-foreground" }, "Appears in NIP-11 relay information document."),
-      ),
-
-      createElement(Separator, null),
-
-      // Relay Kind Description
-      createElement("div", { className: "space-y-2" },
-        createElement(Label, null, "Relay Kind"),
-        createElement(Input, {
-          placeholder: "e.g. community, personal, paid...",
-          value: this.state.relay_kind_description,
-          onInput: (e: Event) => this.setState({ relay_kind_description: (e.target as HTMLInputElement).value }),
-        }),
-        createElement("p", { className: "text-[10px] text-muted-foreground" }, "Categorize your relay for directory listings."),
-      ),
-
-      createElement(Separator, null),
-
-      // Images
-      createElement("div", { className: "grid gap-4 sm:grid-cols-2" },
-        createElement("div", { className: "space-y-2" },
-          createElement(Label, null, "Profile Image URL"),
-          createElement(Input, {
-            placeholder: "https://...", value: this.state.profile_image,
-            onInput: (e: Event) => this.setState({ profile_image: (e.target as HTMLInputElement).value }),
-          }),
-          this.state.profile_image
-            ? createElement("img", { src: this.state.profile_image, className: "w-16 h-16 rounded-full object-cover border border-border/50" })
-            : null,
         ),
-        createElement("div", { className: "space-y-2" },
-          createElement(Label, null, "Banner Image URL"),
-          createElement(Input, {
-            placeholder: "https://...", value: this.state.banner_image,
-            onInput: (e: Event) => this.setState({ banner_image: (e.target as HTMLInputElement).value }),
-          }),
-          this.state.banner_image
-            ? createElement("img", { src: this.state.banner_image, className: "w-full h-20 rounded-lg object-cover border border-border/50" })
-            : null,
-        ),
-      ),
-
-      createElement(Separator, null),
-
-      // Directory listing
-      this.settingRow("Listed in Directory", "Show this relay in the public directory.",
-        createElement(Switch, { checked: this.state.listed_in_directory, onChange: (v: boolean) => this.setState({ listed_in_directory: v }) }),
-      ),
-    );
-  }
-
-  private renderAccess() {
-    return createElement("div", { className: "space-y-1" },
-      this.settingRow("Default Write Policy",
-        "Allow all pubkeys to write by default. Disable to restrict writes to the allowlist only.",
-        createElement(Switch, { checked: this.state.default_message_policy, onChange: (v: boolean) => this.setState({ default_message_policy: v }) }),
-      ),
-      createElement(Separator, null),
-      this.settingRow("NIP-42 Auth Required",
-        "Require clients to authenticate with NIP-42 before reading or writing.",
-        createElement(Switch, { checked: this.state.auth_required, onChange: (v: boolean) => this.setState({ auth_required: v }) }),
-      ),
-      createElement(Separator, null),
-      this.settingRow("Allow Giftwrap (NIP-59)",
-        "Accept NIP-59 gift-wrapped events for DM compatibility.",
-        createElement(Switch, { checked: this.state.allow_giftwrap, onChange: (v: boolean) => this.setState({ allow_giftwrap: v }) }),
-      ),
-      createElement(Separator, null),
-      this.settingRow("Allow Tagged Events",
-        "Accept events where the sender is tagged by an allowed pubkey.",
-        createElement(Switch, { checked: this.state.allow_tagged, onChange: (v: boolean) => this.setState({ allow_tagged: v }) }),
-      ),
-      createElement(Separator, null),
-      this.settingRow("Keyword → Pubkey Allow",
-        "If a keyword matches, also allow the event's pubkey for future events.",
-        createElement(Switch, { checked: this.state.allow_keyword_pubkey, onChange: (v: boolean) => this.setState({ allow_keyword_pubkey: v }) }),
       ),
     );
   }
@@ -546,36 +729,39 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
     if (!relay) return null;
     const mods = relay.moderators || [];
 
-    return createElement("div", { className: "space-y-4" },
-      createElement("p", { className: "text-sm text-muted-foreground" },
-        "Moderators can manage allowlists and blocklists. Only the owner can add or remove moderators.",
-      ),
-      createElement("div", { className: "flex gap-2" },
-        createElement(Input, {
-          placeholder: "Moderator hex pubkey...", value: newModPubkey, className: "flex-1 font-mono text-xs",
-          onInput: (e: Event) => this.setState({ newModPubkey: (e.target as HTMLInputElement).value }),
-        }),
-        createElement(Button, {
-          size: "sm", disabled: addingMod || !newModPubkey.trim(), className: "gap-1",
-          onClick: this.addModerator,
-        }, addingMod ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add Moderator"),
-      ),
-      mods.length > 0
-        ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
-            ...mods.map((mod) =>
-              createElement("div", { key: mod.id, className: "flex items-center justify-between px-4 py-3 group" },
-                createElement("div", { className: "min-w-0" },
-                  createElement("p", { className: "text-sm font-medium" }, mod.user.name || "Unknown"),
-                  createElement("p", { className: "text-xs font-mono text-muted-foreground truncate" }, mod.user.pubkey),
+    return this.sectionCard("Moderators", "Moderators can manage allowlists and blocklists. Only the relay owner can add or remove moderators.", Users,
+      createElement("div", { className: "space-y-4" },
+        createElement("div", { className: "flex gap-2" },
+          createElement(Input, {
+            placeholder: "Moderator hex pubkey or npub...", value: newModPubkey, className: "flex-1 font-mono text-xs",
+            onInput: (e: Event) => this.setState({ newModPubkey: (e.target as HTMLInputElement).value }),
+          }),
+          createElement(Button, {
+            size: "sm", disabled: addingMod || !newModPubkey.trim(), className: "gap-1.5",
+            onClick: this.addModerator,
+          }, addingMod ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
+        ),
+        mods.length > 0
+          ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
+              ...mods.map((mod) =>
+                createElement("div", { key: mod.id, className: "flex items-center justify-between px-4 py-3 group" },
+                  createElement("div", { className: "min-w-0" },
+                    createElement("p", { className: "text-sm font-medium" }, mod.user.name || "Unknown"),
+                    createElement("p", { className: "text-xs font-mono text-muted-foreground truncate" }, mod.user.pubkey),
+                  ),
+                  createElement(Button, {
+                    variant: "ghost", size: "sm", className: "text-destructive/50 hover:text-destructive opacity-0 group-hover:opacity-100",
+                    onClick: () => this.removeModerator(mod.id),
+                  }, createElement(Trash2, { className: "size-3.5" })),
                 ),
-                createElement(Button, {
-                  variant: "ghost", size: "sm", className: "text-destructive/50 hover:text-destructive opacity-0 group-hover:opacity-100",
-                  onClick: () => this.removeModerator(mod.id),
-                }, createElement(Trash2, { className: "size-3.5" })),
               ),
+            )
+          : createElement("div", { className: "text-center py-8" },
+              createElement(Users, { className: "size-6 text-muted-foreground/30 mx-auto mb-2" }),
+              createElement("p", { className: "text-xs text-muted-foreground" }, "No moderators added yet."),
+              createElement("p", { className: "text-[10px] text-muted-foreground/60 mt-1" }, "Add trusted pubkeys to help manage your relay."),
             ),
-          )
-        : createElement("p", { className: "text-xs text-muted-foreground py-4" }, "No moderators added yet."),
+      ),
     );
   }
 
@@ -584,101 +770,128 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
     if (!relay) return null;
     const streams = relay.streams || [];
 
-    return createElement("div", { className: "space-y-4" },
-      createElement("p", { className: "text-sm text-muted-foreground" },
-        "Sync events with other relays. Upstream sends events to the target, downstream pulls events from it, and bidirectional does both.",
-      ),
-      createElement("div", { className: "flex gap-2" },
-        createElement(Input, {
-          placeholder: "wss://relay.example.com", value: newStreamUrl, className: "flex-1 font-mono text-xs",
-          onInput: (e: Event) => this.setState({ newStreamUrl: (e.target as HTMLInputElement).value }),
-        }),
-        createElement("div", { className: "flex gap-1 shrink-0" },
-          ...(["up", "down", "both"] as const).map((dir) =>
-            createElement(Button, {
-              key: dir, size: "sm",
-              variant: newStreamDirection === dir ? "default" : "outline",
-              className: "text-xs capitalize",
-              onClick: () => this.setState({ newStreamDirection: dir }),
-            }, dir === "both" ? "Both" : dir === "up" ? "Up" : "Down"),
+    return this.sectionCard("Relay Streams", "Sync events with other relays. Upstream sends, downstream pulls, bidirectional does both.", ArrowUpDown,
+      createElement("div", { className: "space-y-4" },
+        createElement("div", { className: "flex gap-2 flex-wrap sm:flex-nowrap" },
+          createElement(Input, {
+            placeholder: "wss://relay.example.com", value: newStreamUrl, className: "flex-1 font-mono text-xs min-w-[200px]",
+            onInput: (e: Event) => this.setState({ newStreamUrl: (e.target as HTMLInputElement).value }),
+          }),
+          createElement("div", { className: "flex gap-1 shrink-0" },
+            ...(["up", "down", "both"] as const).map((dir) =>
+              createElement(Button, {
+                key: dir, size: "sm",
+                variant: newStreamDirection === dir ? "default" : "outline",
+                className: "text-xs capitalize px-3",
+                onClick: () => this.setState({ newStreamDirection: dir }),
+              }, dir === "both" ? "Both" : dir === "up" ? "Up" : "Down"),
+            ),
           ),
+          createElement(Button, {
+            size: "sm", disabled: addingStream || !newStreamUrl.trim(), className: "gap-1 shrink-0",
+            onClick: this.addStream,
+          }, addingStream ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
         ),
-        createElement(Button, {
-          size: "sm", disabled: addingStream || !newStreamUrl.trim(), className: "gap-1",
-          onClick: this.addStream,
-        }, addingStream ? createElement(Loader2, { className: "size-3 animate-spin" }) : createElement(Plus, { className: "size-3" }), "Add"),
-      ),
-      streams.length > 0
-        ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
-            ...streams.map((s) =>
-              createElement("div", { key: s.id, className: "flex items-center justify-between px-4 py-3 group" },
-                createElement("div", { className: "flex items-center gap-3 min-w-0" },
-                  createElement(ArrowUpDown, { className: "size-4 text-muted-foreground shrink-0" }),
-                  createElement("div", { className: "min-w-0" },
-                    createElement("p", { className: "text-xs font-mono truncate" }, s.url),
-                    createElement("div", { className: "flex items-center gap-2 mt-0.5" },
-                      createElement(Badge, { variant: "secondary", className: "text-[10px] capitalize" }, s.direction),
-                      createElement(Badge, {
-                        variant: s.status === "running" ? "default" : "secondary",
-                        className: cn("text-[10px]", s.status === "running" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"),
-                      }, s.status),
+        streams.length > 0
+          ? createElement("div", { className: "rounded-lg border border-border/50 divide-y divide-border/30" },
+              ...streams.map((s) =>
+                createElement("div", { key: s.id, className: "flex items-center justify-between px-4 py-3 group" },
+                  createElement("div", { className: "flex items-center gap-3 min-w-0" },
+                    createElement(ArrowUpDown, { className: "size-4 text-muted-foreground shrink-0" }),
+                    createElement("div", { className: "min-w-0" },
+                      createElement("p", { className: "text-xs font-mono truncate" }, s.url),
+                      createElement("div", { className: "flex items-center gap-2 mt-1" },
+                        createElement(Badge, { variant: "secondary", className: "text-[10px] capitalize" }, s.direction),
+                        createElement(Badge, {
+                          variant: s.status === "running" ? "default" : "secondary",
+                          className: cn("text-[10px]", s.status === "running" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"),
+                        }, s.status),
+                      ),
                     ),
                   ),
+                  createElement(Button, {
+                    variant: "ghost", size: "sm", className: "text-destructive/50 hover:text-destructive opacity-0 group-hover:opacity-100",
+                    onClick: () => this.removeStream(s.id),
+                  }, createElement(Trash2, { className: "size-3.5" })),
                 ),
-                createElement(Button, {
-                  variant: "ghost", size: "sm", className: "text-destructive/50 hover:text-destructive opacity-0 group-hover:opacity-100",
-                  onClick: () => this.removeStream(s.id),
-                }, createElement(Trash2, { className: "size-3.5" })),
               ),
+            )
+          : createElement("div", { className: "text-center py-8" },
+              createElement(ArrowUpDown, { className: "size-6 text-muted-foreground/30 mx-auto mb-2" }),
+              createElement("p", { className: "text-xs text-muted-foreground" }, "No streams configured."),
+              createElement("p", { className: "text-[10px] text-muted-foreground/60 mt-1" }, "Add relay URLs to sync events between relays."),
             ),
-          )
-        : createElement("p", { className: "text-xs text-muted-foreground py-4" }, "No streams configured."),
+      ),
     );
   }
 
   private renderPayments() {
-    return createElement("div", { className: "space-y-1" },
-      this.settingRow("Payment Required",
-        "Require a Lightning payment before users can write to this relay.",
-        createElement(Switch, { checked: this.state.payment_required, onChange: (v: boolean) => this.setState({ payment_required: v }) }),
-      ),
-      this.state.payment_required ? createElement("div", { className: "pl-0 py-2 space-y-3" },
+    return createElement("div", { className: "space-y-5" },
+      this.sectionCard("Write Access Fee", "Charge a one-time Lightning payment before users can publish events to your relay.", Zap,
         createElement("div", { className: "space-y-1" },
-          createElement(Label, { className: "text-xs" }, "Payment Amount (sats)"),
-          createElement(Input, {
-            type: "number", value: this.state.payment_amount, className: "w-40",
-            onInput: (e: Event) => this.setState({ payment_amount: (e.target as HTMLInputElement).value }),
-          }),
+          this.settingRow("Payment Required",
+            "Users must pay before they can write to this relay.",
+            createElement(Switch, { checked: this.state.payment_required, onChange: (v: boolean) => this.setState({ payment_required: v }) }),
+          ),
+          this.state.payment_required
+            ? createElement("div", { className: "rounded-lg bg-muted/30 p-3 mt-2" },
+                createElement("div", { className: "space-y-1.5" },
+                  createElement(Label, { className: "text-xs font-medium" }, "Amount (sats)"),
+                  createElement(Input, {
+                    type: "number", value: this.state.payment_amount, className: "w-40",
+                    onInput: (e: Event) => this.setState({ payment_amount: (e.target as HTMLInputElement).value }),
+                  }),
+                ),
+              )
+            : null,
         ),
-      ) : null,
-      createElement(Separator, null),
-      this.settingRow("Request Payment on Connect",
-        "Send a payment request to connecting clients (NIP-42 style).",
-        createElement(Switch, { checked: this.state.request_payment, onChange: (v: boolean) => this.setState({ request_payment: v }) }),
+        this.saveButton(),
       ),
-      this.state.request_payment ? createElement("div", { className: "pl-0 py-2 space-y-3" },
+
+      this.sectionCard("Connection Payment Request", "Automatically request a payment when clients connect (NIP-42 style).", Zap,
         createElement("div", { className: "space-y-1" },
-          createElement(Label, { className: "text-xs" }, "Request Amount (msats)"),
-          createElement(Input, {
-            type: "number", value: this.state.request_payment_amount, className: "w-40",
-            onInput: (e: Event) => this.setState({ request_payment_amount: (e.target as HTMLInputElement).value }),
-          }),
+          this.settingRow("Request Payment on Connect",
+            "Send a payment request to every connecting client.",
+            createElement(Switch, { checked: this.state.request_payment, onChange: (v: boolean) => this.setState({ request_payment: v }) }),
+          ),
+          this.state.request_payment
+            ? createElement("div", { className: "rounded-lg bg-muted/30 p-3 mt-2" },
+                createElement("div", { className: "space-y-1.5" },
+                  createElement(Label, { className: "text-xs font-medium" }, "Amount (msats)"),
+                  createElement(Input, {
+                    type: "number", value: this.state.request_payment_amount, className: "w-40",
+                    onInput: (e: Event) => this.setState({ request_payment_amount: (e.target as HTMLInputElement).value }),
+                  }),
+                ),
+              )
+            : null,
         ),
-      ) : null,
+        this.saveButton(),
+      ),
     );
   }
 
   private renderDanger() {
     const { relay, deletingRelay } = this.state;
     if (!relay) return null;
+    const domain = relay.domain || "mycelium.social";
 
-    return createElement("div", { className: "space-y-4" },
-      createElement("div", { className: "rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3" },
-        createElement("h3", { className: "text-sm font-semibold text-destructive flex items-center gap-2" },
-          createElement(AlertCircle, { className: "size-4" }), "Delete Relay",
+    return createElement("div", { className: "rounded-xl border-2 border-destructive/30 bg-destructive/5 overflow-hidden" },
+      createElement("div", { className: "px-5 py-4 border-b border-destructive/20" },
+        createElement("div", { className: "flex items-center gap-2.5" },
+          createElement(AlertCircle, { className: "size-4 text-destructive shrink-0" }),
+          createElement("div", null,
+            createElement("h3", { className: "text-sm font-semibold text-destructive" }, "Danger Zone"),
+            createElement("p", { className: "text-xs text-destructive/70 mt-0.5" }, "Irreversible actions that affect your relay."),
+          ),
         ),
-        createElement("p", { className: "text-xs text-muted-foreground" },
-          `This will permanently delete ${relay.name}.${relay.domain || "mycelium.social"} and all associated data. This action cannot be undone.`,
+      ),
+      createElement("div", { className: "p-5 space-y-4" },
+        createElement("div", { className: "space-y-2" },
+          createElement("p", { className: "text-sm font-medium text-destructive" }, "Delete Relay"),
+          createElement("p", { className: "text-xs text-muted-foreground leading-relaxed" },
+            `Permanently delete `, createElement("strong", null, `${relay.name}.${domain}`), ` and all associated data including allowlists, blocklists, moderators, and streams. This action cannot be undone.`,
+          ),
         ),
         createElement(Button, {
           variant: "destructive", size: "sm", className: "gap-1.5",
@@ -686,7 +899,7 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
           onClick: this.deleteRelay,
         },
           deletingRelay ? createElement(Loader2, { className: "size-3.5 animate-spin" }) : createElement(Trash2, { className: "size-3.5" }),
-          "Delete Relay",
+          deletingRelay ? "Deleting..." : "Delete Relay Permanently",
         ),
       ),
     );
@@ -695,7 +908,7 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
   // ─── Main render ──────────────────────────────────────────────────────────
 
   render() {
-    const { relay, loading, error, success, saving, tab } = this.state;
+    const { relay, loading, error, success, tab } = this.state;
 
     if (loading) {
       return createElement("div", { className: "flex justify-center py-16" },
@@ -704,70 +917,51 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
     }
 
     if (!relay) {
-      return createElement("div", { className: "text-center py-16" },
-        createElement("p", { className: "text-destructive" }, error || "Relay not found"),
-        createElement(Link, { to: "/admin", className: "text-sm text-primary hover:underline mt-2 inline-block" }, "Back to dashboard"),
+      return createElement("div", { className: "text-center py-16 space-y-3" },
+        createElement(AlertCircle, { className: "size-8 text-destructive/50 mx-auto" }),
+        createElement("p", { className: "text-destructive font-medium" }, error || "Relay not found"),
+        createElement(Link, { to: "/admin", className: "text-sm text-primary hover:underline inline-block" }, "← Back to dashboard"),
       );
     }
 
-    const domain = relay.domain || "mycelium.social";
-
-    const tabs: { id: SettingsTab; label: string; icon: any }[] = [
-      { id: "general", label: "General", icon: Settings },
-      { id: "access", label: "Access", icon: Shield },
-      { id: "allowlist", label: "Allowlist", icon: Check },
-      { id: "blocklist", label: "Blocklist", icon: X },
-      { id: "moderators", label: "Moderators", icon: Users },
-      { id: "streams", label: "Streams", icon: ArrowUpDown },
-      { id: "payments", label: "Payments", icon: Zap },
-      { id: "danger", label: "Danger", icon: AlertCircle },
-    ];
-
-    return createElement("div", { className: "max-w-3xl mx-auto space-y-6 animate-in" },
-      // Header
-      createElement("div", { className: "flex items-start justify-between gap-4" },
-        createElement("div", null,
-          createElement(Link, { to: `/relays/${relay.name}`, className: "text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-2 cursor-pointer" },
-            createElement(ArrowLeft, { className: "size-3" }), "Back to relay",
-          ),
-          createElement("h1", { className: "text-2xl font-extrabold tracking-tight flex items-center gap-2.5" },
-            createElement(Settings, { className: "size-6 text-primary" }),
-            `${relay.name}.${domain}`,
-          ),
-          createElement("p", { className: "text-sm text-muted-foreground mt-0.5" }, "Manage your relay configuration"),
-        ),
-        createElement("div", { className: "flex items-center gap-2 shrink-0" },
-          createElement(Badge, { variant: relay.status === "running" ? "default" : "secondary" }, relay.status || "unknown"),
-        ),
+    return createElement("div", { className: "max-w-5xl mx-auto space-y-5 animate-in" },
+      // Back link
+      createElement(Link, { to: `/relays/${relay.name}`, className: "text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer" },
+        createElement(ArrowLeft, { className: "size-3" }), "Back to relay",
       ),
+
+      // Relay identity card
+      this.renderIdentityCard(),
 
       // Status messages
       error ? createElement("div", { className: "flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive" },
         createElement(AlertCircle, { className: "size-4 shrink-0" }), error,
+        createElement("button", {
+          onClick: () => this.setState({ error: "" }),
+          className: "ml-auto text-destructive/50 hover:text-destructive cursor-pointer",
+        }, createElement(X, { className: "size-3.5" })),
       ) : null,
       success ? createElement("div", { className: "flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400" },
         createElement(Check, { className: "size-4 shrink-0" }), success,
       ) : null,
 
-      // Tab navigation
-      createElement(Tabs, { value: tab },
-        createElement(TabsList, { className: "w-full flex-wrap h-auto gap-1 p-1" },
-          ...tabs.map((t) =>
-            createElement(TabsTrigger, {
-              key: t.id, value: t.id, active: tab === t.id,
-              onClick: () => this.setState({ tab: t.id }),
-              className: "gap-1.5",
-            },
-              createElement(t.icon, { className: "size-3.5" }),
-              t.label,
-            ),
+      // Main layout: sidebar + content
+      createElement("div", { className: "flex gap-6" },
+        // Sidebar nav (desktop)
+        createElement("div", { className: "hidden lg:block w-52 shrink-0" },
+          createElement("div", { className: "sticky top-6" },
+            this.renderNav(),
           ),
         ),
-      ),
 
-      // Tab content
-      createElement(Card, { className: "border-border/50" },
-        createElement(CardContent, { className: "p-6" },
+        // Content area
+        createElement("div", { className: "flex-1 min-w-0 space-y-1" },
+          // Mobile nav
+          createElement("div", { className: "lg:hidden mb-4" },
+            this.renderNav(),
+          ),
+
+          // Tab content
           tab === "general" ? this.renderGeneral() : null,
           tab === "access" ? this.renderAccess() : null,
           tab === "allowlist" ? this.renderAclList("allowlist", relay.allow_list) : null,
@@ -778,18 +972,6 @@ export default class RelaySettings extends Component<RelaySettingsProps, RelaySe
           tab === "danger" ? this.renderDanger() : null,
         ),
       ),
-
-      // Save button (not shown for ACL tabs which save immediately, or danger)
-      (tab === "general" || tab === "access" || tab === "payments")
-        ? createElement("div", { className: "flex justify-end" },
-            createElement(Button, {
-              onClick: this.saveSettings, disabled: saving, className: "gap-2 min-w-[140px]",
-            },
-              saving ? createElement(Loader2, { className: "size-4 animate-spin" }) : createElement(Check, { className: "size-4" }),
-              saving ? "Saving..." : "Save Settings",
-            ),
-          )
-        : null,
     );
   }
 }

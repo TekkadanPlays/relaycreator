@@ -31,19 +31,30 @@ export const authStore = createStore<AuthState>({
 });
 
 /** Fetch Nostr kind-0 profile and merge picture/name into user */
-async function enrichUser(user: User): Promise<User> {
-  try {
-    const profile = await fetchProfile(user.pubkey);
-    if (profile) {
-      return {
-        ...user,
-        picture: profile.picture || user.picture,
-        banner: profile.banner || user.banner,
-        about: profile.about || user.about,
-        name: user.name || profile.display_name || profile.name || null,
-      };
+async function enrichUser(user: User, retries = 2): Promise<User> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const profile = await fetchProfile(user.pubkey);
+      if (profile) {
+        console.log(`[auth] Profile enriched for ${user.pubkey.slice(0, 8)}... (attempt ${attempt + 1})`);
+        return {
+          ...user,
+          picture: profile.picture || user.picture,
+          banner: profile.banner || user.banner,
+          about: profile.about || user.about,
+          name: user.name || profile.display_name || profile.name || null,
+        };
+      }
+    } catch (err) {
+      console.warn(`[auth] Profile enrichment attempt ${attempt + 1} failed for ${user.pubkey.slice(0, 8)}...`, err);
     }
-  } catch { /* ignore */ }
+    // Wait before retry (1s, then 3s)
+    if (attempt < retries) {
+      await new Promise((r) => setTimeout(r, attempt === 0 ? 1000 : 3000));
+      clearProfileCache(); // Clear cache so retry actually re-fetches
+    }
+  }
+  console.warn(`[auth] Profile enrichment failed after ${retries + 1} attempts for ${user.pubkey.slice(0, 8)}...`);
   return user;
 }
 
@@ -132,9 +143,12 @@ export async function login(): Promise<void> {
 }
 
 export function logout(): void {
+  // Purge all user-related state
   localStorage.removeItem("token");
+  localStorage.removeItem("mycelium_relay_profiles");
   clearProfileCache();
   authStore.set({ user: null, token: null, loading: false });
+  console.log("[auth] Logged out, all user state purged");
 }
 
 export async function checkAuth(): Promise<void> {
@@ -145,6 +159,26 @@ export async function checkAuth(): Promise<void> {
   }
   try {
     const { user } = await api.get<{ user: User }>("/auth/me");
+
+    // If a NIP-07 extension is available, verify the JWT's pubkey matches
+    // the extension's current pubkey. If they differ, the user switched
+    // accounts in their signer — invalidate the old session.
+    const nostr = (window as any).nostr;
+    if (nostr?.getPublicKey) {
+      try {
+        const extensionPubkey = await nostr.getPublicKey();
+        if (extensionPubkey && extensionPubkey !== user.pubkey) {
+          console.log(`[auth] Extension pubkey (${extensionPubkey.slice(0, 8)}...) differs from session (${user.pubkey.slice(0, 8)}...) — invalidating session`);
+          localStorage.removeItem("token");
+          clearProfileCache();
+          authStore.set({ user: null, token: null, loading: false });
+          return;
+        }
+      } catch {
+        // Extension denied access or unavailable — continue with existing session
+      }
+    }
+
     authStore.set({ user: { ...user, picture: user.picture || null, banner: null, about: null }, token, loading: false });
 
     // Enrich with Nostr profile and NIP-65 relay list in background
