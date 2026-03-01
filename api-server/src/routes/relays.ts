@@ -194,7 +194,9 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
         referrer: referrer || "",
 
-        default_message_policy: false,
+        default_message_policy: true,
+
+        listed_in_directory: true,
 
       },
 
@@ -204,7 +206,16 @@ router.post("/", requireAuth, validateBody(createRelaySchema), async (req: Reque
 
     await prisma.blockList.create({ data: { relayId: relayResult.id } });
 
-    await prisma.allowList.create({ data: { relayId: relayResult.id } });
+    const allowList = await prisma.allowList.create({ data: { relayId: relayResult.id } });
+
+    // Add the relay creator's pubkey to the allowlist so they can always write
+    await prisma.listEntryPubkey.create({
+      data: {
+        AllowListId: allowList.id,
+        pubkey: user.pubkey,
+        reason: "relay owner",
+      },
+    });
 
 
 
