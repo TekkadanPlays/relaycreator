@@ -55,7 +55,12 @@ export function renderPermissions(
                         createElement(Badge, { variant: "outline", className: "text-[10px] px-1.5 py-0 capitalize" },
                           req.type.replace("_", " "),
                         ),
-                        createElement("span", { className: "text-xs font-mono" }, pubkeyShort(req.user.pubkey)),
+                        req.user.name
+                          ? createElement("span", { className: "text-xs" },
+                              createElement("span", { className: "font-medium" }, req.user.name),
+                              createElement("span", { className: "text-muted-foreground font-mono ml-1.5" }, pubkeyShort(req.user.pubkey)),
+                            )
+                          : createElement("span", { className: "text-xs font-mono" }, pubkeyShort(req.user.pubkey)),
                       ),
                       req.reason ? createElement("p", { className: "text-xs text-muted-foreground mt-1" }, `"${req.reason}"`) : null,
                       createElement("p", { className: "text-[10px] text-muted-foreground/60 mt-1" },
@@ -109,7 +114,12 @@ export function renderPermissions(
                   ...permGrants.map((p) =>
                     createElement("tr", { key: p.id, className: "border-b border-border/30 hover:bg-muted/20 transition-colors" },
                       createElement("td", { className: "px-4 py-3" },
-                        createElement("span", { className: "text-xs font-mono" }, pubkeyShort(p.user.pubkey)),
+                        p.user.name
+                          ? createElement("div", null,
+                              createElement("span", { className: "text-xs font-medium" }, p.user.name),
+                              createElement("p", { className: "text-[10px] font-mono text-muted-foreground" }, pubkeyShort(p.user.pubkey)),
+                            )
+                          : createElement("span", { className: "text-xs font-mono" }, pubkeyShort(p.user.pubkey)),
                       ),
                       createElement("td", { className: "px-4 py-3" },
                         createElement(Badge, { variant: "outline", className: "text-[10px] capitalize" }, p.type.replace("_", " ")),

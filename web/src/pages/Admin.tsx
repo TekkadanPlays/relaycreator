@@ -8,7 +8,7 @@ import { authStore, type User } from "../stores/auth";
 
 import { api } from "../lib/api";
 
-import { fetchProfile } from "../lib/nostr";
+import { fetchProfile, fetchProfiles } from "../lib/nostr";
 
 import { Badge } from "@/ui/Badge";
 
@@ -535,43 +535,35 @@ export default class Admin extends Component<{}, AdminState> {
 
     if (needsEnrich.length === 0) return;
 
-    // Process in batches of 5 to avoid hammering relays
+    const pubkeys = needsEnrich.map((u) => u.pubkey);
 
-    for (let i = 0; i < needsEnrich.length; i += 5) {
+    const profiles = await fetchProfiles(pubkeys);
 
-      const batch = needsEnrich.slice(i, i + 5);
+    if (Object.keys(profiles).length === 0) return;
 
-      const results = await Promise.allSettled(
+    const current = [...this.state.users];
 
-        batch.map((u) => fetchProfile(u.pubkey).then((p) => ({ id: u.id, profile: p }))),
+    let updated = false;
 
-      );
+    for (const user of needsEnrich) {
 
-      let updated = false;
+      const profile = profiles[user.pubkey];
 
-      const current = [...this.state.users];
+      if (!profile) continue;
 
-      for (const r of results) {
+      const idx = current.findIndex((u) => u.id === user.id);
 
-        if (r.status !== "fulfilled" || !r.value.profile) continue;
+      if (idx >= 0 && !current[idx].name) {
 
-        const { id, profile } = r.value;
+        current[idx] = { ...current[idx], name: profile.display_name || profile.name || null };
 
-        const idx = current.findIndex((u) => u.id === id);
-
-        if (idx >= 0 && !current[idx].name) {
-
-          current[idx] = { ...current[idx], name: profile.display_name || profile.name || null };
-
-          updated = true;
-
-        }
+        updated = true;
 
       }
 
-      if (updated) this.setState({ users: current });
-
     }
+
+    if (updated) this.setState({ users: current });
 
   }
 
@@ -603,10 +595,41 @@ export default class Admin extends Component<{}, AdminState> {
 
       ]);
 
-      this.setState({ permRequests: rq?.requests || [], permGrants: pg?.permissions || [], permRequestsLoading: false, permGrantsLoading: false });
+      const requests = rq?.requests || [];
+      const grants = pg?.permissions || [];
+      this.setState({ permRequests: requests, permGrants: grants, permRequestsLoading: false, permGrantsLoading: false });
+
+      this.enrichPermissions(requests, grants);
 
     } catch { this.setState({ permRequestsLoading: false, permGrantsLoading: false }); }
 
+  }
+
+  private async enrichPermissions(requests: PermissionRequestItem[], grants: PermissionItem[]) {
+    const pubkeys = new Set<string>();
+    for (const r of requests) { if (!r.user.name) pubkeys.add(r.user.pubkey); }
+    for (const g of grants) { if (!g.user.name) pubkeys.add(g.user.pubkey); }
+    if (pubkeys.size === 0) return;
+
+    const profiles = await fetchProfiles([...pubkeys]);
+    if (Object.keys(profiles).length === 0) return;
+
+    let reqUpdated = false;
+    const updatedReqs = requests.map((r) => {
+      const p = profiles[r.user.pubkey];
+      if (p && !r.user.name) { reqUpdated = true; return { ...r, user: { ...r.user, name: p.display_name || p.name || null } }; }
+      return r;
+    });
+
+    let grantUpdated = false;
+    const updatedGrants = grants.map((g) => {
+      const p = profiles[g.user.pubkey];
+      if (p && !g.user.name) { grantUpdated = true; return { ...g, user: { ...g.user, name: p.display_name || p.name || null } }; }
+      return g;
+    });
+
+    if (reqUpdated) this.setState({ permRequests: updatedReqs });
+    if (grantUpdated) this.setState({ permGrants: updatedGrants });
   }
 
 

@@ -155,6 +155,18 @@ router.patch("/users/:id", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
+  // Prevent revoking admin from instance creator pubkeys
+  if (!admin) {
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (targetUser) {
+      const creatorPubkeys = getEnv().ADMIN_PUBKEYS.split(",").map((s) => s.trim()).filter(Boolean);
+      if (creatorPubkeys.includes(targetUser.pubkey)) {
+        res.status(403).json({ error: "Cannot revoke admin from the instance creator" });
+        return;
+      }
+    }
+  }
+
   await prisma.user.update({
     where: { id: userId },
     data: { admin },

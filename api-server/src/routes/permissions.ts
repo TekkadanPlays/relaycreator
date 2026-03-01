@@ -237,21 +237,59 @@ router.get("/requests", requireAuth, async (req: Request, res: Response) => {
 
 /**
  * POST /permissions/grant
- * Grant a permission to a user. Body: { userId, type, notes? }
+ * Grant a permission to a user. Body: { userId?, pubkey?, type, notes? }
+ * Accepts userId (cuid), hex pubkey, or npub. If the pubkey has no account yet, one is created.
  */
 router.post("/grant", requireAuth, async (req: Request, res: Response) => {
   if (!(await ensureAdmin(req, res))) return;
 
-  const { userId, type, notes } = req.body;
+  const { userId, pubkey: rawPubkey, type, notes } = req.body;
 
-  if (!userId || !type || !isValidType(type)) {
-    res.status(400).json({ error: "userId and valid type required" });
+  if (!type || !isValidType(type)) {
+    res.status(400).json({ error: "Valid type required" });
     return;
   }
 
-  const targetUser = await prisma.user.findUnique({ where: { id: userId } });
-  if (!targetUser) {
-    res.status(404).json({ error: "User not found" });
+  let targetUser;
+
+  if (userId) {
+    targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!targetUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+  } else if (rawPubkey) {
+    // Decode npub to hex if needed
+    let hexPubkey = rawPubkey.trim();
+    if (hexPubkey.startsWith("npub1")) {
+      try {
+        const nip19 = await import("nostr-tools/nip19");
+        const decoded: { type: string; data: unknown } = nip19.decode(hexPubkey) as any;
+        if (decoded.type !== "npub" || typeof decoded.data !== "string") {
+          res.status(400).json({ error: "Invalid npub" });
+          return;
+        }
+        hexPubkey = decoded.data;
+      } catch {
+        res.status(400).json({ error: "Invalid npub encoding" });
+        return;
+      }
+    }
+
+    if (!/^[0-9a-f]{64}$/i.test(hexPubkey)) {
+      res.status(400).json({ error: "Invalid pubkey format (expected 64-char hex or npub)" });
+      return;
+    }
+
+    hexPubkey = hexPubkey.toLowerCase();
+
+    // Find or create user by pubkey
+    targetUser = await prisma.user.findUnique({ where: { pubkey: hexPubkey } });
+    if (!targetUser) {
+      targetUser = await prisma.user.create({ data: { pubkey: hexPubkey } });
+    }
+  } else {
+    res.status(400).json({ error: "userId or pubkey (hex or npub) required" });
     return;
   }
 
@@ -259,9 +297,9 @@ router.post("/grant", requireAuth, async (req: Request, res: Response) => {
   const admin = await prisma.user.findUnique({ where: { id: req.auth!.userId } });
 
   const permission = await prisma.permission.upsert({
-    where: { userId_type: { userId, type } },
+    where: { userId_type: { userId: targetUser.id, type } },
     create: {
-      userId,
+      userId: targetUser.id,
       type,
       granted_by: admin?.pubkey || null,
       notes: notes || null,
@@ -278,10 +316,10 @@ router.post("/grant", requireAuth, async (req: Request, res: Response) => {
 
   // If granting admin permission, also set the legacy boolean
   if (type === "admin") {
-    await prisma.user.update({ where: { id: userId }, data: { admin: true } });
+    await prisma.user.update({ where: { id: targetUser.id }, data: { admin: true } });
   }
 
-  res.json({ permission });
+  res.json({ permission, user: { id: targetUser.id, pubkey: targetUser.pubkey, name: targetUser.name } });
 });
 
 /**
@@ -296,6 +334,19 @@ router.post("/revoke", requireAuth, async (req: Request, res: Response) => {
   if (!userId || !type || !isValidType(type)) {
     res.status(400).json({ error: "userId and valid type required" });
     return;
+  }
+
+  // Protect instance creator pubkeys — admin can never be revoked
+  if (type === "admin") {
+    const { getEnv } = await import("../lib/env.js");
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (targetUser) {
+      const creatorPubkeys = getEnv().ADMIN_PUBKEYS.split(",").map((s: string) => s.trim()).filter(Boolean);
+      if (creatorPubkeys.includes(targetUser.pubkey)) {
+        res.status(403).json({ error: "Cannot revoke admin from the instance creator" });
+        return;
+      }
+    }
   }
 
   const permission = await prisma.permission.findUnique({

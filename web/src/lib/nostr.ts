@@ -57,6 +57,46 @@ export async function fetchRelayList(pubkey: string): Promise<Nip65RelayList | n
   }
 }
 
+/**
+ * Batch fetch kind-0 metadata for multiple pubkeys via server-side API.
+ * Skips pubkeys already in the session cache. Returns a map of pubkey -> profile.
+ */
+export async function fetchProfiles(pubkeys: string[]): Promise<Record<string, NostrProfile>> {
+  const result: Record<string, NostrProfile> = {};
+  const uncached: string[] = [];
+
+  for (const pk of pubkeys) {
+    if (profileCache.has(pk)) {
+      result[pk] = profileCache.get(pk)!;
+    } else {
+      uncached.push(pk);
+    }
+  }
+
+  if (uncached.length === 0) return result;
+
+  try {
+    const res = await fetch("/api/nostr/profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pubkeys: uncached }),
+    });
+    if (!res.ok) return result;
+    const data = await res.json();
+    if (data.profiles) {
+      for (const [pk, profile] of Object.entries(data.profiles)) {
+        const p = profile as NostrProfile;
+        profileCache.set(pk, p);
+        result[pk] = p;
+      }
+    }
+  } catch (err) {
+    console.warn("[nostr] Batch profile fetch failed:", err);
+  }
+
+  return result;
+}
+
 /** Clear the profile cache (e.g. on logout) */
 export function clearProfileCache() {
   profileCache.clear();

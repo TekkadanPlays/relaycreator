@@ -95,6 +95,52 @@ router.get("/profile/:pubkey", async (req: Request, res: Response) => {
   }
 });
 
+// ─── POST /profiles — Batch fetch kind-0 profiles ───────────────────────────
+
+router.post("/profiles", async (req: Request, res: Response) => {
+  const { pubkeys } = req.body;
+  if (!Array.isArray(pubkeys) || pubkeys.length === 0) {
+    res.status(400).json({ error: "pubkeys array required" });
+    return;
+  }
+
+  // Cap at 50 to prevent abuse
+  const validPubkeys = pubkeys
+    .filter((pk: any) => typeof pk === "string" && /^[0-9a-f]{64}$/.test(pk))
+    .slice(0, 50);
+
+  if (validPubkeys.length === 0) {
+    res.json({ profiles: {} });
+    return;
+  }
+
+  try {
+    const profiles: Record<string, NostrProfile & { pubkey: string }> = {};
+
+    // Fetch in parallel, 10 at a time to avoid overwhelming indexers
+    const batchSize = 10;
+    for (let i = 0; i < validPubkeys.length; i += batchSize) {
+      const batch = validPubkeys.slice(i, i + batchSize);
+      await Promise.allSettled(
+        batch.map(async (pk: string) => {
+          const events = await fetchEventsHttp({ kinds: [0], authors: [pk] });
+          if (events.length > 0) {
+            try {
+              const data = JSON.parse(events[0].content) as NostrProfile;
+              profiles[pk] = { ...data, pubkey: pk };
+            } catch { /* invalid JSON content */ }
+          }
+        }),
+      );
+    }
+
+    res.json({ profiles });
+  } catch (err) {
+    console.error("[nostr-fetch] Batch profile fetch error:", err);
+    res.status(502).json({ error: "Failed to fetch profiles from indexers" });
+  }
+});
+
 // ─── GET /relaylist/:pubkey — Fetch kind-10002 NIP-65 relay list ────────────
 
 interface Nip65RelayList {
