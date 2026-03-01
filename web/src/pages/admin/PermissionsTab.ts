@@ -1,7 +1,7 @@
 import { createElement } from "inferno-create-element";
 import { Button } from "@/ui/Button";
 import { Badge } from "@/ui/Badge";
-import { Clock, CheckCircle2, XCircle, ShieldCheck } from "@/lib/icons";
+import { Clock, CheckCircle2, XCircle, ShieldCheck, AtSign } from "@/lib/icons";
 import { renderLoading, pubkeyShort } from "./helpers";
 import type { PermissionRequestItem, PermissionItem } from "./types";
 
@@ -16,6 +16,7 @@ export function renderPermissions(
   onFilterChange: (f: "pending" | "approved" | "denied") => void,
   onDecide: (id: string, decision: "approved" | "denied") => void,
   onRevoke: (userId: string, type: string, userName: string) => void,
+  domain?: string,
 ) {
   return createElement("div", { className: "space-y-6" },
     createElement("div", null,
@@ -62,7 +63,13 @@ export function renderPermissions(
                             )
                           : createElement("span", { className: "text-xs font-mono" }, pubkeyShort(req.user.pubkey)),
                       ),
-                      req.reason ? createElement("p", { className: "text-xs text-muted-foreground mt-1" }, `"${req.reason}"`) : null,
+                      req.type === "nip05" && req.reason
+                        ? createElement("div", { className: "flex items-center gap-1.5 mt-1" },
+                            createElement(AtSign, { className: "size-3 text-primary" }),
+                            createElement("span", { className: "text-xs font-medium text-primary" }, req.reason),
+                            createElement("span", { className: "text-[10px] text-muted-foreground" }, "@" + (domain || "...")),
+                          )
+                        : req.reason ? createElement("p", { className: "text-xs text-muted-foreground mt-1" }, `"${req.reason}"`) : null,
                       createElement("p", { className: "text-[10px] text-muted-foreground/60 mt-1" },
                         new Date(req.created_at).toLocaleDateString(),
                       ),

@@ -1290,7 +1290,7 @@ export default class Admin extends Component<{}, AdminState> {
 
       case "permissions":
 
-        return renderPermissions(this.state.permFilter, this.state.permRequests, this.state.permRequestsLoading, this.state.permGrants, this.state.permGrantsLoading, this.state.permDeciding, this.state.permRevoking, this.handlePermFilterChange, this.handlePermDecide, this.handlePermRevoke);
+        return renderPermissions(this.state.permFilter, this.state.permRequests, this.state.permRequestsLoading, this.state.permGrants, this.state.permGrantsLoading, this.state.permDeciding, this.state.permRevoking, this.handlePermFilterChange, this.handlePermDecide, this.handlePermRevoke, this.state.fallbackDomain);
 
       case "coinos":
 

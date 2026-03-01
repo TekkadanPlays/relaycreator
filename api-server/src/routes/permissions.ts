@@ -5,7 +5,7 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 
 // ─── Valid permission types ──────────────────────────────────────────────────
-const PERMISSION_TYPES = ["admin", "coinos_admin", "operator"] as const;
+const PERMISSION_TYPES = ["admin", "coinos_admin", "operator", "nip05"] as const;
 type PermissionType = (typeof PERMISSION_TYPES)[number];
 
 function isValidType(t: string): t is PermissionType {
@@ -30,6 +30,11 @@ const DISCLAIMERS: Record<PermissionType, string> = {
     "This includes the ability to manage relay settings, access controls, moderation tools, " +
     "and streaming configuration for relays assigned to you. " +
     "By accepting, you agree to operate relays in accordance with platform policies.",
+  nip05:
+    "You are requesting a NIP-05 identity on this platform. " +
+    "This associates your chosen username with your nostr public key for verification purposes. " +
+    "By accepting, you agree that the platform administrator may revoke this identity at any time " +
+    "and that you will not impersonate others with your chosen username.",
 };
 
 // ─── Helper: check admin ─────────────────────────────────────────────────────
@@ -99,6 +104,49 @@ router.post("/request", requireAuth, async (req: Request, res: Response) => {
 
   if (!type || !isValidType(type)) {
     res.status(400).json({ error: `Invalid permission type. Valid: ${PERMISSION_TYPES.join(", ")}` });
+    return;
+  }
+
+  // NIP-05 requests require a username in the reason field
+  if (type === "nip05") {
+    if (!reason || typeof reason !== "string" || !reason.trim()) {
+      res.status(400).json({ error: "A requested NIP-05 username is required" });
+      return;
+    }
+
+    const cleanName = reason.trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+    if (cleanName !== reason.trim().toLowerCase()) {
+      res.status(400).json({ error: "Username can only contain lowercase letters, numbers, underscores, dots, and hyphens" });
+      return;
+    }
+    if (cleanName.length < 1 || cleanName.length > 64) {
+      res.status(400).json({ error: "Username must be 1-64 characters" });
+      return;
+    }
+
+    // Check if name is already taken
+    const { getEnv } = await import("../lib/env.js");
+    const domain = getEnv().CREATOR_DOMAIN.toLowerCase();
+    const nameTaken = await prisma.nip05.findFirst({ where: { name: cleanName, domain } });
+    if (nameTaken) {
+      res.status(409).json({ error: "That NIP-05 username is already taken" });
+      return;
+    }
+
+    // Check if there's already a pending nip05 request for this user
+    const pendingNip05 = await prisma.permissionRequest.findFirst({
+      where: { userId, type: "nip05", status: "pending" },
+    });
+    if (pendingNip05) {
+      res.status(409).json({ error: "You already have a pending NIP-05 request" });
+      return;
+    }
+
+    const request = await prisma.permissionRequest.create({
+      data: { userId, type, reason: cleanName },
+    });
+
+    res.status(201).json({ request });
     return;
   }
 
@@ -433,6 +481,36 @@ router.post("/requests/:id/decide", requireAuth, async (req: Request, res: Respo
     // Sync legacy admin boolean
     if (permReq.type === "admin") {
       await prisma.user.update({ where: { id: permReq.userId }, data: { admin: true } });
+    }
+
+    // NIP-05: create the Nip05 entry on approval
+    if (permReq.type === "nip05" && permReq.reason) {
+      const { getEnv } = await import("../lib/env.js");
+      const domain = getEnv().CREATOR_DOMAIN.toLowerCase();
+      const requestedName = permReq.reason.trim().toLowerCase();
+
+      // Double-check name isn't taken (race condition guard)
+      const nameTaken = await prisma.nip05.findFirst({ where: { name: requestedName, domain } });
+      if (!nameTaken) {
+        const requester = await prisma.user.findUnique({ where: { id: permReq.userId } });
+        if (requester) {
+          const nip05Entry = await prisma.nip05.create({
+            data: { name: requestedName, domain, pubkey: requester.pubkey },
+          });
+
+          await prisma.nip05Order.create({
+            data: {
+              userId: requester.id,
+              nip05Id: nip05Entry.id,
+              amount: 0,
+              paid: true,
+              payment_hash: "approved",
+              lnurl: "approved",
+              status: "completed",
+            },
+          });
+        }
+      }
     }
   }
 
