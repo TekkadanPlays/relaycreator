@@ -33,6 +33,8 @@ import nostrFetchRoutes from "./routes/nostr-fetch.js";
 
 import nip05Routes from "./routes/nip05.js";
 
+import rstateRoutes from "./routes/rstate.js";
+
 
 
 
@@ -204,6 +206,9 @@ app.use("/api/nostr", nostrFetchRoutes);
 
 // NIP-05 identity management
 app.use("/api/nip05", nip05Routes);
+
+// rstate relay intelligence proxy
+app.use("/api/rstate", rstateRoutes);
 
 
 
