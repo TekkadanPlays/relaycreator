@@ -701,7 +701,7 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
 
 const settingsSchema = z.object({
 
-  details: z.string().optional(),
+  details: z.string().nullable().optional(),
 
   default_message_policy: z.boolean().optional(),
 
@@ -715,9 +715,9 @@ const settingsSchema = z.object({
 
   nip05_payment_amount: z.coerce.number().optional(),
 
-  profile_image: z.string().optional(),
+  profile_image: z.string().nullable().optional(),
 
-  banner_image: z.string().optional(),
+  banner_image: z.string().nullable().optional(),
 
   allow_giftwrap: z.boolean().optional(),
 
@@ -727,7 +727,7 @@ const settingsSchema = z.object({
 
   allow_keyword_pubkey: z.boolean().optional(),
 
-  relay_kind_description: z.string().optional(),
+  relay_kind_description: z.string().nullable().optional(),
 
   request_payment: z.boolean().optional(),
 
