@@ -297,6 +297,85 @@ export async function fetchProfiles(pubkeys: string[]): Promise<Record<string, N
   return result;
 }
 
+// ─── Kind-10086: Indexer Relay List ─────────────────────────────────────────
+
+export interface IndexerList {
+  indexerRelays: string[];
+  createdAt: number;
+}
+
+export async function fetchIndexerList(pubkey: string): Promise<IndexerList | null> {
+  const events = await queryRelays(INDEXER_RELAYS, {
+    kinds: [10086],
+    authors: [pubkey],
+    limit: 5,
+  });
+
+  if (events.length === 0) return null;
+
+  const event = events[0]; // newest
+  const indexerRelays: string[] = [];
+  for (const tag of event.tags) {
+    if (tag[0] === "relay" && tag[1]) {
+      const url = tag[1].trim().replace(/\/$/, "");
+      if (url.startsWith("wss://") || url.startsWith("ws://")) indexerRelays.push(url);
+    }
+  }
+
+  return { indexerRelays, createdAt: event.created_at };
+}
+
+// ─── Kind-30002: Relay Sets (Custom Categories) ─────────────────────────────
+
+export interface RelaySet {
+  id: string;          // d-tag
+  name: string;        // title tag
+  relays: string[];    // relay tags
+  isSubscribed: boolean;
+  createdAt: number;
+}
+
+export async function fetchRelaySets(pubkey: string): Promise<RelaySet[]> {
+  const events = await queryRelays(INDEXER_RELAYS, {
+    kinds: [30002],
+    authors: [pubkey],
+    limit: 50,
+  }, 1200, 10000);
+
+  // Deduplicate by d-tag, keeping newest
+  const byDTag = new Map<string, any>();
+  for (const event of events) {
+    const dTag = event.tags?.find((t: string[]) => t[0] === "d")?.[1];
+    if (!dTag) continue;
+    // Skip deleted events
+    if (event.tags.some((t: string[]) => t[0] === "deleted")) continue;
+    const existing = byDTag.get(dTag);
+    if (!existing || event.created_at > existing.created_at) {
+      byDTag.set(dTag, event);
+    }
+  }
+
+  const sets: RelaySet[] = [];
+  for (const [dTag, event] of byDTag) {
+    const title = event.tags.find((t: string[]) => t[0] === "title")?.[1]
+      || event.tags.find((t: string[]) => t[0] === "name")?.[1]
+      || dTag;
+    const isSubscribed = event.tags.find((t: string[]) => t[0] === "subscribed")?.[1] !== "false";
+    const relays: string[] = [];
+    for (const tag of event.tags) {
+      if (tag[0] === "relay" && tag[1]) {
+        const url = tag[1].trim().replace(/\/$/, "");
+        if (url.startsWith("wss://") || url.startsWith("ws://")) relays.push(url);
+      }
+    }
+    if (relays.length > 0) {
+      sets.push({ id: dTag, name: title, relays, isSubscribed, createdAt: event.created_at });
+    }
+  }
+
+  return sets;
+}
+
 // ─── Utilities ──────────────────────────────────────────────────────────────
 
 export function clearProfileCache() {

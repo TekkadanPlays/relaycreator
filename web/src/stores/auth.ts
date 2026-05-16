@@ -1,6 +1,6 @@
 import { createStore } from "../lib/store";
 import { api } from "../lib/api";
-import { fetchProfile, fetchRelayList, fetchContacts, fetchMuteList, fetchDmRelays, clearProfileCache } from "../lib/nostr";
+import { fetchProfile, fetchRelayList, fetchContacts, fetchMuteList, fetchDmRelays, fetchIndexerList, fetchRelaySets, clearProfileCache } from "../lib/nostr";
 
 export interface UserPermission {
   type: string;
@@ -77,12 +77,14 @@ async function populateRelayProfiles(pubkey: string): Promise<void> {
     }
   };
 
-  // Phase 1: NIP-65 relay list + contacts + mute list (parallel)
-  const [relayList, contacts, muteList, dmRelayList] = await Promise.all([
+  // Phase 1: NIP-65 relay list + contacts + mute list + indexers + relay sets (parallel)
+  const [relayList, contacts, muteList, dmRelayList, indexerList, relaySets] = await Promise.all([
     fetchRelayList(pubkey).catch(() => null),
     fetchContacts(pubkey).catch(() => null),
     fetchMuteList(pubkey).catch(() => null),
     fetchDmRelays(pubkey).catch(() => null),
+    fetchIndexerList(pubkey).catch(() => null),
+    fetchRelaySets(pubkey).catch(() => []),
   ]);
 
   // Populate outbox/inbox from NIP-65
@@ -96,6 +98,27 @@ async function populateRelayProfiles(pubkey: string): Promise<void> {
   if (dmRelayList && dmRelayList.dmRelays.length > 0) {
     updateProfile("dm", "DM Relays", dmRelayList.dmRelays);
     console.log(`[auth] DM relays: ${dmRelayList.dmRelays.length}`);
+  }
+
+  // Populate indexer relays from kind-10086
+  if (indexerList && indexerList.indexerRelays.length > 0) {
+    updateProfile("indexers", "Indexers", indexerList.indexerRelays);
+    console.log(`[auth] Indexers (kind-10086): ${indexerList.indexerRelays.length}`);
+  }
+
+  // Populate custom relay categories from kind-30002
+  if (relaySets && relaySets.length > 0) {
+    for (const set of relaySets) {
+      // Use the d-tag as the profile id, prefixed to avoid collision with builtins
+      const profileId = `cat_${set.id}`;
+      const idx = profiles.findIndex((p) => p.id === profileId);
+      if (idx >= 0) {
+        profiles[idx] = { ...profiles[idx], relays: set.relays };
+      } else {
+        profiles.push({ id: profileId, name: set.name, relays: set.relays, builtin: false });
+      }
+    }
+    console.log(`[auth] Relay sets (kind-30002): ${relaySets.length} categories`);
   }
 
   // Store contacts (follow list) for feed use
