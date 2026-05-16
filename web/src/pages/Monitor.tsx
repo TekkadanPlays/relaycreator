@@ -1,6 +1,5 @@
 import { Component } from "inferno";
 import { createElement } from "inferno-create-element";
-import { api } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/Card";
 import { Badge } from "@/ui/Badge";
 import { Input } from "@/ui/Input";
@@ -183,12 +182,27 @@ export default class Monitor extends Component<{}, MonitorState> {
   async fetchRelays() {
     this.setState({ loading: true, error: "" });
     try {
-      const res = await api("/api/rstate/relays?limit=5000");
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data.relays || data.data || [];
-      const relays = list.map(parseRelay);
-      const stats = computeStats(relays);
-      this.setState({ relays, stats, loading: false, lastRefresh: Date.now() });
+      // Paginated fetch matching Discover page pattern
+      let allRelays: RelayState[] = [];
+      let offset = 0;
+      const limit = 200;
+      let total = Infinity;
+
+      while (offset < total) {
+        const res = await fetch(`/api/rstate/relays?limit=${limit}&offset=${offset}&sortBy=lastSeen&sortOrder=desc`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        total = data.total ?? 0;
+        const rawList = Array.isArray(data.relays) ? data.relays : [];
+        if (rawList.length === 0) break;
+        allRelays = allRelays.concat(rawList.map(parseRelay).filter((r: RelayState) => r.url));
+        offset += limit;
+        if (allRelays.length >= 5000) break;
+      }
+
+      if (allRelays.length === 0) throw new Error("No relays returned from rstate");
+      const stats = computeStats(allRelays);
+      this.setState({ relays: allRelays, stats, loading: false, lastRefresh: Date.now() });
     } catch (err: any) {
       this.setState({ loading: false, error: err.message || "Failed to fetch relay data" });
     }
