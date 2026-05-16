@@ -11,6 +11,7 @@ import {
   Settings, RefreshCw, Loader2, AlertCircle, ExternalLink,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
+import { authStore } from "../stores/auth";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,14 @@ interface RelayProfile {
   name: string;
   relays: string[];
   builtin: boolean;
+}
+
+interface RelayHealthData {
+  online: boolean;
+  uptime: number;
+  rttOpen: number | null;
+  software: string;
+  version: string;
 }
 
 interface RelayManagerState {
@@ -31,6 +40,9 @@ interface RelayManagerState {
   copiedUrl: string | null;
   relayStatuses: Map<string, "connected" | "connecting" | "disconnected" | "error">;
   testing: string | null;
+  healthData: Map<string, RelayHealthData>;
+  healthLoading: boolean;
+  nip65Status: "idle" | "loaded" | "empty";
 }
 
 const STORAGE_KEY = "mycelium_relay_profiles";
@@ -83,6 +95,7 @@ function saveActiveId(id: string) {
 
 export default class RelayManager extends Component<{}, RelayManagerState> {
   declare state: RelayManagerState;
+  private unsubAuth: (() => void) | null = null;
 
   constructor(props: {}) {
     super(props);
@@ -96,6 +109,9 @@ export default class RelayManager extends Component<{}, RelayManagerState> {
       copiedUrl: null,
       relayStatuses: new Map(),
       testing: null,
+      healthData: new Map(),
+      healthLoading: false,
+      nip65Status: "idle",
     };
   }
 
@@ -105,6 +121,73 @@ export default class RelayManager extends Component<{}, RelayManagerState> {
     if (active) {
       for (const url of active.relays) this.testRelay(url);
     }
+
+    // Subscribe to auth changes — re-read profiles when NIP-65 populates
+    this.unsubAuth = authStore.subscribe((auth) => {
+      if (auth.user) {
+        // Give populateRelayProfiles() a moment to write to localStorage
+        setTimeout(() => {
+          const freshProfiles = loadProfiles();
+          const active = freshProfiles.find((p) => p.id === this.state.activeProfileId) || freshProfiles[0];
+          const hadRelays = this.state.profiles.reduce((n, p) => n + p.relays.length, 0);
+          const hasRelays = freshProfiles.reduce((n, p) => n + p.relays.length, 0);
+          this.setState({
+            profiles: freshProfiles,
+            nip65Status: hasRelays > hadRelays ? "loaded" : hadRelays > 0 ? "loaded" : "empty",
+          });
+          // Fetch health data for all relays in profiles
+          this.fetchHealthData(freshProfiles);
+          // Test new relays
+          if (active) {
+            for (const url of active.relays) {
+              if (!this.state.relayStatuses.has(url)) this.testRelay(url);
+            }
+          }
+        }, 1500);
+      }
+    });
+
+    // Also fetch health data on initial load if profiles have relays
+    const profiles = this.state.profiles;
+    const totalRelays = profiles.reduce((n, p) => n + p.relays.length, 0);
+    if (totalRelays > 0) {
+      this.setState({ nip65Status: "loaded" });
+      this.fetchHealthData(profiles);
+    }
+  }
+
+  componentWillUnmount() {
+    this.unsubAuth?.();
+  }
+
+  /** Fetch health data from the native monitor API for all relays across all profiles */
+  private async fetchHealthData(profiles: RelayProfile[]) {
+    const allUrls = new Set<string>();
+    for (const p of profiles) for (const u of p.relays) allUrls.add(u);
+    if (allUrls.size === 0) return;
+
+    this.setState({ healthLoading: true });
+    const healthData = new Map(this.state.healthData);
+
+    // Fetch in parallel (monitor API is fast, local SQLite)
+    await Promise.allSettled(
+      Array.from(allUrls).map(async (url) => {
+        try {
+          const res = await fetch(`/api/rstate/relays/state?relayUrl=${encodeURIComponent(url)}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          healthData.set(url, {
+            online: !!data.online,
+            uptime: data.uptime || 0,
+            rttOpen: data.rtt?.open?.value ?? null,
+            software: data.software?.family?.value || "",
+            version: data.software?.version?.value || "",
+          });
+        } catch { /* monitor unavailable for this relay */ }
+      }),
+    );
+
+    this.setState({ healthData, healthLoading: false });
   }
 
   private getActiveProfile(): RelayProfile | undefined {
@@ -218,8 +301,10 @@ export default class RelayManager extends Component<{}, RelayManagerState> {
   };
 
   render() {
-    const { profiles, activeProfileId, newRelayUrl, newProfileName, editingProfileId, editingName, copiedUrl, relayStatuses } = this.state;
+    const { profiles, activeProfileId, newRelayUrl, newProfileName, editingProfileId, editingName, copiedUrl, relayStatuses, healthData, healthLoading, nip65Status } = this.state;
     const active = this.getActiveProfile();
+    const outboxCount = profiles.find((p) => p.id === "outbox")?.relays.length || 0;
+    const inboxCount = profiles.find((p) => p.id === "inbox")?.relays.length || 0;
 
     return createElement("div", { className: "max-w-3xl mx-auto space-y-6 animate-in" },
       // Header
@@ -239,6 +324,24 @@ export default class RelayManager extends Component<{}, RelayManagerState> {
           ),
         ),
       ),
+
+      // NIP-65 status banner
+      nip65Status === "loaded" && (outboxCount > 0 || inboxCount > 0)
+        ? createElement("div", { className: "flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5" },
+            createElement(Check, { className: "size-4 text-emerald-500 shrink-0" }),
+            createElement("p", { className: "text-sm text-muted-foreground" },
+              `NIP-65 relay list loaded: ${outboxCount} outbox, ${inboxCount} inbox`,
+              healthLoading ? " · fetching health data..." : healthData.size > 0 ? ` · ${healthData.size} monitored` : "",
+            ),
+          )
+        : nip65Status === "empty"
+          ? createElement("div", { className: "flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5" },
+              createElement(AlertCircle, { className: "size-4 text-amber-500 shrink-0" }),
+              createElement("p", { className: "text-sm text-muted-foreground" },
+                "No relay list found on the network. Add relays manually or discover relays.",
+              ),
+            )
+          : null,
 
       // Profile tabs
       createElement("div", { className: "space-y-3" },
@@ -342,23 +445,44 @@ export default class RelayManager extends Component<{}, RelayManagerState> {
               ? createElement("div", { className: "divide-y divide-border/30" },
                   ...active.relays.map((url) => {
                     const status = relayStatuses.get(url);
-                    const dotColor = status === "connected" ? "bg-emerald-500"
+                    const health = healthData.get(url);
+                    // Prefer monitor online status over WebSocket ping
+                    const isOnline = health ? health.online : status === "connected";
+                    const dotColor = isOnline ? "bg-emerald-500"
                       : status === "connecting" ? "bg-amber-500 animate-pulse"
-                      : status === "error" ? "bg-destructive"
+                      : status === "error" || (health && !health.online) ? "bg-destructive"
                       : "bg-muted-foreground/30";
-                    const statusLabel = status || "idle";
+                    const statusLabel = health
+                      ? (health.online ? "online" : "offline") + (health.software ? ` · ${health.software}${health.version ? " " + health.version : ""}` : "")
+                      : status || "idle";
 
                     return createElement("div", {
                       key: url,
                       className: "px-5 py-3 flex items-center justify-between gap-3 group",
                     },
-                      createElement("div", { className: "flex items-center gap-3 min-w-0" },
+                      createElement("div", { className: "flex items-center gap-3 min-w-0 flex-1" },
                         createElement("span", { className: cn("size-2 rounded-full shrink-0", dotColor) }),
-                        createElement("div", { className: "min-w-0" },
+                        createElement("div", { className: "min-w-0 flex-1" },
                           createElement("p", { className: "text-sm font-mono truncate" }, url),
-                          createElement("p", { className: "text-[10px] text-muted-foreground capitalize" }, statusLabel),
+                          createElement("p", { className: "text-[10px] text-muted-foreground" }, statusLabel),
                         ),
                       ),
+                      // Health badges
+                      health
+                        ? createElement("div", { className: "flex items-center gap-1.5 shrink-0" },
+                            health.uptime > 0
+                              ? createElement(Badge, {
+                                  variant: health.uptime >= 95 ? "secondary" : "outline",
+                                  className: cn("text-[10px] px-1.5 py-0", health.uptime >= 95 ? "text-emerald-600 dark:text-emerald-400" : ""),
+                                }, `${health.uptime.toFixed(0)}%`)
+                              : null,
+                            health.rttOpen !== null && health.rttOpen > 0
+                              ? createElement(Badge, { variant: "outline", className: "text-[10px] px-1.5 py-0" },
+                                  `${health.rttOpen}ms`,
+                                )
+                              : null,
+                          )
+                        : null,
                       createElement("div", { className: "flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" },
                         createElement(Button, {
                           variant: "ghost", size: "sm", className: "size-7 p-0",
