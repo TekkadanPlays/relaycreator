@@ -335,8 +335,8 @@ export interface RelaySet {
   createdAt: number;
 }
 
-export async function fetchRelaySets(pubkey: string): Promise<RelaySet[]> {
-  const events = await queryRelays(INDEXER_RELAYS, {
+export async function fetchRelaySets(pubkey: string, relayUrls?: string[]): Promise<RelaySet[]> {
+  const events = await queryRelays(relayUrls || INDEXER_RELAYS, {
     kinds: [30002],
     authors: [pubkey],
     limit: 50,

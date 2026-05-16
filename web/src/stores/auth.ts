@@ -77,14 +77,13 @@ async function populateRelayProfiles(pubkey: string): Promise<void> {
     }
   };
 
-  // Phase 1: NIP-65 relay list + contacts + mute list + indexers + relay sets (parallel)
-  const [relayList, contacts, muteList, dmRelayList, indexerList, relaySets] = await Promise.all([
+  // ── Phase 1: Core lists from indexer relays (parallel) ──
+  const [relayList, contacts, muteList, dmRelayList, indexerList] = await Promise.all([
     fetchRelayList(pubkey).catch(() => null),
     fetchContacts(pubkey).catch(() => null),
     fetchMuteList(pubkey).catch(() => null),
     fetchDmRelays(pubkey).catch(() => null),
     fetchIndexerList(pubkey).catch(() => null),
-    fetchRelaySets(pubkey).catch(() => []),
   ]);
 
   // Populate outbox/inbox from NIP-65
@@ -106,21 +105,6 @@ async function populateRelayProfiles(pubkey: string): Promise<void> {
     console.log(`[auth] Indexers (kind-10086): ${indexerList.indexerRelays.length}`);
   }
 
-  // Populate custom relay categories from kind-30002
-  if (relaySets && relaySets.length > 0) {
-    for (const set of relaySets) {
-      // Use the d-tag as the profile id, prefixed to avoid collision with builtins
-      const profileId = `cat_${set.id}`;
-      const idx = profiles.findIndex((p) => p.id === profileId);
-      if (idx >= 0) {
-        profiles[idx] = { ...profiles[idx], relays: set.relays };
-      } else {
-        profiles.push({ id: profileId, name: set.name, relays: set.relays, builtin: false });
-      }
-    }
-    console.log(`[auth] Relay sets (kind-30002): ${relaySets.length} categories`);
-  }
-
   // Store contacts (follow list) for feed use
   if (contacts) {
     localStorage.setItem("mycelium_contacts", JSON.stringify(contacts.follows));
@@ -133,7 +117,45 @@ async function populateRelayProfiles(pubkey: string): Promise<void> {
     console.log(`[auth] Mutes: ${muteList.mutedPubkeys.length} pubkeys, ${muteList.mutedHashtags.length} hashtags, ${muteList.mutedWords.length} words`);
   }
 
+  // Save Phase 1 results immediately so relay manager can render
   localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+
+  // ── Phase 2: Relay sets from user's own relays (kind-30002 lives on outbox) ──
+  // Build relay list from discovered outbox + indexers for the relay set query
+  const userRelays = new Set<string>();
+  if (relayList) {
+    for (const u of relayList.outbox) userRelays.add(u);
+    for (const u of relayList.inbox) userRelays.add(u);
+  }
+  if (indexerList) {
+    for (const u of indexerList.indexerRelays) userRelays.add(u);
+  }
+  // Always include fallback indexers
+  userRelays.add("wss://relay.nostr.band");
+  userRelays.add("wss://purplepag.es");
+
+  if (userRelays.size > 0) {
+    try {
+      const relaySets = await fetchRelaySets(pubkey, Array.from(userRelays));
+      if (relaySets.length > 0) {
+        for (const set of relaySets) {
+          const profileId = `cat_${set.id}`;
+          const idx = profiles.findIndex((p) => p.id === profileId);
+          if (idx >= 0) {
+            profiles[idx] = { ...profiles[idx], relays: set.relays };
+          } else {
+            profiles.push({ id: profileId, name: set.name, relays: set.relays, builtin: false });
+          }
+        }
+        console.log(`[auth] Relay sets (kind-30002): ${relaySets.length} categories from ${userRelays.size} relays`);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+      } else {
+        console.log(`[auth] No relay sets (kind-30002) found on ${userRelays.size} relays`);
+      }
+    } catch (err) {
+      console.warn("[auth] Relay sets fetch failed:", err);
+    }
+  }
 }
 
 let loginInProgress = false;
