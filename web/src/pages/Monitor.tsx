@@ -9,8 +9,8 @@ import { Separator } from "@/ui/Separator";
 import { Spinner } from "@/ui/Spinner";
 import {
   Globe, Search, Zap, Shield, Radio, RefreshCw, Server,
-  Activity, AlertCircle, ChevronDown, ChevronUp, ExternalLink,
-  Check, X, Filter,
+  Activity, AlertCircle, ChevronDown, ExternalLink,
+  Check, X,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
 
@@ -238,7 +238,7 @@ export default class Monitor extends Component<{}, MonitorState> {
   render() {
     const { stats, loading, error, search, filterStatus, filterSoftware, showFilters, lastRefresh, autoRefresh } = this.state;
     const filtered = this.getFiltered();
-    const SortIcon = this.state.sortAsc ? ChevronUp : ChevronDown;
+    const SortIcon = ChevronDown;
 
     return createElement("div", { className: "max-w-7xl mx-auto px-4 py-8 space-y-6" },
 
@@ -391,7 +391,7 @@ export default class Monitor extends Component<{}, MonitorState> {
 
   renderSortHeader(label: string, col: SortMode) {
     const active = this.state.sortBy === col;
-    const SortIcon = this.state.sortAsc ? ChevronUp : ChevronDown;
+    const SortIcon = ChevronDown;
     return createElement("button", {
       className: cn(
         "flex items-center gap-1 hover:text-foreground transition-colors text-left",
