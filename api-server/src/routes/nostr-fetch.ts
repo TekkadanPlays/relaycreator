@@ -280,4 +280,103 @@ router.get("/relaylist/:pubkey", async (req: Request, res: Response) => {
   }
 });
 
+// ─── GET /contacts/:pubkey — Fetch kind-3 follow/contact list ───────────────
+
+router.get("/contacts/:pubkey", async (req: Request, res: Response) => {
+  const pubkey = req.params.pubkey as string;
+  if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) {
+    res.status(400).json({ error: "Invalid pubkey (must be 64-char hex)" });
+    return;
+  }
+
+  try {
+    const events = await fetchEventsHttp({ kinds: [3], authors: [pubkey] });
+    if (events.length === 0) {
+      res.status(404).json({ error: "Contact list not found" });
+      return;
+    }
+
+    const event = events[0];
+    const follows: string[] = [];
+    for (const tag of event.tags) {
+      if (tag[0] === "p" && tag[1] && /^[0-9a-f]{64}$/.test(tag[1])) {
+        follows.push(tag[1]);
+      }
+    }
+
+    res.json({ follows, eventId: event.id, createdAt: event.created_at });
+  } catch (err) {
+    console.error("[nostr-fetch] Contact list fetch error:", err);
+    res.status(502).json({ error: "Failed to fetch contact list from indexers" });
+  }
+});
+
+// ─── GET /mutelist/:pubkey — Fetch kind-10000 mute list ─────────────────────
+
+router.get("/mutelist/:pubkey", async (req: Request, res: Response) => {
+  const pubkey = req.params.pubkey as string;
+  if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) {
+    res.status(400).json({ error: "Invalid pubkey (must be 64-char hex)" });
+    return;
+  }
+
+  try {
+    const events = await fetchEventsHttp({ kinds: [10000], authors: [pubkey] });
+    if (events.length === 0) {
+      res.status(404).json({ error: "Mute list not found" });
+      return;
+    }
+
+    const event = events[0];
+    const mutedPubkeys: string[] = [];
+    const mutedEventIds: string[] = [];
+    const mutedHashtags: string[] = [];
+    const mutedWords: string[] = [];
+
+    for (const tag of event.tags) {
+      if (tag[0] === "p" && tag[1]) mutedPubkeys.push(tag[1]);
+      else if (tag[0] === "e" && tag[1]) mutedEventIds.push(tag[1]);
+      else if (tag[0] === "t" && tag[1]) mutedHashtags.push(tag[1]);
+      else if (tag[0] === "word" && tag[1]) mutedWords.push(tag[1]);
+    }
+
+    res.json({ mutedPubkeys, mutedEventIds, mutedHashtags, mutedWords, createdAt: event.created_at });
+  } catch (err) {
+    console.error("[nostr-fetch] Mute list fetch error:", err);
+    res.status(502).json({ error: "Failed to fetch mute list from indexers" });
+  }
+});
+
+// ─── GET /dmrelays/:pubkey — Fetch kind-10050 DM relay list ─────────────────
+
+router.get("/dmrelays/:pubkey", async (req: Request, res: Response) => {
+  const pubkey = req.params.pubkey as string;
+  if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) {
+    res.status(400).json({ error: "Invalid pubkey (must be 64-char hex)" });
+    return;
+  }
+
+  try {
+    const events = await fetchEventsHttp({ kinds: [10050], authors: [pubkey] });
+    if (events.length === 0) {
+      res.status(404).json({ error: "DM relay list not found" });
+      return;
+    }
+
+    const event = events[0];
+    const dmRelays: string[] = [];
+    for (const tag of event.tags) {
+      if (tag[0] === "relay" && tag[1]) {
+        const url = tag[1].trim().replace(/\/$/, "");
+        if (url.startsWith("wss://") || url.startsWith("ws://")) dmRelays.push(url);
+      }
+    }
+
+    res.json({ dmRelays, createdAt: event.created_at });
+  } catch (err) {
+    console.error("[nostr-fetch] DM relay list fetch error:", err);
+    res.status(502).json({ error: "Failed to fetch DM relay list from indexers" });
+  }
+});
+
 export default router;

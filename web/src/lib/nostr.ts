@@ -101,3 +101,61 @@ export async function fetchProfiles(pubkeys: string[]): Promise<Record<string, N
 export function clearProfileCache() {
   profileCache.clear();
 }
+
+// ─── Kind-3: Follow/Contact List ────────────────────────────────────────────
+
+export interface ContactList {
+  follows: string[];
+  eventId: string;
+  createdAt: number;
+}
+
+export async function fetchContacts(pubkey: string): Promise<ContactList | null> {
+  try {
+    const res = await fetch(`/api/nostr/contacts/${pubkey}`);
+    if (!res.ok) return null;
+    return await res.json() as ContactList;
+  } catch (err) {
+    console.warn("[nostr] Contact list fetch failed for", pubkey.slice(0, 8) + "...", err);
+    return null;
+  }
+}
+
+// ─── Kind-10000: Mute List ──────────────────────────────────────────────────
+
+export interface MuteList {
+  mutedPubkeys: string[];
+  mutedEventIds: string[];
+  mutedHashtags: string[];
+  mutedWords: string[];
+  createdAt: number;
+}
+
+export async function fetchMuteList(pubkey: string): Promise<MuteList | null> {
+  try {
+    const res = await fetch(`/api/nostr/mutelist/${pubkey}`);
+    if (!res.ok) return null;
+    return await res.json() as MuteList;
+  } catch (err) {
+    console.warn("[nostr] Mute list fetch failed for", pubkey.slice(0, 8) + "...", err);
+    return null;
+  }
+}
+
+// ─── Kind-10050: DM Relay List ──────────────────────────────────────────────
+
+export interface DmRelayList {
+  dmRelays: string[];
+  createdAt: number;
+}
+
+export async function fetchDmRelays(pubkey: string): Promise<DmRelayList | null> {
+  try {
+    const res = await fetch(`/api/nostr/dmrelays/${pubkey}`);
+    if (!res.ok) return null;
+    return await res.json() as DmRelayList;
+  } catch (err) {
+    console.warn("[nostr] DM relay list fetch failed for", pubkey.slice(0, 8) + "...", err);
+    return null;
+  }
+}

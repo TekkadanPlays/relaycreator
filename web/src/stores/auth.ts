@@ -1,6 +1,6 @@
 import { createStore } from "../lib/store";
 import { api } from "../lib/api";
-import { fetchProfile, fetchRelayList, clearProfileCache } from "../lib/nostr";
+import { fetchProfile, fetchRelayList, fetchContacts, fetchMuteList, fetchDmRelays, clearProfileCache } from "../lib/nostr";
 
 export interface UserPermission {
   type: string;
@@ -60,36 +60,57 @@ async function enrichUser(user: User, retries = 2): Promise<User> {
 
 /** Fetch NIP-65 relay list and populate Relay Manager localStorage profiles */
 async function populateRelayProfiles(pubkey: string): Promise<void> {
+  const STORAGE_KEY = "mycelium_relay_profiles";
+  let profiles: { id: string; name: string; relays: string[]; builtin: boolean }[] = [];
   try {
-    const relayList = await fetchRelayList(pubkey);
-    if (!relayList) return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) profiles = JSON.parse(raw);
+  } catch { /* ignore */ }
 
-    const STORAGE_KEY = "mycelium_relay_profiles";
-    let profiles: { id: string; name: string; relays: string[]; builtin: boolean }[] = [];
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) profiles = JSON.parse(raw);
-    } catch { /* ignore */ }
+  const updateProfile = (id: string, name: string, relays: string[]) => {
+    if (relays.length === 0) return;
+    const idx = profiles.findIndex((p) => p.id === id);
+    if (idx >= 0) {
+      profiles[idx] = { ...profiles[idx], relays };
+    } else {
+      profiles.push({ id, name, relays, builtin: true });
+    }
+  };
 
-    // Update or create outbox/inbox profiles with NIP-65 data
-    const updateProfile = (id: string, name: string, relays: string[]) => {
-      if (relays.length === 0) return;
-      const idx = profiles.findIndex((p) => p.id === id);
-      if (idx >= 0) {
-        profiles[idx] = { ...profiles[idx], relays };
-      } else {
-        profiles.push({ id, name, relays, builtin: true });
-      }
-    };
+  // Phase 1: NIP-65 relay list + contacts + mute list (parallel)
+  const [relayList, contacts, muteList, dmRelayList] = await Promise.all([
+    fetchRelayList(pubkey).catch(() => null),
+    fetchContacts(pubkey).catch(() => null),
+    fetchMuteList(pubkey).catch(() => null),
+    fetchDmRelays(pubkey).catch(() => null),
+  ]);
 
+  // Populate outbox/inbox from NIP-65
+  if (relayList) {
     updateProfile("outbox", "Outbox", relayList.outbox);
     updateProfile("inbox", "Inbox", relayList.inbox);
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-    console.log(`[auth] NIP-65 relay list populated: ${relayList.outbox.length} outbox, ${relayList.inbox.length} inbox`);
-  } catch (err) {
-    console.warn("[auth] Failed to fetch NIP-65 relay list:", err);
+    console.log(`[auth] NIP-65: ${relayList.outbox.length} outbox, ${relayList.inbox.length} inbox`);
   }
+
+  // Populate DM relays from kind-10050
+  if (dmRelayList && dmRelayList.dmRelays.length > 0) {
+    updateProfile("dm", "DM Relays", dmRelayList.dmRelays);
+    console.log(`[auth] DM relays: ${dmRelayList.dmRelays.length}`);
+  }
+
+  // Store contacts (follow list) for feed use
+  if (contacts) {
+    localStorage.setItem("mycelium_contacts", JSON.stringify(contacts.follows));
+    console.log(`[auth] Contacts: ${contacts.follows.length} follows`);
+  }
+
+  // Store mute list for feed filtering
+  if (muteList) {
+    localStorage.setItem("mycelium_mutes", JSON.stringify(muteList));
+    console.log(`[auth] Mutes: ${muteList.mutedPubkeys.length} pubkeys, ${muteList.mutedHashtags.length} hashtags, ${muteList.mutedWords.length} words`);
+  }
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
 }
 
 let loginInProgress = false;
@@ -146,6 +167,8 @@ export function logout(): void {
   // Purge all user-related state
   localStorage.removeItem("token");
   localStorage.removeItem("mycelium_relay_profiles");
+  localStorage.removeItem("mycelium_contacts");
+  localStorage.removeItem("mycelium_mutes");
   clearProfileCache();
   authStore.set({ user: null, token: null, loading: false });
   console.log("[auth] Logged out, all user state purged");
