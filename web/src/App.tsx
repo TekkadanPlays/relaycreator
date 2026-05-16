@@ -37,10 +37,14 @@ export default class App extends Component<{}, AuthState> {
   }
 
   render() {
+    // Subdomain detection: monitor.mycelium.social renders Monitor at /
+    const isMonitorSubdomain = typeof window !== "undefined" && window.location.hostname.startsWith("monitor.");
+    const RootComponent = isMonitorSubdomain ? Monitor : Home;
+
     return createElement("div", null,
       createElement(Layout, null,
         createElement(Switch, null,
-          createElement(Route, { exact: true, path: "/", component: Home }),
+          createElement(Route, { exact: true, path: "/", component: RootComponent }),
           createElement(Route, { path: "/signup", component: CreateRelay }),
           createElement(Route, { path: "/relays/myrelays", render: () => createElement(Redirect, { to: "/admin" }) }),
           createElement(Route, { path: "/relays/:slug/settings", component: RelaySettings }),
