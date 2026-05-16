@@ -8,6 +8,7 @@ import CreateRelay from "./pages/CreateRelay";
 import RelayDetail from "./pages/RelayDetail";
 import RelaySettings from "./pages/RelaySettings";
 import Directory from "./pages/Directory";
+import Discover from "./pages/Discover";
 import FAQ from "./pages/FAQ";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
@@ -44,6 +45,7 @@ export default class App extends Component<{}, AuthState> {
           createElement(Route, { path: "/relays/:slug/settings", component: RelaySettings }),
           createElement(Route, { path: "/relays/:slug", component: RelayDetail }),
           createElement(Route, { path: "/directory", component: Directory }),
+          createElement(Route, { path: "/discover", component: Discover }),
           createElement(Route, { path: "/faq", component: FAQ }),
           createElement(Route, { path: "/nip05", component: Nip05 }),
           createElement(Route, { path: "/profile", component: Profile }),

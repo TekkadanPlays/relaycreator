@@ -36,6 +36,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Home",         href: "/",          Icon: Radio,         group: "Relay Tools" },
+  { label: "Discover",     href: "/discover",   Icon: Search,        group: "Relay Tools" },
   { label: "Directory",    href: "/directory",  Icon: Globe,         group: "Relay Tools" },
   { label: "Relays",       href: "/relays",     Icon: Radio,         group: "Relay Tools" },
   { label: "Docs",         href: "/docs",       Icon: FileText,      group: "Relay Tools" },
@@ -442,6 +443,7 @@ export default class Layout extends Component<LayoutProps, LayoutState> {
               createElement("span", { className: "text-xs" }, "GPLv3 Licensed"),
             ),
             createElement("div", { className: "flex items-center gap-4" },
+              createElement(Link, { to: "/discover", className: "text-xs hover:text-foreground transition-colors" }, "Discover"),
               createElement(Link, { to: "/directory", className: "text-xs hover:text-foreground transition-colors" }, "Directory"),
               createElement(Link, { to: "/relays", className: "text-xs hover:text-foreground transition-colors" }, "Relays"),
               createElement(Link, { to: "/faq", className: "text-xs hover:text-foreground transition-colors" }, "FAQ"),

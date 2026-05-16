@@ -73,7 +73,7 @@ function parseRstateRelay(raw: any): RelayInfo {
   // Determine online status: if lastOpenAt is within the last 30 minutes
   const now = Math.floor(Date.now() / 1000);
   const lastOpen = raw.lastOpenAt || 0;
-  const isOnline = lastOpen > 0 && (now - lastOpen) < 1800;
+  const isOnline = raw.online ?? (lastOpen > 0 && (now - lastOpen) < 1800);
 
   return {
     url,
@@ -86,7 +86,7 @@ function parseRstateRelay(raw: any): RelayInfo {
     countryName: countryCode,
     city: "",
     isOnline,
-    uptimePct: null,
+    uptimePct: raw.uptime ?? null,
     rttRead: raw.rtt?.read?.value ?? null,
     rttWrite: raw.rtt?.write?.value ?? null,
     lastSeen: raw.lastSeenAt ?? raw.updated_at ?? 0,
@@ -166,8 +166,8 @@ export default class Discover extends Component<{}, DiscoverState> {
       if (allRelays.length === 0) throw new Error("No relays returned");
       this.setState({ relays: allRelays, loading: false, rstateAvailable: true });
     } catch (err: any) {
-      console.error("rstate fetch failed:", err);
-      this.setState({ loading: false, error: "Could not connect to relay intelligence service. rstate may be unavailable.", rstateAvailable: false });
+      console.error("relay fetch failed:", err);
+      this.setState({ loading: false, error: "Could not connect to relay monitor. Service may be unavailable.", rstateAvailable: false });
     }
   }
 
@@ -218,7 +218,7 @@ export default class Discover extends Component<{}, DiscoverState> {
           ),
           createElement("p", { className: "text-sm text-muted-foreground mt-1" },
             "Browse the global Nostr relay network. Data from ",
-            createElement("span", { className: "font-medium" }, rstateAvailable ? "rstate" : "NIP-66 monitors"),
+            createElement("span", { className: "font-medium" }, rstateAvailable ? "native monitor" : "offline"),
             ".",
           ),
         ),
