@@ -49,24 +49,14 @@ const STORAGE_KEY = "mycelium_relay_profiles";
 const ACTIVE_KEY = "mycelium_active_profile";
 
 const DEFAULT_PROFILES: RelayProfile[] = [
-  {
-    id: "outbox",
-    name: "Outbox",
-    relays: ["wss://relay.damus.io", "wss://nos.lol", "wss://relay.nostr.band"],
-    builtin: true,
-  },
-  {
-    id: "inbox",
-    name: "Inbox",
-    relays: ["wss://relay.damus.io", "wss://nos.lol"],
-    builtin: true,
-  },
-  {
-    id: "indexers",
-    name: "Indexers",
-    relays: ["wss://relay.nostr.band", "wss://purplepag.es"],
-    builtin: true,
-  },
+  { id: "outbox", name: "Outbox", relays: [], builtin: true },
+  { id: "inbox", name: "Inbox", relays: [], builtin: true },
+  { id: "indexers", name: "Indexers", relays: ["wss://relay.nostr.band", "wss://purplepag.es"], builtin: true },
+  { id: "dm", name: "DM Relays", relays: [], builtin: true },
+  { id: "announcement", name: "Announcement", relays: [], builtin: true },
+  { id: "drafts", name: "Drafts", relays: [], builtin: true },
+  { id: "blossom", name: "Blossom", relays: [], builtin: true },
+  { id: "nip96", name: "NIP-96", relays: [], builtin: true },
 ];
 
 // ─── Persistence ────────────────────────────────────────────────────────────
@@ -74,9 +64,17 @@ const DEFAULT_PROFILES: RelayProfile[] = [
 function loadProfiles(): RelayProfile[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const saved: RelayProfile[] = JSON.parse(raw);
+      // Merge in any new built-in categories that didn't exist when user last saved
+      const savedIds = new Set(saved.map((p) => p.id));
+      for (const def of DEFAULT_PROFILES) {
+        if (!savedIds.has(def.id)) saved.push({ ...def });
+      }
+      return saved;
+    }
   } catch { /* ignore */ }
-  return DEFAULT_PROFILES;
+  return DEFAULT_PROFILES.map((p) => ({ ...p }));
 }
 
 function saveProfiles(profiles: RelayProfile[]) {
