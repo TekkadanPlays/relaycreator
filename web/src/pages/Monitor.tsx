@@ -4,48 +4,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/ui/Card";
 import { Badge } from "@/ui/Badge";
 import { Input } from "@/ui/Input";
 import { Button } from "@/ui/Button";
-import { Separator } from "@/ui/Separator";
 import { Spinner } from "@/ui/Spinner";
 import {
-  Globe, Search, Zap, Shield, Radio, RefreshCw, Server,
-  Activity, AlertCircle, ChevronDown, ExternalLink,
-  Check, X,
+  Globe, Search, Zap, Shield, RefreshCw, Server,
+  Activity, AlertCircle, ChevronDown,
 } from "@/lib/icons";
 import { cn } from "@/ui/utils";
+import {
+  type RelayState, type NetworkStats, type SortMode, type FilterMode,
+  fetchAllRelays, computeStats,
+  uptimeColor, rttColor, timeAgo,
+} from "./monitor/types";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface RelayState {
-  url: string;
-  name: string;
-  online: boolean;
-  software: string;
-  version: string;
-  nips: number[];
-  uptimePct: number;
-  rttOpen: number;
-  rttRead: number;
-  rttWrite: number;
-  country: string;
-  lastSeen: number;
-}
-
-interface SoftwareGroup {
-  name: string;
-  count: number;
-}
-
-interface NetworkStats {
-  total: number;
-  online: number;
-  offline: number;
-  avgUptime: number;
-  avgRtt: number;
-  softwareGroups: SoftwareGroup[];
-}
-
-type SortMode = "url" | "uptime" | "rtt" | "software" | "nips";
-type FilterMode = "all" | "online" | "offline";
+// ─── Component State ────────────────────────────────────────────────────────
 
 interface MonitorState {
   relays: RelayState[];
@@ -62,87 +33,6 @@ interface MonitorState {
   autoRefresh: boolean;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function parseRelay(raw: any): RelayState {
-  const url = raw.relayUrl || raw.url || "";
-  let sw = raw.software?.family?.value || "";
-  if (sw.includes("/") || sw.includes("://")) {
-    sw = sw.replace(/^git\+/, "").replace(/\.git$/, "");
-    const parts = sw.split("/").filter(Boolean);
-    sw = parts[parts.length - 1] || sw;
-  }
-  const ver = raw.software?.version?.value || "";
-  const nips: number[] = Array.isArray(raw.nips?.list) ? raw.nips.list : [];
-  const now = Math.floor(Date.now() / 1000);
-  const lastOpen = raw.lastOpenAt || 0;
-  const isOnline = raw.online ?? (lastOpen > 0 && (now - lastOpen) < 1800);
-  const uptimePct = typeof raw.uptimePercentage === "number" ? raw.uptimePercentage
-    : raw.uptime?.allTime?.value ? raw.uptime.allTime.value * 100 : 0;
-
-  return {
-    url,
-    name: url.replace("wss://", "").replace("ws://", "").replace(/\/$/, ""),
-    online: isOnline,
-    software: sw,
-    version: ver,
-    nips,
-    uptimePct,
-    rttOpen: raw.rtt?.open?.value || 0,
-    rttRead: raw.rtt?.read?.value || 0,
-    rttWrite: raw.rtt?.write?.value || 0,
-    country: raw.country?.value || "",
-    lastSeen: lastOpen,
-  };
-}
-
-function computeStats(relays: RelayState[]): NetworkStats {
-  const online = relays.filter((r) => r.online).length;
-  const offline = relays.length - online;
-  const withUptime = relays.filter((r) => r.uptimePct > 0);
-  const avgUptime = withUptime.length > 0
-    ? withUptime.reduce((s, r) => s + r.uptimePct, 0) / withUptime.length
-    : 0;
-  const withRtt = relays.filter((r) => r.rttOpen > 0);
-  const avgRtt = withRtt.length > 0
-    ? withRtt.reduce((s, r) => s + r.rttOpen, 0) / withRtt.length
-    : 0;
-
-  const swMap = new Map<string, number>();
-  for (const r of relays) {
-    if (r.software) {
-      swMap.set(r.software, (swMap.get(r.software) || 0) + 1);
-    }
-  }
-  const softwareGroups: SoftwareGroup[] = Array.from(swMap)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
-
-  return { total: relays.length, online, offline, avgUptime, avgRtt, softwareGroups };
-}
-
-function uptimeColor(pct: number): string {
-  if (pct >= 99) return "text-emerald-500";
-  if (pct >= 95) return "text-emerald-400";
-  if (pct >= 80) return "text-amber-400";
-  return "text-red-400";
-}
-
-function rttColor(ms: number): string {
-  if (ms <= 100) return "text-emerald-400";
-  if (ms <= 300) return "text-amber-400";
-  return "text-red-400";
-}
-
-function timeAgo(ts: number): string {
-  if (!ts) return "never";
-  const diff = Math.floor(Date.now() / 1000) - ts;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default class Monitor extends Component<{}, MonitorState> {
@@ -153,7 +43,7 @@ export default class Monitor extends Component<{}, MonitorState> {
     super(props);
     this.state = {
       relays: [],
-      stats: { total: 0, online: 0, offline: 0, avgUptime: 0, avgRtt: 0, softwareGroups: [] },
+      stats: { total: 0, online: 0, offline: 0, avgUptime: 0, medianRtt: 0, softwareGroups: [], geoGroups: [], nipAdoption: [] },
       loading: true,
       error: "",
       search: "",
@@ -182,25 +72,7 @@ export default class Monitor extends Component<{}, MonitorState> {
   async fetchRelays() {
     this.setState({ loading: true, error: "" });
     try {
-      // Paginated fetch matching Discover page pattern
-      let allRelays: RelayState[] = [];
-      let offset = 0;
-      const limit = 200;
-      let total = Infinity;
-
-      while (offset < total) {
-        const res = await fetch(`/api/rstate/relays?limit=${limit}&offset=${offset}&sortBy=lastSeen&sortOrder=desc`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        total = data.total ?? 0;
-        const rawList = Array.isArray(data.relays) ? data.relays : [];
-        if (rawList.length === 0) break;
-        allRelays = allRelays.concat(rawList.map(parseRelay).filter((r: RelayState) => r.url));
-        offset += limit;
-        if (allRelays.length >= 5000) break;
-      }
-
-      if (allRelays.length === 0) throw new Error("No relays returned from rstate");
+      const allRelays = await fetchAllRelays();
       const stats = computeStats(allRelays);
       this.setState({ relays: allRelays, stats, loading: false, lastRefresh: Date.now() });
     } catch (err: any) {
@@ -250,9 +122,8 @@ export default class Monitor extends Component<{}, MonitorState> {
   }
 
   render() {
-    const { stats, loading, error, search, filterStatus, filterSoftware, showFilters, lastRefresh, autoRefresh } = this.state;
+    const { stats, loading, error, search, filterStatus, filterSoftware, lastRefresh } = this.state;
     const filtered = this.getFiltered();
-    const SortIcon = ChevronDown;
 
     return createElement("div", { className: "max-w-7xl mx-auto px-4 py-8 space-y-6" },
 
@@ -289,9 +160,9 @@ export default class Monitor extends Component<{}, MonitorState> {
         this.renderStatCard("Avg Uptime",
           stats.avgUptime > 0 ? `${stats.avgUptime.toFixed(1)}%` : "—",
           Shield, uptimeColor(stats.avgUptime)),
-        this.renderStatCard("Avg RTT",
-          stats.avgRtt > 0 ? `${Math.round(stats.avgRtt)}ms` : "—",
-          Zap, rttColor(stats.avgRtt)),
+        this.renderStatCard("Median RTT",
+          stats.medianRtt > 0 ? `${Math.round(stats.medianRtt)}ms` : "—",
+          Zap, rttColor(stats.medianRtt)),
       ),
 
       // ── Software Distribution ──
@@ -375,14 +246,14 @@ export default class Monitor extends Component<{}, MonitorState> {
             // Rows
             createElement("div", { className: "divide-y divide-border/50 max-h-[600px] overflow-y-auto" },
               filtered.length > 0
-                ? filtered.slice(0, 200).map((relay) => this.renderRelayRow(relay))
+                ? filtered.slice(0, 500).map((relay) => this.renderRelayRow(relay))
                 : createElement("div", { className: "px-4 py-12 text-center text-sm text-muted-foreground" },
                     "No relays match your filters.",
                   ),
             ),
             // Footer
             createElement("div", { className: "px-4 py-2 bg-muted/30 border-t text-xs text-muted-foreground" },
-              `Showing ${Math.min(filtered.length, 200)} of ${filtered.length} relays`,
+              `Showing ${Math.min(filtered.length, 500)} of ${filtered.length} relays`,
             ),
           )
         : null,
@@ -405,7 +276,6 @@ export default class Monitor extends Component<{}, MonitorState> {
 
   renderSortHeader(label: string, col: SortMode) {
     const active = this.state.sortBy === col;
-    const SortIcon = ChevronDown;
     return createElement("button", {
       className: cn(
         "flex items-center gap-1 hover:text-foreground transition-colors text-left",
@@ -414,14 +284,17 @@ export default class Monitor extends Component<{}, MonitorState> {
       onClick: () => this.toggleSort(col),
     },
       label,
-      active ? createElement(SortIcon, { className: "size-3" }) : null,
+      active ? createElement(ChevronDown, { className: "size-3" }) : null,
     );
   }
 
   renderRelayRow(relay: RelayState) {
-    return createElement("div", {
+    // /monitor/wss/relay.example.com → MonitorDetail reconstructs the URL
+    const detailPath = `/monitor/${relay.url.replace("://", "/")}`;
+    return createElement("a", {
       key: relay.url,
-      className: "grid grid-cols-[1fr_80px_80px_100px_60px] gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors items-center text-sm",
+      href: detailPath,
+      className: "grid grid-cols-[1fr_80px_80px_100px_60px] gap-2 px-4 py-2.5 hover:bg-muted/30 transition-colors items-center text-sm cursor-pointer no-underline text-inherit",
     },
       // URL + status
       createElement("div", { className: "flex items-center gap-2 min-w-0" },
