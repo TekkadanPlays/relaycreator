@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import prisma from "../lib/prisma.js";
 import { verifyLoginEvent, type NostrEvent } from "../lib/nostr.js";
-import { signToken, requireAuth } from "../middleware/auth.js";
+import { signToken, requireAuth, setAuthCookie, clearAuthCookie } from "../middleware/auth.js";
 import { z } from "zod";
 import { validateBody } from "../middleware/validate.js";
 import { getEnv } from "../lib/env.js";
@@ -123,6 +123,9 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
 
   const token = signToken(pubkey, user.id);
 
+  // Set cross-subdomain SSO cookie
+  setAuthCookie(res, token);
+
   res.json({
     token,
     user: {
@@ -133,6 +136,15 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
       permissions: permissions.map((p) => ({ type: p.type, disclaimer_accepted: p.disclaimer_accepted })),
     },
   });
+});
+
+/**
+ * POST /auth/logout
+ * Clear the SSO cookie.
+ */
+router.post("/logout", (_req: Request, res: Response) => {
+  clearAuthCookie(res);
+  res.json({ ok: true });
 });
 
 /**

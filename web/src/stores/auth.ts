@@ -24,9 +24,15 @@ export interface AuthState {
   loading: boolean;
 }
 
+/** Read the mycelium_token cookie (set by server with Domain=.mycelium.social) */
+function getCookieToken(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)mycelium_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export const authStore = createStore<AuthState>({
   user: null,
-  token: localStorage.getItem("token"),
+  token: getCookieToken() || localStorage.getItem("token"),
   loading: true,
 });
 
@@ -209,6 +215,8 @@ export async function login(): Promise<void> {
 }
 
 export function logout(): void {
+  // Clear the SSO cookie via server
+  api.post("/auth/logout", {}).catch(() => {});
   // Purge all user-related state
   localStorage.removeItem("token");
   localStorage.removeItem("mycelium_relay_profiles");
@@ -220,7 +228,7 @@ export function logout(): void {
 }
 
 export async function checkAuth(): Promise<void> {
-  const token = localStorage.getItem("token");
+  const token = getCookieToken() || localStorage.getItem("token");
   if (!token) {
     authStore.set({ loading: false });
     return;
